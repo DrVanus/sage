@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Home Screen name -->
+	<key>CFBundleDisplayName</key>
+	<string>CryptoSage</string>
+
+	<!-- SwiftUI lifecycle (no storyboard) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string></string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+
+	<!-- Privacy: Photos access for PhotosPicker in AI chat -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow CryptoSage to access your photos to attach images in chat.</string>
+
+	<!-- ATS: keep strict globally; allow mixed content inside web views (TradingView/news) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
+
+	<!-- App Store encryption metadata -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- Optional config placeholders read by ThreeCommasConfig -->
+	<key>3COMMAS_READ_ONLY_KEY</key>
+	<string></string>
+	<key>3COMMAS_READ_ONLY_SECRET</key>
+	<string></string>
+	<key>3COMMAS_TRADING_API_KEY</key>
+	<string></string>
+	<key>3COMMAS_TRADING_SECRET</key>
+	<string></string>
+	<key>3COMMAS_ACCOUNT_ID</key>
+	<string></string>
+</dict>
+</plist>

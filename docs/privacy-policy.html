@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoSage - Privacy Policy</title>
+    <style>
+        :root {
+            --gold: #D4AF37;
+            --gold-light: #F5D98E;
+            --dark-bg: #131211;
+            --card-bg: #1a1918;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border: #2a2928;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-top: 20px;
+            color: var(--text-primary);
+        }
+        
+        .last-updated {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        
+        section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        h2 {
+            color: var(--gold);
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        p, li {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        
+        ul {
+            padding-left: 20px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .highlight {
+            background: rgba(212, 175, 55, 0.1);
+            border-left: 3px solid var(--gold);
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        
+        .highlight p {
+            margin-bottom: 0;
+            color: var(--text-primary);
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+            color: var(--text-secondary);
+        }
+        
+        a {
+            color: var(--gold);
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            section {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">CryptoSage</div>
+            <h1>Privacy Policy</h1>
+            <p class="last-updated">Last Updated: January 2026</p>
+        </header>
+
+        <section>
+            <div class="badge">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                </svg>
+                Privacy-First Design
+            </div>
+            <h2>1. Information We Collect</h2>
+            <p><strong>Information you provide directly:</strong></p>
+            <ul>
+                <li>Display name and preferences</li>
+                <li>Portfolio data from connected exchanges (via read-only API)</li>
+                <li>Transaction history you choose to import</li>
+                <li>AI chat conversations (processed via OpenAI)</li>
+            </ul>
+            
+            <p><strong>Automatically collected (anonymous):</strong></p>
+            <ul>
+                <li>Device type and iOS version</li>
+                <li>App usage analytics (screens viewed, features used)</li>
+                <li>Crash reports and performance metrics</li>
+                <li>Session duration and frequency</li>
+            </ul>
+            
+            <div class="highlight">
+                <p><strong>We do NOT collect:</strong> Your name, email, contact information, precise location, contacts, photos, or exchange passwords (only encrypted API keys).</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>2. How We Use Your Information</h2>
+            <p>Your information is used to:</p>
+            <ul>
+                <li>Provide and improve CryptoSage AI services</li>
+                <li>Display your portfolio from connected exchanges</li>
+                <li>Generate personalized AI insights</li>
+                <li>Send price alerts and notifications you configure</li>
+                <li>Fix bugs and improve app stability</li>
+                <li>Understand which features to prioritize</li>
+            </ul>
+            <p>We use TelemetryDeck for anonymous analytics and Sentry for crash reporting. Both services are privacy-focused and do not track you across apps.</p>
+        </section>
+
+        <section>
+            <h2>3. Data Security</h2>
+            <p>We implement industry-standard security measures:</p>
+            <ul>
+                <li>API keys are encrypted in Apple's Secure Keychain</li>
+                <li>All data transmission uses TLS 1.3 encryption</li>
+                <li>We never store your exchange passwords</li>
+                <li>Read-only API permissions by default</li>
+                <li>Biometric authentication available</li>
+                <li>Screen protection in app switcher</li>
+                <li>No data stored on our servers (local-first architecture)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>4. Data Sharing</h2>
+            <div class="highlight">
+                <p><strong>We do NOT sell your personal data.</strong></p>
+            </div>
+            
+            <p><strong>We may share anonymized, aggregated data with:</strong></p>
+            <ul>
+                <li>Analytics providers (TelemetryDeck) for app improvement</li>
+                <li>Crash reporting services (Sentry) for bug fixes</li>
+            </ul>
+            
+            <p><strong>We may share data when required by:</strong></p>
+            <ul>
+                <li>Legal authorities with valid legal process</li>
+                <li>To protect our rights or safety</li>
+            </ul>
+            
+            <p><strong>Third-party services we integrate with:</strong></p>
+            <ul>
+                <li>OpenAI (AI chat - your prompts are sent to their API)</li>
+                <li>CoinGecko (market data, prices, coin information)</li>
+                <li>Binance (real-time prices, order books, charts)</li>
+                <li>TradingView (charts and technical analysis, if enabled)</li>
+                <li>Your connected exchanges (Coinbase, Binance, Kraken, etc.)</li>
+            </ul>
+            <p>These services receive API requests from your device. Your IP address may be logged by these services per their respective privacy policies.</p>
+        </section>
+
+        <section>
+            <h2>5. Your Rights</h2>
+            <p>You have the right to:</p>
+            <ul>
+                <li>Access your personal data stored locally</li>
+                <li>Request data deletion (clear app data)</li>
+                <li>Export your portfolio data</li>
+                <li>Opt out of analytics (Settings > Privacy)</li>
+                <li>Disconnect linked exchanges at any time</li>
+                <li>Delete your AI chat history</li>
+            </ul>
+            <p>To exercise these rights, use the in-app settings or contact us at the email below.</p>
+        </section>
+
+        <section>
+            <h2>6. California Privacy Rights (CCPA)</h2>
+            <p>If you are a California resident, you have the right to:</p>
+            <ul>
+                <li>Know what personal information we collect</li>
+                <li>Request deletion of your personal information</li>
+                <li>Opt out of the "sale" of personal information</li>
+            </ul>
+            <div class="highlight">
+                <p><strong>CryptoSage does NOT sell your personal information.</strong></p>
+            </div>
+            <p>To opt out of analytics collection, go to Settings > Privacy & Analytics and disable "Share Analytics".</p>
+            <p>To submit a data access or deletion request, contact <a href="mailto:privacy@cryptosage.ai">privacy@cryptosage.ai</a>.</p>
+        </section>
+
+        <section>
+            <h2>7. European Privacy Rights (GDPR)</h2>
+            <p>If you are in the European Economic Area, you have:</p>
+            <ul>
+                <li>Right to access your data</li>
+                <li>Right to rectification</li>
+                <li>Right to erasure ("right to be forgotten")</li>
+                <li>Right to restrict processing</li>
+                <li>Right to data portability</li>
+                <li>Right to object to processing</li>
+            </ul>
+            <p>Our analytics provider (TelemetryDeck) is EU-based and GDPR-compliant by design.</p>
+        </section>
+
+        <section>
+            <h2>8. Children's Privacy</h2>
+            <p>CryptoSage is not intended for users under 18. We do not knowingly collect information from children. If you believe a child has provided us with personal information, please contact us immediately.</p>
+        </section>
+
+        <section>
+            <h2>9. Data Retention</h2>
+            <p><strong>Local data (stored on your device):</strong></p>
+            <ul>
+                <li>Portfolio data: Kept until you disconnect the exchange</li>
+                <li>AI chat history: Kept until you delete it manually</li>
+                <li>Preferences and settings: Kept until you reset the app</li>
+                <li>Price alerts: Kept until you delete them</li>
+            </ul>
+            
+            <p><strong>Analytics data (TelemetryDeck):</strong></p>
+            <ul>
+                <li>Retained for 90 days, then automatically deleted</li>
+                <li>Fully anonymous and not linked to your identity</li>
+            </ul>
+            
+            <p><strong>Crash reports (Sentry):</strong></p>
+            <ul>
+                <li>Retained for 90 days, then automatically deleted</li>
+                <li>Contains no personal information</li>
+            </ul>
+            
+            <p>You can delete all local data at any time by uninstalling the app or clearing app data in iOS Settings.</p>
+        </section>
+
+        <section>
+            <h2>10. Changes to This Policy</h2>
+            <p>We may update this Privacy Policy periodically. We will notify you of significant changes through the app or by other means. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+        </section>
+
+        <section>
+            <h2>11. Contact Us</h2>
+            <p>For privacy-related inquiries:</p>
+            <p><strong>Email:</strong> <a href="mailto:privacy@cryptosage.ai">privacy@cryptosage.ai</a></p>
+            <p>For data access or deletion requests, include "Data Request" in your subject line.</p>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 CryptoSage. All rights reserved.</p>
+            <p style="margin-top: 10px;">
+                <a href="terms.html">Terms of Service</a> | 
+                <a href="privacy-policy.html">Privacy Policy</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

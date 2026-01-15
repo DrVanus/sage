@@ -1,116 +1,52 @@
 import SwiftUI
 
-enum CustomTab {
-    case home, market, trade, portfolio, ai
+fileprivate enum BrandGold {
+    static let light = BrandColors.goldLight
+    static let dark  = BrandColors.goldBase
+    static let horizontalGradient: LinearGradient = BrandColors.goldHorizontal
+}
+
+enum CustomTab: String, Hashable {
+    case home = "home"
+    case market = "market"
+    case trade = "trade"
+    case portfolio = "portfolio"
+    case ai = "ai"
 }
 
 struct CustomTabBar: View {
     @Binding var selectedTab: CustomTab
+    @EnvironmentObject var appState: AppState
     
+    @State private var haptics = UISelectionFeedbackGenerator()
+    @State private var lastTapTime: TimeInterval = 0
+
     var body: some View {
-        HStack {
-            
-            // HOME
-            Button(action: {
-                selectedTab = .home
-            }) {
-                VStack(spacing: 2) {
-                    Image(systemName: selectedTab == .home ? "house.circle.fill" : "house.circle")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                    Text("Home")
-                        .font(.caption)
-                }
-                .scaleEffect(selectedTab == .home ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .foregroundColor(selectedTab == .home ? Color.yellow : Color.secondary)
-            
-            Spacer()
-            
-            // MARKET
-            Button(action: {
-                selectedTab = .market
-            }) {
-                VStack(spacing: 2) {
-                    Image(systemName: selectedTab == .market ? "chart.line.uptrend.xyaxis" : "chart.line.downtrend.xyaxis")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                    Text("Market")
-                        .font(.caption)
-                }
-                .scaleEffect(selectedTab == .market ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .foregroundColor(selectedTab == .market ? Color.yellow : Color.secondary)
-            
-            Spacer()
-            
-            // TRADE
-            Button(action: {
-                selectedTab = .trade
-            }) {
-                VStack(spacing: 2) {
-                    Image(systemName: selectedTab == .trade ? "arrow.left.arrow.right.circle.fill" : "arrow.left.arrow.right.circle")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                    Text("Trading")
-                        .font(.caption)
-                }
-                .scaleEffect(selectedTab == .trade ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .foregroundColor(selectedTab == .trade ? Color.yellow : Color.secondary)
-            
-            Spacer()
-            
-            // PORTFOLIO
-            Button(action: {
-                selectedTab = .portfolio
-            }) {
-                VStack(spacing: 2) {
-                    Image(systemName: selectedTab == .portfolio ? "chart.pie.fill" : "chart.pie")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                    Text("Portfolio")
-                        .font(.caption)
-                }
-                .scaleEffect(selectedTab == .portfolio ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .foregroundColor(selectedTab == .portfolio ? Color.yellow : Color.secondary)
-            
-            Spacer()
-            
-            // AI CHAT
-            Button(action: {
-                selectedTab = .ai
-            }) {
-                VStack(spacing: 2) {
-                    Image(systemName: selectedTab == .ai ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                    Text("AI Chat")
-                        .font(.caption)
-                }
-                .scaleEffect(selectedTab == .ai ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .foregroundColor(selectedTab == .ai ? Color.yellow : Color.secondary)
+        HStack(spacing: 0) {
+            tabItem(.home,
+                    isSelected: selectedTab == .home,
+                    selectedImage: "house.circle.fill", normalImage: "house.circle",
+                    title: "Home")
+            tabItem(.market,
+                    isSelected: selectedTab == .market,
+                    selectedImage: "chart.line.uptrend.xyaxis", normalImage: "chart.line.downtrend.xyaxis",
+                    title: "Market")
+            tabItem(.trade,
+                    isSelected: selectedTab == .trade,
+                    selectedImage: "arrow.left.arrow.right.circle.fill", normalImage: "arrow.left.arrow.right.circle",
+                    title: "Trading")
+            tabItem(.portfolio,
+                    isSelected: selectedTab == .portfolio,
+                    selectedImage: "chart.pie.fill", normalImage: "chart.pie",
+                    title: "Portfolio")
+            tabItem(.ai,
+                    isSelected: selectedTab == .ai,
+                    selectedImage: "bubble.left.and.bubble.right.fill", normalImage: "bubble.left.and.bubble.right",
+                    title: "AI Chat")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-        .frame(height: 60)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity)
+        .frame(height: 64)
         .background(Color(UIColor.systemBackground))
         .overlay(
             Rectangle()
@@ -118,6 +54,98 @@ struct CustomTabBar: View {
                 .foregroundColor(Color.gray.opacity(0.3)),
             alignment: .top
         )
+        // Removed .drawingGroup(opaque: false) - causes expensive GPU compositing on every frame
+        .onAppear { haptics.prepare() }
+    }
+    
+    @ViewBuilder
+    private func tabItem(_ tab: CustomTab,
+                         isSelected: Bool,
+                         selectedImage: String,
+                         normalImage: String,
+                         title: String) -> some View {
+        Button(action: {
+            // Debounce rapid taps to avoid double state churn
+            let now = CACurrentMediaTime()
+            if now - lastTapTime < 0.15 { return }
+            lastTapTime = now
+            haptics.selectionChanged()
+            haptics.prepare()
+            
+            if selectedTab == tab {
+                // Pop to root for the current tab
+                switch tab {
+                case .home:
+                    appState.homeNavPath = NavigationPath()
+                    // Trigger dismissal of legacy NavigationLink-based subviews
+                    appState.dismissHomeSubviews = true
+                case .market: appState.marketNavPath = NavigationPath()
+                case .trade: appState.tradeNavPath = NavigationPath()
+                case .portfolio: appState.portfolioNavPath = NavigationPath()
+                case .ai: appState.aiNavPath = NavigationPath()
+                }
+            } else {
+                selectedTab = tab
+            }
+        }) {
+            tabItemContent(
+                isSelected: isSelected,
+                selectedImage: selectedImage,
+                normalImage: normalImage,
+                title: title
+            )
+        }
+        .buttonStyle(.plain)
+        .id(tab)
+        .accessibilityLabel(title)
+        .accessibilityHint("Switch to \(title) tab")
+    }
+    
+    @ViewBuilder
+    private func tabItemContent(
+        isSelected: Bool,
+        selectedImage: String,
+        normalImage: String,
+        title: String
+    ) -> some View {
+        let iconName = isSelected ? selectedImage : normalImage
+        
+        VStack(spacing: 4) {
+            // Icon with gold gradient when selected, secondary color when not
+            // Using Group to handle the gradient vs color styling cleanly
+            Group {
+                if isSelected {
+                    Image(systemName: iconName)
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(BrandGold.horizontalGradient)
+                } else {
+                    Image(systemName: iconName)
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .font(.system(size: 22, weight: .semibold))
+            .frame(height: 24)
+            .animation(.none, value: isSelected) // Prevent interpolation delay
+            
+            // Text label with gold gradient when selected
+            Group {
+                if isSelected {
+                    Text(title)
+                        .foregroundStyle(BrandGold.horizontalGradient)
+                } else {
+                    Text(title)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .font(.system(size: 10, weight: .medium))
+            .fixedSize(horizontal: true, vertical: true)
+            .frame(height: 12)
+            .animation(.none, value: isSelected) // Prevent interpolation delay
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 52)
+        .contentShape(Rectangle())
     }
 }
 
