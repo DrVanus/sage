@@ -373,26 +373,13 @@ struct MarketSentimentView: View {
             // Header section - single row with title and subtitle
             HStack(alignment: .center, spacing: 8) {
                 GoldHeaderGlyph(systemName: "gauge.with.dots.needle.50percent")
-
+                
                 Text("Market Sentiment")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(DS.Adaptive.textPrimary)
-
-                // Live status badge — moved here from timing row to save vertical space
-                if let status = sentimentDataStatus {
-                    HStack(spacing: 3) {
-                        Circle()
-                            .fill(status.color)
-                            .frame(width: 5, height: 5)
-                        Text(status.label)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(status.color)
-                            .lineLimit(1)
-                    }
-                }
-
+                
                 Spacer()
-
+                
                 Text("Real‑time Fear & Greed")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(DS.Adaptive.textTertiary)
@@ -655,10 +642,10 @@ struct MarketSentimentView: View {
                         .stroke(DS.Adaptive.strokeStrong, lineWidth: 0.6)
                 )
             }
-
+            
             Spacer(minLength: 4)
 
-            // Right: Compact source pill
+            // Right: Source pill (compact name)
             // PROFESSIONAL UX: Shows active state when picker is open
             // FIX: Use overlay with GeometryReader to capture frame at tap time
             HStack(spacing: 4) {
@@ -725,95 +712,101 @@ struct MarketSentimentView: View {
     }
 
     private func timingAndSourceTwoRow() -> some View {
-        HStack(alignment: .center, spacing: 6) {
-            // Timing chip
+        VStack(alignment: .leading, spacing: 6) {
+            // Row 1: timing chip full-width
             let timingText = buildTimingText()
-            if !timingText.isEmpty {
-                HStack(spacing: 5) {
-                    Image(systemName: "clock")
+            if !timingText.isEmpty || sentimentDataStatus != nil {
+                HStack(spacing: 6) {
+                    if !timingText.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "clock")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(DS.Adaptive.textTertiary)
+                                .accessibilityHidden(true)
+                            Text(timingText)
+                                .font(.caption2)
+                                .foregroundColor(DS.Adaptive.textSecondary)
+                                .lineLimit(1)
+                                .allowsTightening(true)
+                                .truncationMode(.middle)
+                                .minimumScaleFactor(0.7)
+                                .monospacedDigit()
+                                .contentTransition(.opacity)
+                                .id(vm.selectedSource)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(DS.Adaptive.chipBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(DS.Adaptive.strokeStrong, lineWidth: 0.6)
+                        )
+                    }
+                    
+                }
+            }
+
+            // Row 2: source pill aligned right
+            HStack {
+                Spacer(minLength: 4)
+                // FIX: Use overlay with GeometryReader to capture frame at tap time
+                HStack(spacing: 4) {
+                    Text("Source")
                         .font(.caption2.weight(.semibold))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                        .accessibilityHidden(true)
-                    Text(timingText)
+                        // PROFESSIONAL UX: Gold text when active
+                        .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textSecondary)
+                    Text("· \(vm.sourceDisplayNameWithFallback)")
                         .font(.caption2)
-                        .foregroundColor(DS.Adaptive.textSecondary)
+                        // PROFESSIONAL UX: Gold text when active
+                        .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textSecondary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.65)
                         .allowsTightening(true)
-                        .truncationMode(.middle)
-                        .minimumScaleFactor(0.7)
-                        .monospacedDigit()
                         .contentTransition(.opacity)
                         .id(vm.selectedSource)
+                    // PROFESSIONAL UX: Chevron flips up when active
+                    Image(systemName: showSourcePopover ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textTertiary)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(DS.Adaptive.chipBackground)
+                // PROFESSIONAL UX: Gold tint background when active
+                .background(showSourcePopover ? BrandColors.goldBase.opacity(0.12) : DS.Adaptive.chipBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(DS.Adaptive.strokeStrong, lineWidth: 0.6)
+                        // PROFESSIONAL UX: Gold border when active
+                        .stroke(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.strokeStrong, lineWidth: showSourcePopover ? 1.0 : 0.6)
+                )
+                .animation(.easeOut(duration: 0.15), value: showSourcePopover)
+                // FIX: Capture frame immediately on appear AND on tap via overlay
+                .overlay(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Capture frame at tap time - guarantees accurate position
+                                let frame = proxy.frame(in: .global)
+                                sourceButtonFrame = frame
+                                #if os(iOS)
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                #endif
+                                // Set both local state (for button styling) and VM state (for HomeView overlay)
+                                showSourcePopover = true
+                                vm.showSourcePicker = true
+                            }
+                            .onAppear {
+                                // Also eagerly capture on appear for safety
+                                DispatchQueue.main.async {
+                                    sourceButtonFrame = proxy.frame(in: .global)
+                                }
+                            }
+                    }
                 )
             }
-
-            Spacer(minLength: 4)
-
-            // Source pill aligned right
-            // FIX: Use overlay with GeometryReader to capture frame at tap time
-            HStack(spacing: 4) {
-                Text("Source")
-                    .font(.caption2.weight(.semibold))
-                    // PROFESSIONAL UX: Gold text when active
-                    .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textSecondary)
-                Text("· \(vm.sourceDisplayNameWithFallback)")
-                    .font(.caption2)
-                    // PROFESSIONAL UX: Gold text when active
-                    .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .minimumScaleFactor(0.65)
-                    .allowsTightening(true)
-                    .contentTransition(.opacity)
-                    .id(vm.selectedSource)
-                // PROFESSIONAL UX: Chevron flips up when active
-                Image(systemName: showSourcePopover ? "chevron.up" : "chevron.down")
-                    .font(.caption2)
-                    .foregroundColor(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.textTertiary)
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            // PROFESSIONAL UX: Gold tint background when active
-            .background(showSourcePopover ? BrandColors.goldBase.opacity(0.12) : DS.Adaptive.chipBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    // PROFESSIONAL UX: Gold border when active
-                    .stroke(showSourcePopover ? BrandColors.goldBase : DS.Adaptive.strokeStrong, lineWidth: showSourcePopover ? 1.0 : 0.6)
-            )
-            .animation(.easeOut(duration: 0.15), value: showSourcePopover)
-            // FIX: Capture frame immediately on appear AND on tap via overlay
-            .overlay(
-                GeometryReader { proxy in
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            // Capture frame at tap time - guarantees accurate position
-                            let frame = proxy.frame(in: .global)
-                            sourceButtonFrame = frame
-                            #if os(iOS)
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            #endif
-                            // Set both local state (for button styling) and VM state (for HomeView overlay)
-                            showSourcePopover = true
-                            vm.showSourcePicker = true
-                        }
-                        .onAppear {
-                            // Also eagerly capture on appear for safety
-                            DispatchQueue.main.async {
-                                sourceButtonFrame = proxy.frame(in: .global)
-                            }
-                        }
-                }
-            )
         }
     }
     
@@ -831,7 +824,7 @@ struct MarketSentimentView: View {
                         classification: vm.data.first?.valueClassification,
                         lineWidth: 10,
                         disableBadgeAnimation: false,
-                        showLiveBadge: true,
+                        showLiveBadge: false,
                         tickLabelOpacityFactor: 1.0,
                         gentleMode: isSwitchingSource
                     )
