@@ -3730,56 +3730,58 @@ private var botsButton: some View {
     // Professional controls row - toggle fills remaining width, zero dead space on all devices
     @ViewBuilder
     private func chartControlsRow(isCompact: Bool, controlHeight: CGFloat) -> some View {
-        HStack(spacing: 6) {
-            // Chart source toggle - NO fixedSize so it expands to absorb remaining width
-            // This ensures the row fills edge-to-edge on every screen size
-            ChartSourceSegmentedToggle(selected: $selectedChartSource)
-            
-            // Timeframe dropdown button - fixed intrinsic size
-            TimeframeDropdownButton(
-                interval: selectedInterval.rawValue,
-                isActive: showTimeframePopover,
-                action: {
-                    timeframePopoverEdge = bestPopoverEdge(for: timeframeButtonFrame)
-                    showTimeframePopover = true
-                }
-            )
-            .fixedSize(horizontal: true, vertical: false)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: TradeTimeframeButtonFrameKey.self, value: proxy.frame(in: .global))
-                }
-            )
-            .onPreferenceChange(TradeTimeframeButtonFrameKey.self) { frame in
-                timeframeFrameDebounce?.cancel()
-                let work = DispatchWorkItem { self.timeframeButtonFrame = frame }
-                timeframeFrameDebounce = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.032, execute: work)
-            }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                // Chart source toggle - NO fixedSize so it expands to absorb remaining width
+                // This ensures the row fills edge-to-edge on every screen size
+                ChartSourceSegmentedToggle(selected: $selectedChartSource)
 
-            // Indicators button - fixed intrinsic size
-            IndicatorsButton(
-                count: tvIndicatorSet.count,
-                action: { showIndicatorMenu = true }
-            )
-            .fixedSize(horizontal: true, vertical: false)
+                // Timeframe dropdown button - fixed intrinsic size
+                TimeframeDropdownButton(
+                    interval: selectedInterval.rawValue,
+                    isActive: showTimeframePopover,
+                    action: {
+                        timeframePopoverEdge = bestPopoverEdge(for: timeframeButtonFrame)
+                        showTimeframePopover = true
+                    }
+                )
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: TradeTimeframeButtonFrameKey.self, value: proxy.frame(in: .global))
+                    }
+                )
+                .onPreferenceChange(TradeTimeframeButtonFrameKey.self) { frame in
+                    timeframeFrameDebounce?.cancel()
+                    let work = DispatchWorkItem { self.timeframeButtonFrame = frame }
+                    timeframeFrameDebounce = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.032, execute: work)
+                }
 
-            // Technicals button - fixed intrinsic size
-            Button {
-                showTechnicals = true
-            } label: {
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .frame(width: controlHeight, height: controlHeight)
-                    .capsuleChip(backgroundOpacity: 0.06)
+                // Indicators button - fixed intrinsic size
+                IndicatorsButton(
+                    count: tvIndicatorSet.count,
+                    action: { showIndicatorMenu = true }
+                )
+                .fixedSize(horizontal: true, vertical: false)
+
+                // Technicals button - fixed intrinsic size
+                Button {
+                    showTechnicals = true
+                } label: {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: controlHeight, height: controlHeight)
+                        .capsuleChip(backgroundOpacity: 0.06)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Technicals")
+                .frame(height: controlHeight)
+                .fixedSize(horizontal: true, vertical: false)
             }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityLabel("Technicals")
-            .frame(height: controlHeight)
-            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 10)
         }
-        .padding(.horizontal, 10)
         .padding(.vertical, 4)
     }
 

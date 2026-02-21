@@ -22,8 +22,8 @@
 		93E56D012E8E0C40000D56F0 /* CryptoNewsRSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */; };
 		93E56D032E8E12B4000D56F0 /* StaticNewsSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */; };
 		93E56D052E8E1BD1000D56F0 /* ThumbnailResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */; };
-		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
 		93FC00012F50000000000001 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93FC00022F50000000000002 /* FirebaseCrashlytics */; };
+		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -491,6 +491,7 @@
 				INFOPLIST_FILE = "CryptoSage/CryptoSage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CryptoSage;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow CryptoSage to access your photos to attach images in chat.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
@@ -533,6 +534,7 @@
 				INFOPLIST_FILE = "CryptoSage/CryptoSage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CryptoSage;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow CryptoSage to access your photos to attach images in chat.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
@@ -741,15 +743,15 @@
 			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
 		};
-		93FS00022F40000000000002 /* FirebaseStorage */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseStorage;
-		};
 		93FC00022F50000000000002 /* FirebaseCrashlytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		93FS00022F40000000000002 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 		93GS00022F30000000000002 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

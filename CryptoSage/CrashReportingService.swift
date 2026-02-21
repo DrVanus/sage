@@ -109,12 +109,12 @@ public final class CrashReportingService: @unchecked Sendable {
     public func addBreadcrumb(category: String, message: String, data: [String: Any]? = nil) {
         guard isEnabled else { return }
 
+        let dataStr = data?.map { "\($0.key)=\($0.value)" }.joined(separator: ", ") ?? ""
+
         #if DEBUG
-        let dataStr = data?.description ?? ""
         logger.debug("Breadcrumb [\(category)]: \(message) \(dataStr)")
         #endif
 
-        let dataStr = data?.map { "\($0.key)=\($0.value)" }.joined(separator: ", ") ?? ""
         Crashlytics.crashlytics().log("[\(category)] \(message) \(dataStr)")
     }
 

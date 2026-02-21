@@ -490,6 +490,7 @@ struct ChartSourceSegmentedToggle<T: Hashable>: View {
             Text(label)
                 .font(.system(size: 11, weight: .semibold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity) // Expand segments evenly when toggle is wider
                 .padding(.vertical, 5)
                 .padding(.horizontal, 9)
