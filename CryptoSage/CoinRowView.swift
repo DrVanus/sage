@@ -726,8 +726,8 @@ struct CoinRowView: View {
                     } else {
                         Text("—")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(DS.Adaptive.textTertiary)
-                            .accessibilityLabel(Text("24 hour change unavailable"))
+                            .foregroundColor(DS.Adaptive.textTertiary.opacity(0.5))
+                            .accessibilityLabel(Text("24 hour change loading"))
                     }
                 }
                 .contentTransition(.numericText())
@@ -781,7 +781,7 @@ struct CoinRowView: View {
                     Text(volText)
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(DS.Adaptive.textSecondary)
+                        .foregroundColor(volText == "—" ? DS.Adaptive.textTertiary.opacity(0.5) : DS.Adaptive.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         .frame(width: MarketColumns.volumeWidth, alignment: .trailing)

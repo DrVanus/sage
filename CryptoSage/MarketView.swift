@@ -1373,7 +1373,12 @@ struct MarketView: View {
             Task {
                 await vm.loadAllData()
                 vm.applyAllFiltersAndSort()
-                
+
+                // Prefetch coin logos for top 50 visible coins (prevents letter-fallback flicker)
+                Task.detached(priority: .utility) {
+                    await CoinLogoPrefetcher.shared.prefetchTopCoins(count: 50)
+                }
+
                 // Fetch Binance sparklines after a short delay to let UI settle
                 try? await Task.sleep(nanoseconds: 300_000_000) // 300ms
                 fetchBinanceSparklinesForVisibleCoins()

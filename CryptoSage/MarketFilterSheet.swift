@@ -49,9 +49,9 @@ struct MarketFilterSheet: View {
         isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
     }
     
-    /// Gold accent for selected states
+    /// Gold accent for selected states — uses brand gold (#D4AF37) in both modes
     private var goldAccent: Color {
-        isDark ? Color(red: 1.0, green: 0.85, blue: 0.05) : Color(red: 0.831, green: 0.686, blue: 0.216)
+        isDark ? BrandColors.goldDark : BrandColors.goldDark
     }
     
     var body: some View {
@@ -93,7 +93,7 @@ struct MarketFilterSheet: View {
                     } label: {
                         Text("Apply")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(isDark ? .black : Color(red: 0.30, green: 0.22, blue: 0.02))
+                            .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 6)
                             .background(
@@ -141,7 +141,7 @@ struct MarketFilterSheet: View {
         
         let chipText: Color = {
             if isSelected {
-                return isDark ? .black : Color(red: 0.30, green: 0.22, blue: 0.02)
+                return .white
             } else {
                 return isDark ? Color.white.opacity(0.85) : Color.black.opacity(0.70)
             }
@@ -238,9 +238,7 @@ struct MarketFilterSheet: View {
             Text(label)
                 .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                 .foregroundColor(
-                    isSelected
-                        ? (isDark ? .black : Color(red: 0.30, green: 0.22, blue: 0.02))
-                        : textSecondary
+                    isSelected ? .white : textSecondary
                 )
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
