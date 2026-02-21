@@ -451,17 +451,7 @@ struct StocksOverviewSection: View {
     
     private var stocksContent: some View {
         VStack(spacing: 0) {
-            // Header for market movers mode
-            if !hasRealHoldings && !displayStocks.isEmpty {
-                HStack {
-                    Text("Market Movers")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
-            }
+            // Removed redundant "Market Movers" label — section header already identifies this section
             
             // Stock rows card with premium styling
             VStack(spacing: 0) {
