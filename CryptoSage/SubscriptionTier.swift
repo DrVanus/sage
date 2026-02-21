@@ -194,7 +194,6 @@ var body: some View {
         .background(DS.Adaptive.background.ignoresSafeArea())
         .navigationBarHidden(true)
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { dismiss() })
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 animateCards = true
@@ -412,12 +411,12 @@ var body: some View {
                         .foregroundColor(.white)
                 }
             }
-            .foregroundColor(isSelected ? .white : DS.Adaptive.textSecondary)
+            .foregroundColor(isSelected ? .black : DS.Adaptive.textSecondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? accentGold : Color.clear)
+                    .fill(isSelected ? accentGold : Color.white.opacity(0.05))
             )
         }
         .buttonStyle(.plain)
@@ -649,6 +648,24 @@ private struct EnhancedPricingCard: View {
                                 )
                                 .foregroundColor(.white)
                         }
+
+                        if tier.tierType == .premium && !isCurrentTier {
+                            Text("BEST VALUE")
+                                .font(.caption2.weight(.heavy))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.purple, Color(red: 0.5, green: 0.2, blue: 0.7)],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                )
+                                .foregroundColor(.white)
+                        }
                         
                         if isCurrentTier {
                             Text("ACTIVE")
@@ -844,7 +861,14 @@ private struct EnhancedPricingCard: View {
         guard tier.tierType != .free else { return nil }
         let savings = storeKitManager.annualSavingsPercent(for: tier.tierType)
         if savings > 0 {
+            if tier.tierType == .premium {
+                return "Save \(savings)% — Best Value"
+            }
             return "Save \(savings)%/year"
+        }
+        // Fallback to hardcoded savings text
+        if tier.tierType == .premium, let base = tier.yearlySavings {
+            return "\(base) — Best Value"
         }
         return tier.yearlySavings
     }
@@ -903,11 +927,14 @@ private struct EnhancedPricingCard: View {
         if tier.isRecommended {
             return accentGold
         }
+        if tier.tierType == .premium {
+            return Color.purple
+        }
         return DS.Adaptive.stroke
     }
-    
+
     private var cardBorderWidth: CGFloat {
-        if isCurrentTier || tier.isRecommended {
+        if isCurrentTier || tier.isRecommended || tier.tierType == .premium {
             return 2
         }
         return 1
