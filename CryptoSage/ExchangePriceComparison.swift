@@ -1739,9 +1739,9 @@ struct ExchangePriceSection: View {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(Color.csGoldSolid.opacity(0.12))
-                                    .frame(height: 3)
-                                
+                                    .fill(Color.csGoldSolid.opacity(0.15))
+                                    .frame(height: 4)
+
                                 Capsule()
                                     .fill(
                                         LinearGradient(
@@ -1750,12 +1750,12 @@ struct ExchangePriceSection: View {
                                             endPoint: .trailing
                                         )
                                     )
-                                    .frame(width: max(geo.size.width * vm.loadProgress, 20), height: 3)
+                                    .frame(width: max(geo.size.width * vm.loadProgress, 20), height: 4)
                                     .animation(.easeInOut(duration: 0.3), value: vm.loadProgress)
                             }
                         }
-                        .frame(height: 3)
-                        
+                        .frame(height: 4)
+
                         // Progress text
                         HStack {
                             Text("Loading prices...")
@@ -2396,36 +2396,25 @@ struct ExchangePriceSection: View {
     // MARK: - Premium Shimmer Skeleton
     
     private var exchangePriceSkeleton: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Summary row skeleton
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    skeletonPill(width: 55, height: 10)
-                    skeletonPill(width: 80, height: 12)
-                }
-                
+        VStack(alignment: .leading, spacing: 6) {
+            // Compact connecting message
+            HStack(spacing: 6) {
+                ProgressView()
+                    .scaleEffect(0.6)
+                    .tint(Color.csGoldSolid)
+                Text("Connecting to exchanges...")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(DS.Adaptive.textTertiary)
                 Spacer()
-                
-                VStack(spacing: 4) {
-                    skeletonPill(width: 45, height: 10)
-                    skeletonPill(width: 35, height: 12)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    skeletonPill(width: 50, height: 10)
-                    skeletonPill(width: 80, height: 12)
-                }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(DS.Adaptive.chipBackground.opacity(0.5))
+                    .fill(DS.Adaptive.chipBackground.opacity(0.35))
             )
-            
-            // Price grid skeleton
+
+            // Compact price grid skeleton
             VStack(spacing: 4) {
                 // Header row
                 HStack(spacing: 0) {
@@ -2439,14 +2428,14 @@ struct ExchangePriceSection: View {
                         .frame(minWidth: 52, maxWidth: 60, alignment: .trailing)
                 }
                 .padding(.horizontal, 6)
-                
+
                 Divider()
                     .background(DS.Adaptive.stroke.opacity(0.3))
-                
-                // Exchange rows skeleton
-                ForEach(0..<3, id: \.self) { index in
+
+                // Exchange rows skeleton — 2 rows for compact layout
+                ForEach(0..<2, id: \.self) { index in
                     exchangeRowSkeleton
-                        .opacity(1.0 - Double(index) * 0.15)
+                        .opacity(1.0 - Double(index) * 0.2)
                 }
             }
             .padding(8)
