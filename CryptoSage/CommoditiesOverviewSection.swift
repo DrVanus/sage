@@ -537,13 +537,13 @@ struct CommoditiesOverviewSection: View {
                 
                 seeAllCommoditiesRow
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(DS.Adaptive.cardBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
                         DS.Adaptive.divider.opacity(isDark ? 0.4 : 0.2),
                         lineWidth: 1

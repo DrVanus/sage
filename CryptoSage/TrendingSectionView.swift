@@ -698,10 +698,10 @@ struct TrendingSectionView: View {
         }
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(DS.Adaptive.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(DS.Adaptive.stroke, lineWidth: 1)
                 )
         )

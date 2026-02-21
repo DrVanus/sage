@@ -717,8 +717,7 @@ extension HomeView {
                     viewAllTransactionsButton
                 }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
+            .padding(16)
         }
 
         var body: some View {
@@ -1462,8 +1461,7 @@ extension HomeView {
                     }
                 }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
+            .padding(16)
         }
         .padding(.horizontal, 16)
     }
@@ -1562,8 +1560,7 @@ struct SocialTradingPreviewSection: View {
                 // View Full Leaderboard CTA
                 leaderboardButton
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
+            .padding(16)
         }
         .task {
             // Fetch leaderboard based on current trading mode
@@ -1904,8 +1901,7 @@ struct WhaleActivityPreviewSection: View {
                 // View All Button
                 viewAllButton
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
+            .padding(16)
         }
         .onAppear {
             guard AppState.shared.selectedTab == .home else { return }

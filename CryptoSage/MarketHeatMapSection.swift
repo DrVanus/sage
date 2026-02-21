@@ -847,9 +847,9 @@ public struct MarketHeatMapSection: View {
     private func mapCard(tilesVal: [HeatMapTile], boundVal: Double, paletteVal: ColorPalette, targetBoundVal: Double) -> AnyView {
         AnyView(
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(DS.Adaptive.cardBackground)
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(DS.Adaptive.stroke, lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(DS.Adaptive.stroke, lineWidth: 1))
                 VStack(spacing: 8) {
                     // RESET FIX: Show shimmer if either viewModel tiles are empty OR processed tiles are empty
                     // This handles the case during reset when cache is cleared but viewModel still has data

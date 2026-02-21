@@ -28,14 +28,16 @@ struct CardCTAButtonStyle: ButtonStyle {
 
 struct CardContainer<Content: View>: View {
     let content: () -> Content
+    // UNIFIED DESIGN: All home cards use 16pt corner radius for consistency
+    private let cardRadius: CGFloat = 16
     var body: some View {
         ZStack {
             // Base background
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: cardRadius)
                 .fill(DS.Adaptive.cardBackground)
-            
+
             // Subtle top gradient highlight for depth
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: cardRadius)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -46,11 +48,11 @@ struct CardContainer<Content: View>: View {
                         endPoint: .center
                     )
                 )
-            
+
             content()
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: cardRadius)
                 .stroke(
                     LinearGradient(
                         colors: [
@@ -63,7 +65,7 @@ struct CardContainer<Content: View>: View {
                     lineWidth: 1
                 )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: cardRadius))
         // PERFORMANCE FIX v21: Reduced shadow radius from 8 to 4 and compositing group.
         // Shadows with large radius require GPU to compute a Gaussian blur around the entire
         // card outline every frame during scroll. Reducing radius cuts GPU work significantly.

@@ -220,7 +220,7 @@ struct AIPredictionSectionView: View {
         let hasPrediction = currentPrediction != nil
         let predictionColor = currentPrediction?.direction.color ?? BrandColors.goldBase
         
-        PremiumGlassCard(showGoldAccent: true, cornerRadius: 14, enableShimmer: hasPrediction) {
+        PremiumGlassCard(showGoldAccent: true, cornerRadius: 16, enableShimmer: hasPrediction) {
             VStack(spacing: 8) {
                 // Error banner - shows above content when there's an error
                 // Tappable to dismiss; developer mode users get directed to AI Settings
@@ -324,7 +324,7 @@ struct AIPredictionSectionView: View {
         }
         // Animated glow effect when prediction is active
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(
                     predictionColor.opacity(glowPulse ? 0.6 : 0.2),
                     lineWidth: hasPrediction ? 1.5 : 0
@@ -2235,11 +2235,11 @@ struct CoinPickerSheet: View {
             .padding(12)
             .frame(width: 148)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color.white.opacity(isDark ? 0.04 : 0.06))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(isSelected(coin) ? BrandColors.goldBase.opacity(0.5) : Color.clear, lineWidth: 1.5)
             )
         }
@@ -3342,7 +3342,7 @@ struct AIPredictionSheet: View {
     // MARK: - Selection Card
     
     private var selectionCard: some View {
-        PremiumGlassCard(showGoldAccent: true, cornerRadius: 14) {
+        PremiumGlassCard(showGoldAccent: true, cornerRadius: 16) {
             VStack(alignment: .leading, spacing: 16) {
                 // Coin Selector
                 VStack(alignment: .leading, spacing: 8) {
@@ -3486,7 +3486,7 @@ struct AIPredictionSheet: View {
     // MARK: - Loading Card (Full — Detail View)
     
     private var loadingCard: some View {
-        PremiumGlassCard(showGoldAccent: true, cornerRadius: 14) {
+        PremiumGlassCard(showGoldAccent: true, cornerRadius: 16) {
             VStack(spacing: 20) {
                 // Premium animated icon with concentric rings + orbiting particles
                 ZStack {
@@ -3656,7 +3656,7 @@ struct AIPredictionSheet: View {
     // MARK: - Error Card
     
     private func errorCard(_ message: String) -> some View {
-        PremiumGlassCard(showGoldAccent: false, cornerRadius: 14) {
+        PremiumGlassCard(showGoldAccent: false, cornerRadius: 16) {
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 32))
@@ -3700,7 +3700,7 @@ struct AIPredictionSheet: View {
         let isPositive = priceChange >= 0
         let accentColor = isPositive ? Color.green : Color.red
         
-        return PremiumGlassCard(showGoldAccent: true, cornerRadius: 14) {
+        return PremiumGlassCard(showGoldAccent: true, cornerRadius: 16) {
             VStack(alignment: .leading, spacing: 16) {
                 // Header with coin info
                 HStack(spacing: 10) {
