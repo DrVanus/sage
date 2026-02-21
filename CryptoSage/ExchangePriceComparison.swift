@@ -1806,7 +1806,8 @@ struct ExchangePriceSection: View {
                 // Main content
                 contentView
             }
-            .padding(16)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
         .padding(.horizontal, 16)
         .overlay {

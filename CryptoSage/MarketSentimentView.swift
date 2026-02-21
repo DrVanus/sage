@@ -509,13 +509,14 @@ struct MarketSentimentView: View {
                 showSentimentDetail = true
             }
         }
-        .padding(16)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(DS.Adaptive.stroke, lineWidth: 0.8)
         )
         .frame(maxWidth: .infinity)

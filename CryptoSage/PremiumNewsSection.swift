@@ -49,7 +49,8 @@ struct PremiumNewsSection: View {
                     // Bottom CTA button
                     seeAllNewsButton
                 }
-                .padding(16)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
             }
             // No card-level gold bar - individual article rows already have gold accents
             .padding(.horizontal, 16)

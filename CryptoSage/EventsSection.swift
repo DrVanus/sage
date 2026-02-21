@@ -479,7 +479,8 @@ public struct EventsSectionView: View {
                     // Premium CTA button
                     viewAllEventsButton
                 }
-                .padding(16)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
             }
             .padding(.horizontal, 16)
         }

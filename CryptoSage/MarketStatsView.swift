@@ -439,9 +439,10 @@ struct MarketStatsView: View {
             guard !isInGlobalStartupPhase(), !ScrollStateManager.shared.isScrolling else { return }
             scheduleRefreshDebounced()
         }
-        .padding(16)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
         .background(
-            PremiumGlassCard(showGoldAccent: true, cornerRadius: 16) {
+            PremiumGlassCard(showGoldAccent: true, cornerRadius: 14) {
                 Color.clear
             }
         )

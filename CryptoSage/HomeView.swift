@@ -102,7 +102,7 @@ private struct WatchlistComposite: View {
         // Main content - no ZStack needed since overlay is rendered at HomeView level
         VStack(spacing: 12) {
             // Watchlist Card
-            PremiumGlassCard(showGoldAccent: false, cornerRadius: 16) {
+            PremiumGlassCard(showGoldAccent: false, cornerRadius: 14) {
                 VStack(alignment: .leading, spacing: 0) {
                     // Integrated header with column labels
                     watchlistHeader
@@ -115,9 +115,10 @@ private struct WatchlistComposite: View {
                         onSelectCoinForDetail: onSelectCoinForDetail
                     )
                 }
-                // UNIFIED DESIGN: Consistent inner padding (compact for data-dense rows)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 10)
+                // Tighten card insets so rows use more vertical space and reduce dead gaps.
+                .padding(.top, 2)
+                .padding(.bottom, 2)
+                .padding(.horizontal, 6)
             }
             
             // AI Prediction Section - Inline (no sheet needed)
@@ -1257,7 +1258,8 @@ struct HomeView: View {
 
                     case .marketStats:
                         marketStatsSection
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 16)  // Standardized to match other sections
+                            .padding(.top, 4)  // Extra spacing: visual break before discovery sections (12pt base + 4pt = 16pt total)
                             .id("marketStats")
 
                     case .sentiment:
@@ -1284,22 +1286,27 @@ struct HomeView: View {
 
                     case .trending:
                         trendingSection
+                            .padding(.top, 8)  // Visual break before market discovery
                             .id("trending")
 
                     case .arbitrage:
                         arbitrageSection
+                            .padding(.top, 8)  // Consistent spacing
                             .id("arbitrage")
 
                     case .whaleActivity:
                         whaleActivitySection
+                            .padding(.top, 8)  // Consistent spacing
                             .id("whaleActivity")
 
                     case .events:
                         eventsSection
+                            .padding(.top, 8)  // Consistent spacing
                             .id("events")
 
                     case .news:
                         newsPreviewSection
+                            .padding(.top, 8)  // Visual break before news content
                             // PERFORMANCE FIX v22: Use cached isLoading instead of singleton access
                             // CryptoNewsFeedViewModel.shared.isLoading is @Published - accessing it in body
                             // creates a hidden observation dependency that re-evaluates all 16+ sections on every news fetch.
@@ -1307,10 +1314,12 @@ struct HomeView: View {
 
                     case .transactions:
                         transactionsSection
+                            .padding(.top, 8)  // Visual break before personal section
                             .id("transactions")
 
                     case .community:
                         communitySection
+                            .padding(.top, 8)  // Visual break before community section
                             .id("community")
                     
                     case .communityLinks:

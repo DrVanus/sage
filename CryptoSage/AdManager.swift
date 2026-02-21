@@ -557,13 +557,13 @@ public struct BannerAdView: View {
         #endif
     }
 
-    // Only render the banner slot when AdMob is actually initialized.
-    // Hide the placeholder entirely when AdMob hasn't been set up to avoid wasting screen space.
+    // Keep placement/testing parity in debug/simulator by still rendering the
+    // bottom ad slot placeholder even when real ad runtime is unavailable.
     private var shouldRenderBannerSlot: Bool {
-        #if targetEnvironment(simulator)
-        return false
+        #if DEBUG
+        true
         #else
-        return adManager.isInitialized
+        isAdRuntimeAllowed
         #endif
     }
     
@@ -844,25 +844,21 @@ struct AdBannerViewRepresentable: UIViewRepresentable {
 /// View modifier to add a banner ad at the bottom of a view
 public struct BannerAdModifier: ViewModifier {
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
-    @ObservedObject private var adManager = AdManager.shared
-
-    /// Only render the banner slot when AdMob is actually initialized (production)
-    /// or when both debug mode AND ads should be shown. Hide the placeholder entirely
-    /// when AdMob hasn't been set up to avoid wasting screen space.
+    
     private var shouldRenderBannerSlot: Bool {
-        #if targetEnvironment(simulator)
-        // Never show ads on simulator — AdMob doesn't initialize there
-        return false
+        #if DEBUG
+        true
+        #elseif targetEnvironment(simulator)
+        false
         #else
-        // On device: only show when AdMob SDK is initialized
-        return adManager.isInitialized
+        true
         #endif
     }
-
+    
     public func body(content: Content) -> some View {
         VStack(spacing: 0) {
             content
-
+            
             if subscriptionManager.shouldShowAds && shouldRenderBannerSlot {
                 BannerAdView()
             }
