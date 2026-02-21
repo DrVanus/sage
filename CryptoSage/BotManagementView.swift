@@ -21,16 +21,24 @@ class BotManagementViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        // Simulate a network call delay and dummy data response.
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-            let dummyBots = [
-                Bot(id: 101, name: "DCA Bot", exchange: "Binance", strategy: "DCA", status: "Active", profit: 12.5),
-                Bot(id: 102, name: "Grid Bot", exchange: "Coinbase", strategy: "Grid", status: "Paused", profit: 8.0)
-            ]
+        // PRODUCTION FIX: Require real 3Commas API credentials.
+        // Previously returned dummy bots with fake profit data.
+        guard !apiKey.isEmpty, apiKey != "your_api_key_here",
+              !apiSecret.isEmpty, apiSecret != "your_api_secret_here" else {
             DispatchQueue.main.async {
-                self.bots = dummyBots
+                self.bots = []
+                self.errorMessage = "Connect your 3Commas account to manage bots."
                 self.isLoading = false
             }
+            return
+        }
+        
+        // Placeholder for real 3Commas bot fetching
+        // The actual bot management is handled via Link3CommasView and ThreeCommasService
+        DispatchQueue.main.async {
+            self.bots = []
+            self.errorMessage = nil
+            self.isLoading = false
         }
     }
 }
@@ -70,11 +78,12 @@ struct BotManagementView: View {
             }
         }
         .onAppear {
-            // For demonstration, using dummy credentials.
-            // In your production app, retrieve these securely after pairing.
-            apiKey = "your_api_key_here"
-            apiSecret = "your_api_secret_here"
-            viewModel.fetchBots(apiKey: apiKey, apiSecret: apiSecret)
+            // PRODUCTION FIX: Load real credentials from secure storage
+            DispatchQueue.main.async {
+                apiKey = ThreeCommasConfig.apiKey
+                apiSecret = ThreeCommasConfig.tradingSecret
+                viewModel.fetchBots(apiKey: apiKey, apiSecret: apiSecret)
+            }
         }
     }
 }

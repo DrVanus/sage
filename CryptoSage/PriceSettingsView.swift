@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PriceSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedSource: PriceSourcePreference = AppSettings.priceSourcePreference
     @State private var allowedExchangesText: String = AppSettings.compositeAllowedExchanges()?.joined(separator: ",") ?? ""
 
@@ -15,8 +16,9 @@ struct PriceSettingsView: View {
                         Text("CoinGecko (Polling)").tag(PriceSourcePreference.gecko)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: selectedSource) { newValue in
-                        AppSettings.priceSourcePreference = newValue
+                    .onChange(of: selectedSource) { _, newValue in
+                        // Defer to avoid "Modifying state during view update"
+                        DispatchQueue.main.async { AppSettings.priceSourcePreference = newValue }
                     }
                     Text(helpText(for: selectedSource))
                         .font(.footnote)
@@ -43,6 +45,8 @@ struct PriceSettingsView: View {
                 }
             }
             .navigationTitle("Price Settings")
+            .enableInteractivePopGesture()
+            .edgeSwipeToDismiss(onDismiss: { dismiss() })
         }
         .navigationViewStyle(.stack)
     }

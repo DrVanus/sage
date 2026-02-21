@@ -1,6 +1,77 @@
 import SwiftUI
 
+// MARK: - Dropdown Toggle Style (Adaptive Gold/Silver)
+private struct DropdownToggleStyle: ToggleStyle {
+    @Environment(\.colorScheme) private var colorScheme
+    var width: CGFloat = 48
+    var height: CGFloat = 26
+    
+    private var isDark: Bool { colorScheme == .dark }
+    
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            configuration.label
+                .font(.subheadline)
+                .foregroundStyle(DS.Adaptive.textPrimary)
+            Spacer()
+            Button {
+                Haptics.light.impactOccurred()
+                withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { configuration.isOn.toggle() }
+            } label: {
+                ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                    Capsule(style: .continuous)
+                        .fill(configuration.isOn 
+                              ? (isDark ? BrandColors.goldBase : BrandColors.silverBase)
+                              : DS.Adaptive.chipBackground)
+                        .frame(width: width, height: height)
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(configuration.isOn 
+                                        ? (isDark ? BrandColors.goldLight.opacity(0.6) : BrandColors.silverLight.opacity(0.6))
+                                        : DS.Adaptive.stroke,
+                                        lineWidth: 0.8)
+                        )
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: height - 4, height: height - 4)
+                        .padding(2)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(configuration.isOn ? "On" : "Off")
+        }
+    }
+}
+
+// MARK: - Section Header
+private struct DropdownSectionHeader: View {
+    let title: String
+    let icon: String?
+    
+    init(_ title: String, icon: String? = nil) {
+        self.title = title
+        self.icon = icon
+    }
+    
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon = icon {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DS.Adaptive.gold)
+            }
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .tracking(0.5)
+                .foregroundStyle(DS.Adaptive.textSecondary)
+        }
+        .padding(.top, 4)
+    }
+}
+
 struct HeatMapSettingsDropdown: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var isPresented: Bool
 
     @Binding var filterStables: Bool
@@ -32,177 +103,312 @@ struct HeatMapSettingsDropdown: View {
     var onResetScale: () -> Void
     var onRestoreDefaults: () -> Void
 
+    private var isDark: Bool { colorScheme == .dark }
+    
+    // Adaptive accent color for controls
+    private var accentColor: Color {
+        isDark ? BrandColors.goldBase : BrandColors.silverBase
+    }
+    
     var body: some View {
         VStack(spacing: 8) {
             // Header
             HStack {
                 Text("Heat Map Settings")
-                    .font(.headline)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(DS.Adaptive.textPrimary)
                 Spacer()
                 Button {
                     Haptics.light.impactOccurred()
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { isPresented = false }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(DS.Adaptive.textPrimary.opacity(0.8))
                         .padding(8)
-                        .background(Color.white.opacity(0.14), in: Capsule())
+                        .background(
+                            ZStack {
+                                Circle().fill(DS.Adaptive.chipBackground)
+                                Circle().fill(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(isDark ? 0.08 : 0.35), Color.white.opacity(0)],
+                                        startPoint: .top,
+                                        endPoint: .center
+                                    )
+                                )
+                            }
+                        )
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle().stroke(
+                                LinearGradient(
+                                    colors: isDark
+                                        ? [Color.white.opacity(0.12), DS.Adaptive.stroke.opacity(0.6)]
+                                        : [Color.black.opacity(0.06), DS.Adaptive.stroke.opacity(0.5)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 0.8
+                            )
+                        )
                 }
                 .buttonStyle(PressableStyle())
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
 
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(DS.Adaptive.divider)
 
             // Content
             ScrollView(showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
                     // Quick Actions
                     Group {
-                        Text("Quick Actions")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        DropdownSectionHeader("Quick Actions", icon: "bolt.fill")
                         Button {
+                            Haptics.light.impactOccurred()
                             onRefresh()
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { isPresented = false }
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 12, weight: .semibold))
                                 Text("Refresh Now")
                                     .font(.subheadline.weight(.semibold))
                             }
-                            .foregroundColor(.yellow)
-                            .padding(.horizontal, 10)
+                            .foregroundColor(BrandColors.ctaTextColor(isDark: isDark))
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(AdaptiveGradients.goldButton(isDark: isDark))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(AdaptiveGradients.ctaRimStroke(isDark: isDark), lineWidth: 0.8)
+                            )
                         }
                         .buttonStyle(PressableStyle())
                     }
 
-                    // Options
+                    // Data Options
                     Group {
-                        Text("Options")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
+                        DropdownSectionHeader("Data", icon: "chart.bar.doc.horizontal")
+                        VStack(alignment: .leading, spacing: 8) {
                             Toggle("Filter stablecoins", isOn: $filterStables)
                             Toggle("Include Others", isOn: $includeOthers)
                             Toggle("Weight by Volume", isOn: $weightByVolume)
                             Toggle("Normalize by BTC", isOn: $normalizeByBTC)
                             Toggle("Show Values", isOn: $showValues)
                             Toggle("Always include BTC", isOn: $pinBTC)
+                        }
+                    }
+
+                    // Display Options
+                    Group {
+                        DropdownSectionHeader("Display", icon: "paintpalette")
+                        VStack(alignment: .leading, spacing: 8) {
                             Toggle("Auto-hide Info Bar", isOn: $autoHideInfoBar)
                             Toggle("Auto Color Scale", isOn: $autoColorScale)
                             Toggle("Colorblind Palette", isOn: $colorblindMode)
-                            Toggle("White Labels (No Black)", isOn: $whiteLabelsOnly)
+                            Toggle("White Labels", isOn: $whiteLabelsOnly)
                             Toggle("Lock Color Scale", isOn: $lockColorScale)
-                            Toggle("Follow Live Updates", isOn: $followLiveUpdates)
-                            Toggle("Auto Refresh (60s)", isOn: $autoRefreshEnabled)
+                            Toggle("Strong Borders", isOn: $strongBorders)
                         }
                     }
 
                     // Labels
                     Group {
-                        Text("Labels")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
+                        DropdownSectionHeader("Labels", icon: "textformat")
+                        VStack(alignment: .leading, spacing: 8) {
                             Picker("Label Density", selection: $labelDensity) {
                                 Text("Compact").tag(LabelDensity.compact)
                                 Text("Normal").tag(LabelDensity.normal)
                                 Text("Detailed").tag(LabelDensity.detailed)
                             }
                             .pickerStyle(.segmented)
-                            Toggle("Strong Borders", isOn: $strongBorders)
+                            .labelsHidden()
                         }
                     }
 
                     // Color Tuning
                     Group {
-                        Text("Color Tuning")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
+                        DropdownSectionHeader("Color Tuning", icon: "slider.horizontal.3")
+                        VStack(alignment: .leading, spacing: 8) {
                             Toggle("Gray Midpoint", isOn: $grayNeutral)
-                            Stepper("Saturation \(Int(round(saturation * 100)))%", value: $saturation, in: 0.6...1.4, step: 0.05)
+                            
+                            HStack {
+                                Text("Saturation")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DS.Adaptive.textPrimary)
+                                Spacer()
+                                Text("\(Int(round(saturation * 100)))%")
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(DS.Adaptive.gold)
+                                Stepper("", value: $saturation, in: 0.6...1.4, step: 0.05)
+                                    .labelsHidden()
+                                    .tint(accentColor)
+                                    .onChange(of: saturation) { _, _ in
+                                        // Defer to avoid "Modifying state during view update"
+                                        DispatchQueue.main.async {
+                                            Haptics.light.impactOccurred()
+                                        }
+                                    }
+                            }
                         }
                     }
 
                     // Sizing
                     Group {
-                        Text("Sizing")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
+                        DropdownSectionHeader("Sizing", icon: "square.grid.2x2")
+                        VStack(alignment: .leading, spacing: 8) {
                             Picker("Sizing Curve", selection: $weightingCurve) {
                                 Text("Linear").tag(WeightingCurve.linear)
                                 Text("Balanced").tag(WeightingCurve.balanced)
                                 Text("Compact").tag(WeightingCurve.compact)
                             }
                             .pickerStyle(.segmented)
-                            Stepper("Top \(topN)", value: $topN, in: 4...30)
-                            Stepper("Scale ±\(Int(manualBound))%", value: $manualBound, in: 2...100)
+                            .labelsHidden()
+                            
+                            HStack {
+                                Text("Coins shown")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DS.Adaptive.textPrimary)
+                                Spacer()
+                                Text("\(topN)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(DS.Adaptive.gold)
+                                Stepper("", value: $topN, in: 4...24)
+                                    .labelsHidden()
+                                    .tint(accentColor)
+                                    .onChange(of: topN) { _, _ in
+                                        // Defer to avoid "Modifying state during view update"
+                                        DispatchQueue.main.async {
+                                            Haptics.light.impactOccurred()
+                                        }
+                                    }
+                            }
+                            
+                            HStack {
+                                Text("Scale range")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DS.Adaptive.textPrimary)
+                                Spacer()
+                                Text("±\(Int(manualBound))%")
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(DS.Adaptive.gold)
+                                Stepper("", value: $manualBound, in: 2...100)
+                                    .labelsHidden()
+                                    .tint(accentColor)
+                                    .onChange(of: manualBound) { _, _ in
+                                        // Defer to avoid "Modifying state during view update"
+                                        DispatchQueue.main.async {
+                                            Haptics.light.impactOccurred()
+                                        }
+                                    }
+                            }
                         }
                     }
 
                     // Updates
                     Group {
-                        Text("Updates")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Stepper("Min Update \(minUpdateSeconds)s", value: $minUpdateSeconds, in: 15...300, step: 15)
+                        DropdownSectionHeader("Updates", icon: "clock.arrow.circlepath")
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Follow Live Updates", isOn: $followLiveUpdates)
+                            Toggle("Auto Refresh", isOn: $autoRefreshEnabled)
+                            
+                            if autoRefreshEnabled {
+                                HStack {
+                                    Text("Min interval")
+                                        .font(.subheadline)
+                                        .foregroundStyle(DS.Adaptive.textPrimary)
+                                    Spacer()
+                                    Text("\(minUpdateSeconds)s")
+                                        .font(.subheadline.weight(.semibold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(DS.Adaptive.gold)
+                                    Stepper("", value: $minUpdateSeconds, in: 15...300, step: 15)
+                                        .labelsHidden()
+                                        .tint(accentColor)
+                                        .onChange(of: minUpdateSeconds) { _, _ in
+                                            // Defer to avoid "Modifying state during view update"
+                                            DispatchQueue.main.async {
+                                                Haptics.light.impactOccurred()
+                                            }
+                                        }
+                                }
+                            }
                         }
                     }
 
                     // Reset
                     Group {
-                        Text("Reset")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 10) {
+                        DropdownSectionHeader("Reset", icon: "arrow.counterclockwise")
+                        VStack(alignment: .leading, spacing: 8) {
                             Button {
+                                Haptics.light.impactOccurred()
                                 onResetScale()
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "arrow.counterclockwise")
+                                        .font(.system(size: 12, weight: .semibold))
                                     Text("Reset Color Scale")
                                         .font(.subheadline.weight(.semibold))
                                 }
-                                .foregroundColor(.yellow)
-                                .padding(.horizontal, 10)
+                                .foregroundColor(DS.Adaptive.textPrimary)
+                                .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .frame(maxWidth: .infinity)
+                                .tintedRoundedChip(isSelected: false, isDark: isDark, cornerRadius: 10)
                             }
                             .buttonStyle(PressableStyle())
 
                             Button(role: .destructive) {
+                                Haptics.medium.impactOccurred()
                                 onRestoreDefaults()
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "arrow.uturn.backward")
+                                        .font(.system(size: 12, weight: .semibold))
                                     Text("Restore Defaults")
                                         .font(.subheadline.weight(.semibold))
                                 }
-                                .foregroundColor(.red.opacity(0.95))
-                                .padding(.horizontal, 10)
+                                .foregroundColor(.red.opacity(isDark ? 0.95 : 1.0))
+                                .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.red.opacity(isDark ? 0.12 : 0.08))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.red.opacity(isDark ? 0.30 : 0.20), lineWidth: 0.8)
+                                )
                             }
                             .buttonStyle(PressableStyle())
                         }
                     }
                 }
-                .padding(.horizontal, 6)
-                .padding(.bottom, 6)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
             }
         }
         .frame(width: 320)
-        .frame(maxHeight: 420)
-        .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 6)
+        .frame(maxHeight: 480)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(DS.Adaptive.background)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(DS.Adaptive.strokeStrong, lineWidth: 1)
+        )
+        .toggleStyle(DropdownToggleStyle())
     }
 }

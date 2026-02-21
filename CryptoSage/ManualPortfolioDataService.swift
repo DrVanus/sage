@@ -47,29 +47,103 @@ final class ManualPortfolioDataService: PortfolioDataService {
   }
 
   private func rebuildHoldingsFromTransactions() {
-    // Group by coinSymbol and sum quantities and cost basis
+    // Group by coinSymbol (normalized to uppercase to prevent "btc"/"BTC" split)
     let txns = transactionsSubject.value
-    let grouped = Dictionary(grouping: txns, by: { $0.coinSymbol })
-    let newHoldings: [Holding] = grouped.map { symbol, txs in
-        let totalQuantity = txs.reduce(into: 0.0) { acc, tx in
-            acc += tx.quantity
+    let grouped = Dictionary(grouping: txns, by: { $0.coinSymbol.uppercased() })
+    let newHoldings: [Holding] = grouped.compactMap { symbol, txs in
+        // FIX: Properly handle buy vs sell transactions.
+        // Previously all tx.quantity was added, ignoring isBuy flag.
+        // This caused sells to INCREASE the holding quantity instead of decreasing it.
+        var totalBuyQuantity: Double = 0
+        var totalBuyCost: Double = 0
+        var netQuantity: Double = 0
+        
+        for tx in txs {
+            if tx.isBuy {
+                totalBuyQuantity += tx.quantity
+                totalBuyCost += tx.quantity * tx.pricePerUnit
+                netQuantity += tx.quantity
+            } else {
+                netQuantity -= tx.quantity
+            }
         }
-        let totalCost = txs.reduce(into: 0.0) { acc, tx in
-            acc += tx.quantity * tx.pricePerUnit
-        }
-        let averageCostBasis = totalQuantity > 0 ? totalCost / totalQuantity : 0
+        
+        // Skip fully sold positions
+        guard netQuantity > 0 else { return nil }
+        
+        let averageCostBasis = totalBuyQuantity > 0 ? totalBuyCost / totalBuyQuantity : 0
+        
+        // FIX: Use human-readable coin name instead of raw symbol
+        let displayName = coinName(for: symbol)
+        
+        // Build holding with cost-basis price initially.
+        // Live prices are applied asynchronously below via updateHoldingsWithLivePrices().
         return Holding(
-            coinName: symbol,
+            coinName: displayName,
             coinSymbol: symbol,
-            quantity: totalQuantity,
+            quantity: netQuantity,
             currentPrice: averageCostBasis,
             costBasis: averageCostBasis,
             imageUrl: nil,
             isFavorite: false,
             dailyChange: 0,
-            purchaseDate: txs.first!.date
+            purchaseDate: txs.first?.date ?? Date()
         )
     }
     holdingsSubject.send(newHoldings)
+    
+    // Asynchronously update with live market prices from MarketViewModel (MainActor-isolated).
+    // This avoids calling @MainActor methods from a nonisolated synchronous context.
+    Task { @MainActor [weak self] in
+        self?.updateHoldingsWithLivePrices()
+    }
+  }
+    
+  /// Refresh holdings with live prices from MarketViewModel.
+  /// Must run on MainActor since MarketViewModel.shared is MainActor-isolated.
+  @MainActor
+  private func updateHoldingsWithLivePrices() {
+    let current = holdingsSubject.value
+    guard !current.isEmpty else { return }
+    
+    var didChange = false
+    let updated: [Holding] = current.map { holding in
+        let symbol = holding.coinSymbol.uppercased()
+        
+        if let price = MarketViewModel.shared.bestPrice(forSymbol: symbol), price > 0 {
+            if price != holding.currentPrice {
+                didChange = true
+                var h = holding
+                h.currentPrice = price
+                return h
+            }
+        } else if let coin = MarketViewModel.shared.allCoins.first(where: {
+            $0.symbol.uppercased() == symbol
+        }), let price = coin.priceUsd, price > 0 {
+            if price != holding.currentPrice {
+                didChange = true
+                var h = holding
+                h.currentPrice = price
+                return h
+            }
+        }
+        return holding
+    }
+    
+    if didChange {
+        holdingsSubject.send(updated)
+    }
+  }
+    
+  /// Map common symbols to readable names
+  private func coinName(for symbol: String) -> String {
+    let names: [String: String] = [
+        "BTC": "Bitcoin", "ETH": "Ethereum", "SOL": "Solana",
+        "ADA": "Cardano", "XRP": "XRP", "DOGE": "Dogecoin",
+        "DOT": "Polkadot", "LINK": "Chainlink", "AVAX": "Avalanche",
+        "MATIC": "Polygon", "BNB": "BNB", "SHIB": "Shiba Inu",
+        "LTC": "Litecoin", "UNI": "Uniswap", "ATOM": "Cosmos",
+    ]
+    return names[symbol.uppercased()] ?? symbol
   }
 }

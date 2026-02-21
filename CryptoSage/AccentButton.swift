@@ -40,18 +40,31 @@ public struct AccentButtonStyle: ButtonStyle {
             .frame(height: height)
             .padding(.horizontal, horizontalPadding)
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.white.opacity(backgroundOpacity))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(tint.opacity(ringOpacity), lineWidth: 1.2)
             )
             .opacity(configuration.isPressed ? pressedOpacity : 1)
             .scaleEffect(configuration.isPressed ? pressedScale : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: configuration.isPressed)
     }
 }
 
 // Note:
 // To create a dimmed variant of this button style, callers can pass a lower ringOpacity value
 // or use a tint color with reduced opacity. A convenience extension for a dimmed variant is not provided here.
+
+#Preview("AccentButtonStyle") {
+    VStack(spacing: 12) {
+        Button("Primary Action") {}
+            .buttonStyle(AccentButtonStyle())
+        Button("Dimmed Action") {}
+            .buttonStyle(AccentButtonStyle(tint: .yellow.opacity(0.9), backgroundOpacity: 0.08, ringOpacity: 0.4))
+    }
+    .padding()
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}

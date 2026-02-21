@@ -38,15 +38,16 @@ struct AddBotView: View {
             }
             .navigationTitle("Add Bot")
             .toolbar {
-                // Cancel Button.
+                // Cancel Button
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                    Button { dismiss() } label: {
+                        Text("Cancel")
+                            .foregroundStyle(DS.Adaptive.textSecondary)
                     }
                 }
-                // Save Button.
+                // Save Button
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button {
                         let newBot = LocalBot(
                             id: Int.random(in: 1000...9999), // Example random ID.
                             name: name,
@@ -60,6 +61,10 @@ struct AddBotView: View {
                         )
                         onSave(newBot)
                         dismiss()
+                    } label: {
+                        Text("Save")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(BrandColors.goldBase)
                     }
                 }
             }

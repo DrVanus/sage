@@ -9,13 +9,18 @@ public actor SentimentHistoryStore {
     private struct Point: Codable { let ts: Int; let v: Double }
     private var points: [Point] = []
 
-    private let storageKey = "SentimentHistoryStore.points.v1"
+    private let storageKey = "SentimentHistoryStore.points.v2"  // Bumped to clear potentially corrupted data
     private let bucketSeconds: Int = 300 // 5 minutes
     private let maxDays: Int = 120
     private let hardCap: Int = 5000
 
     public init() {
-        load()
+        // Inline load logic: actor init cannot call actor-isolated methods
+        if let data = UserDefaults.standard.data(forKey: storageKey) {
+            if let arr = try? JSONDecoder().decode([Point].self, from: data) {
+                points = arr.sorted { $0.ts < $1.ts }
+            }
+        }
     }
 
     // MARK: - Public API
@@ -43,6 +48,10 @@ public actor SentimentHistoryStore {
         let startTs = Int(start.timeIntervalSince1970)
         let endTs = Int(end.timeIntervalSince1970)
         guard endTs > startTs else { return [] }
+        // Require a minimum amount of history to avoid flat series on cold start
+        if points.count < 3 { return [] }
+        let spanSeconds = points.last!.ts - points.first!.ts
+        if spanSeconds < 12 * 3600 { return [] } // < 12 hours of history -> treat as insufficient
 
         var out: [(Int, Double)] = []
         for i in 0..<n {
@@ -58,9 +67,9 @@ public actor SentimentHistoryStore {
     }
 
     // MARK: - Calibration helpers
-    // Compute a symmetric scale around 50 so that p10 ≈ 20 and p90 ≈ 80.
+    // Compute a symmetric scale around 50 so that p10 ≈ targetLow and p90 ≈ targetHigh.
     // Returns 1.0 if insufficient data.
-    public func scaleFactorForCalibration(values: [Double]) -> Double {
+    public func scaleFactorForCalibration(values: [Double], targetLow: Double, targetHigh: Double) -> Double {
         guard values.count >= 8 else { return 1.0 }
         let sorted = values.sorted()
         func pct(_ p: Double) -> Double {
@@ -71,10 +80,14 @@ public actor SentimentHistoryStore {
         let p90 = pct(0.90)
         // Avoid division by near-zero; keep neutral anchored at 50
         var sCandidates: [Double] = []
-        if p90 > 50 { sCandidates.append((80.0 - 50.0) / (p90 - 50.0)) }
-        if p10 < 50 { sCandidates.append((50.0 - 20.0) / (50.0 - p10)) }
+        if p90 > 50 { sCandidates.append(((targetHigh - 50.0) / (p90 - 50.0))) }
+        if p10 < 50 { sCandidates.append(((50.0 - targetLow) / (50.0 - p10))) }
         guard let s = sCandidates.min(), s.isFinite else { return 1.0 }
         return max(0.85, min(1.15, s))
+    }
+
+    public func scaleFactorForCalibration(values: [Double]) -> Double {
+        return scaleFactorForCalibration(values: values, targetLow: 20.0, targetHigh: 80.0)
     }
 
     public func applyCalibration(_ v: Int, scale s: Double) -> Int {
@@ -100,8 +113,8 @@ public actor SentimentHistoryStore {
 
     private func sample(ts: Int) -> Double? {
         guard !points.isEmpty else { return nil }
-        if ts <= points.first!.ts { return points.first!.v }
-        if ts >= points.last!.ts { return points.last!.v }
+        if ts < points.first!.ts { return nil }
+        if ts > points.last!.ts { return points.last!.v }
         // Binary search for bracketing points
         var lo = 0
         var hi = points.count - 1

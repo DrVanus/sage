@@ -78,7 +78,7 @@ extension CoinPrice {
     private static let currencyFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        f.currencyCode = "USD"
+        f.currencyCode = CurrencyManager.currencyCode
         f.maximumFractionDigits = 2
         return f
     }()

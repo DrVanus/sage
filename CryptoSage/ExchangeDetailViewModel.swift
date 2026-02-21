@@ -55,13 +55,10 @@ struct ExchangeDetailView: View {
             VStack(spacing: 20) {
                 // Custom top bar with a back button
                 HStack {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(.white)
-                    }
+                    CSNavButton(
+                        icon: "chevron.left",
+                        action: { presentationMode.wrappedValue.dismiss() }
+                    )
                     
                     Spacer()
                     
@@ -111,6 +108,9 @@ struct ExchangeDetailView: View {
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
+        // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
+        .enableInteractivePopGesture()
+        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
     }
 }
 
@@ -120,7 +120,7 @@ struct ExchangeDetailView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             // For preview, using a sample exchange item.
-            ExchangeDetailView(exchange: ExchangeItem(name: "Binance"))
+            ExchangeDetailView(exchange: ExchangeItem(name: "Binance", type: .exchange))
         }
     }
 }

@@ -1,15 +1,5 @@
 import SwiftUI
 
-private func formatUSD(_ v: Double) -> String {
-    guard v.isFinite, v > 0 else { return "$0.00" }
-    let nf = NumberFormatter()
-    nf.numberStyle = .currency
-    nf.currencyCode = "USD"
-    nf.maximumFractionDigits = (v < 1.0) ? 8 : 2
-    nf.minimumFractionDigits = (v < 1.0) ? 2 : 2
-    return nf.string(from: NSNumber(value: v)) ?? "$0.00"
-}
-
 private func formatPct(_ frac: Double?) -> String {
     guard let f = frac, f.isFinite else { return "—" }
     let pct = f * 100.0

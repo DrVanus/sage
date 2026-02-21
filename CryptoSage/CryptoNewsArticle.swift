@@ -52,59 +52,81 @@ struct CryptoNewsArticle: Codable, Identifiable, Equatable {
         self.url = try container.decode(URL.self, forKey: .url)
         self.urlToImage = try container.decodeIfPresent(URL.self, forKey: .urlToImage)
         self.sourceName = try container.decodeIfPresent(String.self, forKey: .sourceName) ?? "Unknown Source"
-        let dateString = try container.decode(String.self, forKey: .publishedAt)
-        // Debug: log the raw timestamp string
-        print("PublishedAt raw string: \(dateString)")
-        
-        var parsedDate: Date?
-        
-        // 1) Try ISO8601 with fractional seconds, full date/time, and colon separators
-        let isoFormatter1 = ISO8601DateFormatter()
-        isoFormatter1.formatOptions = [
-            .withFullDate,
-            .withFullTime,
-            .withFractionalSeconds,
-            .withColonSeparatorInTime,
-            .withColonSeparatorInTimeZone
-        ]
-        parsedDate = isoFormatter1.date(from: dateString)
-        
-        // 2) If still nil, try ISO8601 without fractional seconds
-        if parsedDate == nil {
-            let isoFormatter2 = ISO8601DateFormatter()
-            isoFormatter2.formatOptions = [
-                .withInternetDateTime,
-                .withColonSeparatorInTimeZone
-            ]
-            parsedDate = isoFormatter2.date(from: dateString)
-        }
-        
-        // 3) If still nil, try multiple fallback formats
-        if parsedDate == nil {
-            let fallbackPatterns = [
-                "yyyy-MM-dd'T'HH:mm:ssXXXXX",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
-                "yyyy-MM-dd'T'HH:mm:ssZ"
-            ]
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.timeZone = TimeZone(secondsFromGMT: 0)
-            for pattern in fallbackPatterns {
-                df.dateFormat = pattern
-                if let d = df.date(from: dateString) {
-                    parsedDate = d
-                    break
+
+        var parsed: Date? = nil
+
+        // 1) String-based timestamps (ISO8601 or RFC822/RFC1123 or numeric strings)
+        if let dateString = try container.decodeIfPresent(String.self, forKey: .publishedAt) {
+            // ISO8601 with fractional seconds
+            let isoFrac = ISO8601DateFormatter()
+            isoFrac.formatOptions = [.withFullDate, .withFullTime, .withFractionalSeconds, .withColonSeparatorInTime, .withColonSeparatorInTimeZone]
+            parsed = isoFrac.date(from: dateString)
+            if parsed == nil {
+                // ISO8601 common internet format
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
+                parsed = iso.date(from: dateString)
+            }
+            if parsed == nil {
+                // RFC822 / RFC1123 patterns frequently used by RSS
+                let rfc = DateFormatter()
+                rfc.locale = Locale(identifier: "en_US_POSIX")
+                rfc.timeZone = TimeZone(secondsFromGMT: 0)
+                let patterns = [
+                    "EEE, dd MMM yyyy HH:mm:ss zzz", // RFC1123
+                    "EEE, dd MMM yyyy HH:mm zzz",    // RFC1123 (no seconds)
+                    "dd MMM yyyy HH:mm:ss zzz",      // RFC822 variant
+                    "yyyy-MM-dd'T'HH:mm:ssXXXXX",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
+                    "yyyy-MM-dd'T'HH:mm:ssZ"
+                ]
+                for p in patterns {
+                    rfc.dateFormat = p
+                    if let d = rfc.date(from: dateString) { parsed = d; break }
+                }
+            }
+            if parsed == nil {
+                // Numeric string (seconds or milliseconds)
+                if let rawNum = Double(dateString) {
+                    if rawNum > 10_000_000_000 { // milliseconds
+                        parsed = Date(timeIntervalSince1970: rawNum / 1000.0)
+                    } else {
+                        parsed = Date(timeIntervalSince1970: rawNum)
+                    }
                 }
             }
         }
-        
-        // 4) Assign final parsed date or default to now
-        if let date = parsedDate {
-            self.publishedAt = date
-        } else {
-            self.publishedAt = Date()
-            print("Warning: Failed to parse publishedAt ('\(dateString)'), defaulting to now.")
+
+        // 2) Numeric timestamps (seconds or milliseconds)
+        if parsed == nil, let tsDouble = try container.decodeIfPresent(Double.self, forKey: .publishedAt) {
+            parsed = tsDouble > 10_000_000_000 ? Date(timeIntervalSince1970: tsDouble / 1000.0) : Date(timeIntervalSince1970: tsDouble)
         }
+        if parsed == nil, let tsInt = try container.decodeIfPresent(Int.self, forKey: .publishedAt) {
+            let v = Double(tsInt)
+            parsed = v > 10_000_000_000 ? Date(timeIntervalSince1970: v / 1000.0) : Date(timeIntervalSince1970: v)
+        }
+
+        // 3) Fallback
+        self.publishedAt = NewsDate.clampIfUnrealistic(parsed ?? Date())
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(title, forKey: .title)
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encode(url, forKey: .url)
+        try container.encodeIfPresent(urlToImage, forKey: .urlToImage)
+        try container.encode(sourceName, forKey: .sourceName)
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [
+            .withFullDate,
+            .withFullTime,
+            .withColonSeparatorInTime,
+            .withColonSeparatorInTimeZone,
+            .withFractionalSeconds
+        ]
+        let dateString = iso.string(from: publishedAt)
+        try container.encode(dateString, forKey: .publishedAt)
     }
     
     /// Provides a default UUID when decoding or initializing
@@ -126,20 +148,7 @@ struct CryptoNewsArticle: Codable, Identifiable, Equatable {
 
     /// Human-friendly “time ago” formatting (e.g. "5h ago", "30m ago", "Yesterday")
     var relativeTime: String {
-        let interval = Date().timeIntervalSince(publishedAt)
-        if interval < 60 {
-            return "Just now"
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return "\(minutes)m ago"
-        } else if interval < 86400 {
-            let hours = Int(interval / 3600)
-            return "\(hours)h ago"
-        } else if Calendar.current.isDateInYesterday(publishedAt) {
-            return "Yesterday"
-        } else {
-            let days = Int(interval / 86400)
-            return "\(days)d ago"
-        }
+        NewsDate.relative(for: publishedAt)
     }
 }
+

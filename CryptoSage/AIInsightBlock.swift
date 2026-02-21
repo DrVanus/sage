@@ -12,6 +12,7 @@ import SwiftUI
 struct AIInsightBlock: View {
     // Example: pass in any data or view models you need from the outside.
     @ObservedObject var portfolioViewModel: PortfolioViewModel
+    var showTitle: Bool = true
 
     // If you want to store AI results or load them asynchronously, you could:
     @State private var aiInsightText: String = "Loading AI insights..."
@@ -23,28 +24,30 @@ struct AIInsightBlock: View {
             // Imagine you used an API to get a short "insight" message
             let randomDelta = Double.random(in: -1.0...3.0)
             if randomDelta >= 0 {
-                aiInsightText = "AI says: your portfolio is likely to grow by \(String(format: "%.1f", randomDelta))% this week."
+                aiInsightText = "Your portfolio is likely to grow by \(String(format: "%.1f", randomDelta))% this week."
             } else {
-                aiInsightText = "AI warns: your portfolio might see a drop of \(String(format: "%.1f", -randomDelta))% this week."
+                aiInsightText = "Your portfolio might see a drop of \(String(format: "%.1f", -randomDelta))% this week."
             }
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("AI Insights")
-                .font(.headline)
-                .foregroundColor(.white)
+            if showTitle {
+                Text("CryptoSage AI Insights")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
 
             Text(aiInsightText)
                 .font(.subheadline)
                 .foregroundColor(.white.opacity(0.8))
 
             // Example: Display some quick AI-based tips or warnings
-            if aiInsightText.contains("warns") {
+            if aiInsightText.contains("drop") {
                 Text("Tip: Consider rebalancing your largest holding.")
                     .font(.footnote)
-                    .foregroundColor(.yellow)
+                    .foregroundColor(DS.Adaptive.goldText)
             } else {
                 Text("Tip: Your current asset allocation looks balanced.")
                     .font(.footnote)

@@ -139,8 +139,20 @@ If you add TelemetryDeck or Sentry as described in the implementation:
 The app sends user prompts to OpenAI's API for AI chat functionality. This is covered under "App Functionality" but you should note:
 
 - User prompts are sent to OpenAI's servers
+- AI-generated predictions and analysis are created using market data and portfolio information
 - This is disclosed in the Privacy Policy
 - No additional privacy label needed (considered "User Content" only if stored)
+
+### Trading Features (Paper Trading)
+
+**Note:** Live trading via connected exchanges is currently not available. The app offers Paper Trading (simulated trading with virtual funds) only.
+
+- Paper Trading allows practice with $100,000 in virtual funds
+- Paper trading data is stored locally on device only
+- API credentials for portfolio tracking are stored locally in Keychain (encrypted)
+- Exchange connections are used for portfolio tracking and market data only
+- Trading risk acknowledgments are stored locally on device
+- No trade history is stored on our servers
 
 ---
 
@@ -180,14 +192,28 @@ Apple requires a **publicly accessible URL** for your privacy policy. We've crea
 
 ## Before Submission Checklist
 
+### Privacy & Legal
 - [ ] Privacy Policy URL is set in App Store Connect
 - [ ] Privacy Policy URL is publicly accessible (test in incognito browser)
-- [ ] Privacy Policy is accessible from within the app
-- [ ] Analytics opt-out toggle works (Settings > Privacy)
-- [ ] All data types above are declared
+- [ ] Privacy Policy is accessible from within the app (Settings > Privacy Policy)
+- [ ] Terms of Service is accessible from within the app (Settings > Terms of Service)
+- [ ] Terms of Service URL is set in App Store Connect
+- [ ] Analytics opt-out toggle works (Settings > Privacy & Analytics)
+- [ ] All data types above are declared correctly
 - [ ] "Data Used to Track You" is set to NONE
-- [ ] Review that all declarations match actual app behavior
-- [ ] Terms of Service URL is set (optional but recommended)
+
+### Trading Risk Acknowledgments (Important for Finance Apps)
+- [ ] Trading risk acknowledgment flow works before first real trade
+- [ ] Derivatives risk acknowledgment appears for leverage trades
+- [ ] Bot trading risk acknowledgment appears before bot creation
+- [ ] Trading Acknowledgments status view works (Settings)
+- [ ] Paper trading mode bypasses acknowledgments (no real risk)
+
+### Legal Review
+- [ ] Terms of Service reviewed by qualified attorney
+- [ ] Privacy Policy reviewed by qualified attorney
+- [ ] SEC/FINRA disclaimer language verified (not investment advice)
+- [ ] Arbitration clause reviewed for enforceability
 
 ---
 
@@ -196,4 +222,4 @@ Apple requires a **publicly accessible URL** for your privacy policy. We've crea
 If Apple requests clarification during review, refer them to:
 - In-app Privacy Policy (Settings > Privacy Policy)
 - In-app Analytics Info (Settings > Privacy & Analytics > What We Collect)
-- Email: privacy@cryptosage.ai
+- Email: hypersageai@gmail.com

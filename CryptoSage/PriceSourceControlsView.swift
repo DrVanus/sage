@@ -8,55 +8,6 @@ struct KnownExchanges {
     ]
 }
 
-enum PriceSourcePreference: String, CaseIterable, Identifiable {
-    case auto
-    case ws
-    case manager
-    case gecko
-
-    var id: String { rawValue }
-}
-
-class AppSettings {
-    private static let priceSourceKey = "PriceSourcePreference"
-    private static let compositeAllowedExchangesKey = "CompositeAllowedExchanges"
-    private static let preferredExchangePrefix = "PreferredExchangeForAsset_"
-
-    static var priceSourcePreference: PriceSourcePreference {
-        get {
-            if let raw = UserDefaults.standard.string(forKey: priceSourceKey),
-               let pref = PriceSourcePreference(rawValue: raw) {
-                return pref
-            }
-            return .auto
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: priceSourceKey)
-        }
-    }
-
-    static func compositeAllowedExchanges() -> [String]? {
-        UserDefaults.standard.stringArray(forKey: compositeAllowedExchangesKey)
-    }
-
-    static func setCompositeAllowedExchanges(_ exchanges: [String]?) {
-        UserDefaults.standard.set(exchanges, forKey: compositeAllowedExchangesKey)
-    }
-
-    static func preferredExchange(for symbol: String) -> String? {
-        UserDefaults.standard.string(forKey: preferredExchangePrefix + symbol.uppercased())
-    }
-
-    static func setPreferredExchange(for symbol: String, exchangeID: String?) {
-        let key = preferredExchangePrefix + symbol.uppercased()
-        if let exchangeID = exchangeID {
-            UserDefaults.standard.set(exchangeID, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-}
-
 struct PriceSourceControlsView: View {
     @Binding var symbol: String
     var onChanged: (() -> Void)? = nil
@@ -72,14 +23,18 @@ struct PriceSourceControlsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Live Price Source").font(.footnote).foregroundStyle(.secondary)
                     Picker("Source", selection: $selectedPref) {
-                        ForEach(PriceSourcePreference.allCases) { pref in
-                            Text(pref.rawValue.capitalized).tag(pref)
-                        }
+                        Text("Auto").tag(PriceSourcePreference.auto)
+                        Text("WS").tag(PriceSourcePreference.ws)
+                        Text("Manager").tag(PriceSourcePreference.manager)
+                        Text("Gecko").tag(PriceSourcePreference.gecko)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: selectedPref) { newValue in
-                        AppSettings.priceSourcePreference = newValue
-                        onChanged?()
+                    .onChange(of: selectedPref) { _, newValue in
+                        // Defer to avoid "Modifying state during view update"
+                        DispatchQueue.main.async {
+                            AppSettings.priceSourcePreference = newValue
+                            onChanged?()
+                        }
                     }
                 }
 
@@ -135,13 +90,12 @@ struct PriceSourceControlsView: View {
                 }
             }
             .onAppear {
-                selectedPref = AppSettings.priceSourcePreference
-                if let ids = AppSettings.compositeAllowedExchanges() {
-                    allowed = Set(ids)
-                } else {
-                    allowed.removeAll()
+                // Defer to avoid "Modifying state during view update"
+                DispatchQueue.main.async {
+                    selectedPref = AppSettings.priceSourcePreference
+                    if let ids = AppSettings.compositeAllowedExchanges() { allowed = Set(ids) } else { allowed.removeAll() }
+                    preferredExchangeForAsset = AppSettings.preferredExchange(for: symbol)
                 }
-                preferredExchangeForAsset = AppSettings.preferredExchange(for: symbol)
             }
             .padding(.vertical, 4)
         }
@@ -149,21 +103,14 @@ struct PriceSourceControlsView: View {
 }
 
 #Preview {
-    StatefulPreviewWrapper("BTC") { sym in
-        PriceSourceControlsView(symbol: sym)
-            .padding()
-    }
+    PriceSourceControlsView_PreviewContainer()
 }
 
-// Helper to preview @Binding
-struct StatefulPreviewWrapper<Value, Content: View>: View {
-    @State private var value: Value
-    var content: (Binding<Value>) -> Content
+private struct PriceSourceControlsView_PreviewContainer: View {
+    @State private var symbol: String = "BTC"
 
-    init(_ initialValue: Value, @ViewBuilder content: @escaping (Binding<Value>) -> Content) {
-        _value = State(initialValue: initialValue)
-        self.content = content
+    var body: some View {
+        PriceSourceControlsView(symbol: $symbol)
+            .padding()
     }
-
-    var body: some View { content($value) }
 }

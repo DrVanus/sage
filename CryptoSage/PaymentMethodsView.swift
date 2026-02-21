@@ -15,7 +15,8 @@ struct PaymentMethod: Identifiable {
 
 /// Your existing picker view.
 struct EnhancedPaymentMethodPickerView: View {
-    @Environment(\.presentationMode) var presentationMode
+    // DEPRECATED FIX: Use dismiss instead of presentationMode
+    @Environment(\.dismiss) private var dismiss
     
     // The currently selected PaymentMethod (bound from TradeView or wherever).
     @Binding var currentMethod: PaymentMethod
@@ -92,7 +93,7 @@ struct EnhancedPaymentMethodPickerView: View {
                                             .font(.headline)
                                         if method.isPreferred {
                                             Image(systemName: "star.fill")
-                                                .foregroundColor(.yellow)
+                                                .foregroundColor(DS.Adaptive.gold)
                                                 .font(.caption)
                                         }
                                     }
@@ -104,14 +105,14 @@ struct EnhancedPaymentMethodPickerView: View {
                                 // If this method is the currently selected one, show a check
                                 if method.id == currentMethod.id {
                                     Image(systemName: "checkmark")
-                                        .foregroundColor(.yellow)
+                                        .foregroundColor(DS.Adaptive.gold)
                                 }
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 currentMethod = method
                                 onSelect(method)
-                                presentationMode.wrappedValue.dismiss()
+                                dismiss()
                             }
                             // SWIPE ACTIONS
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -199,9 +200,9 @@ struct EnhancedPaymentMethodPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
-                    .foregroundColor(.yellow)
+                    .foregroundColor(DS.Adaptive.gold)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -209,9 +210,11 @@ struct EnhancedPaymentMethodPickerView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .foregroundColor(.yellow)
+                    .foregroundColor(DS.Adaptive.gold)
                 }
             }
+            .enableInteractivePopGesture()
+            .edgeSwipeToDismiss(onDismiss: { dismiss() })
             // RENAME SHEET
             .sheet(isPresented: $showRenameSheet) {
                 if let renameTarget = renameTarget {
@@ -293,7 +296,8 @@ struct RenamePaymentMethodView: View {
     let method: PaymentMethod
     @State var text: String
     var onSave: (String) -> Void
-    @Environment(\.presentationMode) var presentationMode
+    // DEPRECATED FIX: Use dismiss instead of presentationMode
+    @Environment(\.dismiss) private var dismiss
     
     init(method: PaymentMethod, initialText: String, onSave: @escaping (String) -> Void) {
         self.method = method
@@ -309,11 +313,11 @@ struct RenamePaymentMethodView: View {
             .navigationBarTitle("Rename", displayMode: .inline)
             .navigationBarItems(
                 leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 },
                 trailing: Button("Save") {
                     onSave(text)
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 }
             )
         }
@@ -322,7 +326,8 @@ struct RenamePaymentMethodView: View {
 
 /// A small sheet to add a new payment method.
 struct AddPaymentMethodView: View {
-    @Environment(\.presentationMode) var presentationMode
+    // DEPRECATED FIX: Use dismiss instead of presentationMode
+    @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
     @State private var details: String = ""
     var onAdd: (String, String) -> Void
@@ -338,11 +343,11 @@ struct AddPaymentMethodView: View {
             .navigationBarTitle("Add Method", displayMode: .inline)
             .navigationBarItems(
                 leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 },
                 trailing: Button("Add") {
                     onAdd(name, details)
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 }
             )
         }
@@ -351,7 +356,8 @@ struct AddPaymentMethodView: View {
 
 /// A small sheet to collect API credentials to connect a payment method.
 struct ConnectPaymentMethodView: View {
-    @Environment(\.presentationMode) var presentationMode
+    // DEPRECATED FIX: Use dismiss instead of presentationMode
+    @Environment(\.dismiss) private var dismiss
     var method: PaymentMethod
     var onConnect: (PaymentMethod) -> Void
     @State private var tempApiKey: String = ""
@@ -372,10 +378,10 @@ struct ConnectPaymentMethodView: View {
                         updated.secretKey = tempSecretKey
                         updated.isConnected = true
                         onConnect(updated)
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                     Button("Cancel", role: .cancel) {
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                 }
             }

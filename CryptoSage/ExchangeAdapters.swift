@@ -7,13 +7,13 @@ public protocol ExchangeAdapter {
 
     // Return market pairs this adapter can provide for a given base symbol (e.g., "BTC").
     // Implementations may ignore the hint and return all supported pairs.
-    func supportedPairs(for baseSymbol: String) async -> [MarketPair]
+    func supportedPairs(for baseSymbol: String) async -> [MMEMarketPair]
 
     // Fetch latest tickers for the given pairs. Implementations should best-effort fill `ts` (epoch seconds).
-    func fetchTickers(for pairs: [MarketPair]) async throws -> [Ticker]
+    func fetchTickers(for pairs: [MMEMarketPair]) async throws -> [MMETicker]
 
     // Fetch recent candles for a specific pair and interval. Limit is a soft upper bound.
-    func fetchCandles(pair: MarketPair, interval: CandleInterval, limit: Int) async throws -> [Candle]
+    func fetchCandles(pair: MMEMarketPair, interval: MMECandleInterval, limit: Int) async throws -> [MMECandle]
 }
 
 public protocol ExchangeRateService {
@@ -31,6 +31,8 @@ public final class InMemoryExchangeRateService: ExchangeRateService {
         "USDT": 1.0,
         "USDC": 1.0,
         "BUSD": 1.0,
+        "FDUSD": 1.0,
+        "DAI": 1.0,
         "EUR": 1.08,
         "GBP": 1.27
     ]) {
@@ -46,61 +48,3 @@ public final class InMemoryExchangeRateService: ExchangeRateService {
     }
 }
 
-// Supporting types
-
-public struct MarketPair: Hashable {
-    public let base: String
-    public let quote: String
-
-    public init(base: String, quote: String) {
-        self.base = base
-        self.quote = quote
-    }
-}
-
-public struct Ticker {
-    public let pair: MarketPair
-    public let price: Double
-    public let volume: Double
-    public let ts: Int? // Epoch seconds timestamp
-
-    public init(pair: MarketPair, price: Double, volume: Double, ts: Int?) {
-        self.pair = pair
-        self.price = price
-        self.volume = volume
-        self.ts = ts
-    }
-}
-
-public enum CandleInterval: Equatable {
-    case oneMinute
-    case fiveMinutes
-    case fifteenMinutes
-    case thirtyMinutes
-    case oneHour
-    case fourHours
-    case oneDay
-    case oneWeek
-}
-
-public struct Candle {
-    public let pair: MarketPair
-    public let interval: CandleInterval
-    public let openTime: Int // Epoch seconds
-    public let open: Double
-    public let high: Double
-    public let low: Double
-    public let close: Double
-    public let volume: Double
-
-    public init(pair: MarketPair, interval: CandleInterval, openTime: Int, open: Double, high: Double, low: Double, close: Double, volume: Double) {
-        self.pair = pair
-        self.interval = interval
-        self.openTime = openTime
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-        self.volume = volume
-    }
-}

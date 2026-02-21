@@ -1,0 +1,66 @@
+# Xcode build artifacts & caches
+build/
+DerivedData/
+.build_runtime/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+xcuserdata/
+
+# Xcode Archives
+*.xcarchive
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+*.workspace
+
+# CocoaPods
+Pods/
+
+# Secrets & credentials - NEVER commit these
+.env
+.env.*
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+
+# Firebase (safe to commit GoogleService-Info.plist per Google docs,
+# but keep server-side secrets out of the repo)
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+firebase-export-metadata.json
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Firebase server-side code (large node_modules)
+firebase/
+
+# IDE
+.cursor/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Crash logs
+*.crash
+*.ips
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace

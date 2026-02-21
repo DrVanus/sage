@@ -7,6 +7,7 @@ struct DebugRateLimitHUD: View {
     @State private var lastCode: Int = 0
     @State private var visible: Bool = false
     @State private var hideTask: Task<Void, Never>? = nil
+    @State private var notificationObserver: NSObjectProtocol? = nil
 
     private let maxVisible: TimeInterval = 5.0 // cap on-screen time regardless of TTL
 
@@ -34,35 +35,45 @@ struct DebugRateLimitHUD: View {
                                 .stroke(Color.black.opacity(0.25), lineWidth: 0.6)
                         )
                 )
-                .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 2)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .accessibilityHidden(true)
             }
         }
         .onAppear { subscribe() }
-        .onDisappear { hideTask?.cancel() }
+        .onDisappear { unsubscribe() }
     }
 
     private func subscribe() {
-        NotificationCenter.default.addObserver(forName: RateLimitDiagnostics.notification, object: nil, queue: .main) { note in
+        notificationObserver = NotificationCenter.default.addObserver(forName: RateLimitDiagnostics.notification, object: nil, queue: .main) { [self] note in
             guard let userInfo = note.userInfo,
                   let host = userInfo["host"] as? String,
                   let code = userInfo["code"] as? Int,
                   let until = userInfo["until"] as? Date else { return }
-            lastHost = host
-            lastCode = code
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                visible = true
-            }
-            hideTask?.cancel()
-            let ttl = max(1, until.timeIntervalSinceNow)
-            let delay = min(maxVisible, ttl)
-            hideTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    visible = false
+            DispatchQueue.main.async {
+                lastHost = host
+                lastCode = code
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                    visible = true
+                }
+                hideTask?.cancel()
+                let ttl = max(1, until.timeIntervalSinceNow)
+                let delay = min(maxVisible, ttl)
+                hideTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        visible = false
+                    }
                 }
             }
+        }
+    }
+    
+    private func unsubscribe() {
+        hideTask?.cancel()
+        hideTask = nil
+        if let observer = notificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            notificationObserver = nil
         }
     }
 }

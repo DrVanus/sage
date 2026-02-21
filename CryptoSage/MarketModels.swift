@@ -1,12 +1,12 @@
 import Foundation
 
-public struct Asset {
+public struct MMEAsset {
     public let id: String
     public let symbol: String
     public let name: String
 }
 
-public struct Exchange {
+public struct MMEExchange {
     public let id: String
     public let name: String
     public let region: String?
@@ -20,7 +20,7 @@ public struct Exchange {
     }
 }
 
-public struct MarketPair: Hashable, Codable {
+public struct MMEMarketPair: Hashable, Codable {
     public let exchangeID: String
     public let baseSymbol: String
     public let quoteSymbol: String
@@ -36,15 +36,15 @@ public struct MarketPair: Hashable, Codable {
     }
 }
 
-public struct Ticker: Codable {
-    public let pair: MarketPair
+public struct MMETicker: Codable {
+    public let pair: MMEMarketPair
     public let last: Double
     public let bid: Double?
     public let ask: Double?
     public let volume24hBase: Double?
     public let ts: TimeInterval
 
-    public init(pair: MarketPair, last: Double, bid: Double?, ask: Double?, volume24hBase: Double?, ts: TimeInterval) {
+    public init(pair: MMEMarketPair, last: Double, bid: Double?, ask: Double?, volume24hBase: Double?, ts: TimeInterval) {
         self.pair = pair
         self.last = last
         self.bid = bid
@@ -54,7 +54,7 @@ public struct Ticker: Codable {
     }
 }
 
-public enum CandleInterval: String, Codable, CaseIterable {
+public enum MMECandleInterval: String, Codable, CaseIterable {
     case m1 = "1m"
     case m5 = "5m"
     case m15 = "15m"
@@ -63,9 +63,9 @@ public enum CandleInterval: String, Codable, CaseIterable {
     case d1 = "1d"
 }
 
-public struct Candle: Codable {
-    public let pair: MarketPair
-    public let interval: CandleInterval
+public struct MMECandle: Codable {
+    public let pair: MMEMarketPair
+    public let interval: MMECandleInterval
     public let open: Double
     public let high: Double
     public let low: Double
@@ -73,7 +73,7 @@ public struct Candle: Codable {
     public let volume: Double?
     public let ts: TimeInterval
 
-    public init(pair: MarketPair, interval: CandleInterval, open: Double, high: Double, low: Double, close: Double, volume: Double?, ts: TimeInterval) {
+    public init(pair: MMEMarketPair, interval: MMECandleInterval, open: Double, high: Double, low: Double, close: Double, volume: Double?, ts: TimeInterval) {
         self.pair = pair
         self.interval = interval
         self.open = open
@@ -85,23 +85,23 @@ public struct Candle: Codable {
     }
 }
 
-public struct CompositeConstituent {
-    public let pair: MarketPair
+public struct MMECompositeConstituent {
+    public let pair: MMEMarketPair
     public let priceUSD: Double
     public let weight: Double
 }
 
-public struct CompositePrice {
+public struct MMECompositePrice {
     public let assetSymbol: String
     public let priceUSD: Double
     public let method: String
-    public let constituents: [CompositeConstituent]
+    public let constituents: [MMECompositeConstituent]
     public let ts: TimeInterval
 }
 
-public struct CompositeSeries {
+public struct MMECompositeSeries {
     public let assetSymbol: String
-    public let interval: CandleInterval
+    public let interval: MMECandleInterval
     public let closesUSD: [Double]
     public let timestamps: [TimeInterval]
     public let ts: TimeInterval

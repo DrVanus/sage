@@ -35,7 +35,6 @@ struct ChartDetailView: View {
     
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
-    @State private var dragLocation: CGPoint? = nil
 
     var body: some View {
         ZStack {
@@ -82,26 +81,6 @@ struct ChartDetailView: View {
                                 lastScale = 1.0
                             }
                     )
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { gesture in
-                                dragLocation = gesture.location
-                            }
-                            .onEnded { _ in
-                                dragLocation = nil
-                            }
-                    )
-                    .overlay(
-                        Group {
-                            if let loc = dragLocation {
-                                Path { path in
-                                    path.move(to: CGPoint(x: loc.x, y: 0))
-                                    path.addLine(to: CGPoint(x: loc.x, y: geo.size.height))
-                                }
-                                .stroke(Color.yellow, style: StrokeStyle(lineWidth: 1, dash: [5]))
-                            }
-                        }
-                    )
                 }
                 .frame(height: 300)
                 .padding(.horizontal)
@@ -111,6 +90,8 @@ struct ChartDetailView: View {
             }
         }
         .navigationBarHidden(true)
+        .enableInteractivePopGesture()
+        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
     }
 }
 
@@ -127,3 +108,4 @@ struct ChartDetailView_Previews: PreviewProvider {
             .environmentObject(vm)
     }
 }
+

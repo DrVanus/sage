@@ -4,41 +4,71 @@
 //
 //  Created by DM on 4/20/25.
 //
-
+//  Secure Keychain helper for storing sensitive credentials.
+//  Uses kSecAttrAccessibleWhenUnlockedThisDeviceOnly for maximum security.
+//
 
 import Foundation
 import Security
 
-enum KeychainError: Error {
+enum KeychainError: Error, LocalizedError {
     case unexpectedStatus(OSStatus)
+    case encodingFailed
+    case decodingFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .unexpectedStatus(let status):
+            return "Keychain error: \(SecCopyErrorMessageString(status, nil) as String? ?? "Unknown error (\(status))")"
+        case .encodingFailed:
+            return "Failed to encode data for keychain storage"
+        case .decodingFailed:
+            return "Failed to decode data from keychain"
+        }
+    }
 }
 
 final class KeychainHelper {
     static let shared = KeychainHelper()
     private init() {}
+    
+    /// Security attribute: Data is only accessible when the device is unlocked,
+    /// and the data is not migrated to a new device (stays on this device only)
+    private let accessAttribute = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
 
-    /// Save a string value to the Keychain
+    /// Save a string value to the Keychain with enhanced security
     func save(_ value: String, service: String, account: String) throws {
-        let data = Data(value.utf8)
+        guard let data = value.data(using: .utf8) else {
+            throw KeychainError.encodingFailed
+        }
+        
+        // First try to update existing item
         let query: [String: Any] = [
             kSecClass as String       : kSecClassGenericPassword,
             kSecAttrService as String : service,
             kSecAttrAccount as String : account,
         ]
         let update: [String: Any] = [
-            kSecValueData as String   : data
+            kSecValueData as String   : data,
+            kSecAttrAccessible as String : accessAttribute
         ]
-        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        
+        var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        
         if status == errSecSuccess { return }
-        if status != errSecItemNotFound {
+        
+        if status == errSecItemNotFound {
+            // Item not found, add it with security attributes
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrAccessible as String] = accessAttribute
+            
+            status = SecItemAdd(addQuery as CFDictionary, nil)
+            guard status == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(status)
+            }
+        } else {
             throw KeychainError.unexpectedStatus(status)
-        }
-        // Item not found, add it
-        var addQuery = query
-        addQuery[kSecValueData as String] = data
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-        guard addStatus == errSecSuccess else {
-            throw KeychainError.unexpectedStatus(addStatus)
         }
     }
 
@@ -59,7 +89,7 @@ final class KeychainHelper {
         guard let data = item as? Data,
               let string = String(data: data, encoding: .utf8)
         else {
-            throw KeychainError.unexpectedStatus(status)
+            throw KeychainError.decodingFailed
         }
         return string
     }
@@ -75,5 +105,17 @@ final class KeychainHelper {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(status)
         }
+    }
+    
+    /// Check if a keychain item exists (without retrieving the value)
+    func exists(service: String, account: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String       : kSecClassGenericPassword,
+            kSecAttrService as String : service,
+            kSecAttrAccount as String : account,
+            kSecReturnData as String  : false
+        ]
+        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        return status == errSecSuccess
     }
 }

@@ -6,6 +6,9 @@ public struct ChartTheme {
     public var panelBorderColor: Color = Color.yellow.opacity(0.12)
     public var panelTopShade: Color = Color.black.opacity(0.30)
     public var panelBottomShade: Color = Color.black.opacity(0.15)
+    
+    // LIGHT MODE FIX: Flag to skip vignette overlay in light mode
+    public var disableVignette: Bool = false
 
     public var gridMajor: Color = Color.white.opacity(0.10)
     public var gridMinor: Color = Color.white.opacity(0.06)
@@ -48,7 +51,7 @@ public struct ChartGlassBackground: View {
                 )
         }
         .compositingGroup()
-        .drawingGroup(opaque: false)
+        // MEMORY FIX: .drawingGroup() removed - GPU offscreen buffer savings
     }
 }
 
@@ -101,6 +104,7 @@ public struct ChartStyledContainer<Content: View, Overlay: View>: View {
     public var theme: ChartTheme
     public var rows: Int
     public var columns: Int
+    public var vignetteOpacity: Double
     public var content: () -> Content
     public var overlay: () -> Overlay
 
@@ -108,12 +112,14 @@ public struct ChartStyledContainer<Content: View, Overlay: View>: View {
         theme: ChartTheme = ChartTheme(),
         rows: Int = 4,
         columns: Int = 0,
+        vignetteOpacity: Double = 0.10,
         @ViewBuilder content: @escaping () -> Content,
         @ViewBuilder overlay: @escaping () -> Overlay = { EmptyView() }
     ) {
         self.theme = theme
         self.rows = rows
         self.columns = columns
+        self.vignetteOpacity = vignetteOpacity
         self.content = content
         self.overlay = overlay
     }
@@ -126,6 +132,25 @@ public struct ChartStyledContainer<Content: View, Overlay: View>: View {
                 .clipShape(RoundedRectangle(cornerRadius: theme.panelCornerRadius, style: .continuous))
             overlay()
         }
+        .overlay(
+            // Subtle vignette to focus attention toward center
+            // LIGHT MODE FIX: Skip vignette when disabled - it creates a dark haze
+            // over the chart that makes colors look muddy on light backgrounds.
+            Group {
+                if !theme.disableVignette {
+                    RoundedRectangle(cornerRadius: theme.panelCornerRadius, style: .continuous)
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.black.opacity(0.0), Color.black.opacity(vignetteOpacity)],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 600
+                            )
+                        )
+                        .allowsHitTesting(false)
+                }
+            }
+        )
     }
 }
 
@@ -133,7 +158,6 @@ public struct ChartStyledContainer<Content: View, Overlay: View>: View {
 public extension View {
     func chartPrimaryLine(theme: ChartTheme = ChartTheme(), lineWidth: CGFloat = 2.5) -> some View {
         self
-            .shadow(color: theme.lineGlow, radius: 6, x: 0, y: 0)
             .overlay(
                 self
                     .foregroundStyle(
@@ -168,7 +192,7 @@ struct ChartBackgroundStyle_Previews: PreviewProvider {
                             path.addLine(to: .init(x: i, y: y))
                         }
                     }
-                    .stroke(style: StrokeStyle(lineWidth: 2.5, lineJoin: .round, lineCap: .round))
+                    .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                     .chartPrimaryLine()
                 }
                 .padding(10)
@@ -185,3 +209,4 @@ struct ChartBackgroundStyle_Previews: PreviewProvider {
         .preferredColorScheme(.dark)
     }
 }
+

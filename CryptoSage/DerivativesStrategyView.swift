@@ -14,8 +14,19 @@
 
 import SwiftUI
 
+// MARK: - Main Strategy View
 struct DerivativesStrategyView: View {
     @ObservedObject var viewModel: DerivativesBotViewModel
+    
+    var body: some View {
+        DerivativesStrategyBasicView(viewModel: viewModel)
+    }
+}
+
+// MARK: - Basic Strategy View
+struct DerivativesStrategyBasicView: View {
+    @ObservedObject var viewModel: DerivativesBotViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
@@ -40,18 +51,33 @@ struct DerivativesStrategyView: View {
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.2))
+                            // LIGHT MODE FIX: Adaptive background
+                            .fill(colorScheme == .dark ? Color.black.opacity(0.2) : Color.black.opacity(0.04))
                     )
                 }
 
                 // Generate Bot Config Button
                 Button(action: { viewModel.generateDerivativesConfig() }) {
-                    Text("Generate Bot Config")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.yellow)
-                        .foregroundColor(.black)
-                        .cornerRadius(12)
+                    HStack(spacing: 8) {
+                        Image(systemName: "cpu")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Generate Bot Config")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    // LIGHT MODE FIX: Adaptive text on gold button
+                    .foregroundColor(colorScheme == .dark ? .black : .white.opacity(0.95))
+                    .background(
+                        LinearGradient(
+                            colors: colorScheme == .dark
+                                ? [BrandColors.goldLight, BrandColors.goldBase]
+                                : [Color(red: 0.78, green: 0.60, blue: 0.10), Color(red: 0.65, green: 0.48, blue: 0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(14)
                 }
                 .padding(.horizontal)
             }
@@ -60,8 +86,8 @@ struct DerivativesStrategyView: View {
     }
 }
 
-struct DerivativesStrategyView_Previews: PreviewProvider {
+struct DerivativesStrategyBasicView_Previews: PreviewProvider {
     static var previews: some View {
-        DerivativesStrategyView(viewModel: DerivativesBotViewModel())
+        DerivativesStrategyBasicView(viewModel: DerivativesBotViewModel())
     }
 }

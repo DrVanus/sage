@@ -8,6 +8,7 @@
 
 import Foundation
 import os.log
+import FirebaseAnalytics
 
 // MARK: - Analytics Events
 
@@ -65,6 +66,44 @@ public enum AnalyticsEvent: String, CaseIterable {
     case errorOccurred = "error_occurred"
     case apiError = "api_error"
     case networkError = "network_error"
+    
+    // MARK: Subscription & Monetization
+    case subscriptionUpgradeStarted = "subscription_upgrade_started"
+    case subscriptionUpgradeCompleted = "subscription_upgrade_completed"
+    case subscriptionUpgradeFailed = "subscription_upgrade_failed"
+    case subscriptionCancelled = "subscription_cancelled"
+    case subscriptionRestored = "subscription_restored"
+    case paywallViewed = "paywall_viewed"
+    case paywallDismissed = "paywall_dismissed"
+    case paywallConversion = "paywall_conversion"
+    
+    // MARK: Feature Access & Limits
+    case featureAccessAttempt = "feature_access_attempt"
+    case featureAccessGranted = "feature_access_granted"
+    case featureAccessDenied = "feature_access_denied"
+    case aiPromptUsed = "ai_prompt_used"
+    case aiPromptLimitReached = "ai_prompt_limit_reached"
+    case aiPromptLimitWarning = "ai_prompt_limit_warning"
+    case priceAlertLimitReached = "price_alert_limit_reached"
+    
+    // MARK: AI Features
+    case aiPredictionGenerated = "ai_prediction_generated"
+    case aiInsightGenerated = "ai_insight_generated"
+    case aiModelUpgrade = "ai_model_upgrade"  // When Elite user uses GPT-4o
+    
+    // MARK: AI Cost Tracking (for utilization analysis)
+    case aiFeatureUsage = "ai_feature_usage"           // Tracks each AI feature use with details
+    case aiCostEstimate = "ai_cost_estimate"           // Tracks estimated cost per call
+    case aiUtilizationReport = "ai_utilization_report" // Daily utilization summary
+    case aiCacheHit = "ai_cache_hit"                   // Track when cache is used (cost savings)
+    case aiCooldownTriggered = "ai_cooldown_triggered" // Track when cooldown prevents API call
+    
+    // MARK: Ads (Free Tier)
+    case bannerAdImpression = "banner_ad_impression"
+    case bannerAdClicked = "banner_ad_clicked"
+    case interstitialAdShown = "interstitial_ad_shown"
+    case interstitialAdDismissed = "interstitial_ad_dismissed"
+    case interstitialAdFailed = "interstitial_ad_failed"
 }
 
 // MARK: - User Properties
@@ -78,6 +117,10 @@ public enum AnalyticsUserProperty: String {
     case appVersion = "app_version"
     case deviceType = "device_type"
     case osVersion = "os_version"
+    case aiPromptsUsedToday = "ai_prompts_used_today"
+    case totalFeatureAttempts = "total_feature_attempts"
+    case paywallViews = "paywall_views"
+    case daysAsUser = "days_as_user"
 }
 
 // MARK: - Analytics Service
@@ -112,6 +155,10 @@ public final class AnalyticsService: @unchecked Sendable {
         get { UserDefaults.standard.bool(forKey: analyticsEnabledKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: analyticsEnabledKey)
+            
+            // CRITICAL: Enforce Firebase Analytics collection opt-out
+            Analytics.setAnalyticsCollectionEnabled(newValue)
+            
             if newValue {
                 track(.analyticsOptIn)
             }
@@ -128,11 +175,25 @@ public final class AnalyticsService: @unchecked Sendable {
     // MARK: - Initialization
     
     private init() {
+        #if targetEnvironment(simulator)
+        // Simulator stability: disable outbound analytics collection entirely.
+        // Recent simulator runtimes can churn memory on analytics upload retries,
+        // which masks app-level startup behavior and causes false crash loops.
+        UserDefaults.standard.set(false, forKey: analyticsEnabledKey)
+        Analytics.setAnalyticsCollectionEnabled(false)
+        logger.info("Analytics disabled on Simulator")
+        return
+        #endif
+
         // Default to enabled for new users (industry standard)
         // User can opt out in Settings
         if UserDefaults.standard.object(forKey: analyticsEnabledKey) == nil {
             UserDefaults.standard.set(true, forKey: analyticsEnabledKey)
         }
+        
+        // CRITICAL: Sync Firebase Analytics collection state with user preference
+        let analyticsEnabled = UserDefaults.standard.bool(forKey: analyticsEnabledKey)
+        Analytics.setAnalyticsCollectionEnabled(analyticsEnabled)
         
         // Configure TelemetryDeck if available
         configureTelemetryDeck()
@@ -143,12 +204,27 @@ public final class AnalyticsService: @unchecked Sendable {
     
     // MARK: - TelemetryDeck Configuration
     
+    /// TelemetryDeck App ID - Configure this with your App ID from https://telemetrydeck.com
+    /// Leave empty or as placeholder to disable TelemetryDeck (Firebase Analytics will still work)
+    private let telemetryDeckAppID: String? = {
+        // SETUP: TelemetryDeck - privacy-first, GDPR-compliant analytics
+        // 1. Create account at https://telemetrydeck.com
+        // 2. Create an app to get your App ID
+        // 3. Add Swift Package: https://github.com/TelemetryDeck/SwiftSDK
+        // 4. Replace the placeholder below with your App ID
+        let appID = ""  // Empty = disabled, set to your App ID to enable
+        return appID.isEmpty || appID.contains("YOUR_") ? nil : appID
+    }()
+    
     private func configureTelemetryDeck() {
         #if canImport(TelemetryDeck)
-        // TelemetryDeck configuration
-        // App ID should be set here when you create a TelemetryDeck account
-        // TelemetryDeck is privacy-first: no personal data, GDPR-compliant
-        let config = TelemetryDeck.Config(appID: "YOUR_TELEMETRY_DECK_APP_ID")
+        // Skip TelemetryDeck initialization if App ID is not configured
+        guard let appID = telemetryDeckAppID else {
+            logger.info("TelemetryDeck App ID not configured - using Firebase Analytics only")
+            return
+        }
+        
+        let config = TelemetryDeck.Config(appID: appID)
         TelemetryDeck.initialize(config: config)
         logger.info("TelemetryDeck initialized")
         #else
@@ -180,6 +256,9 @@ public final class AnalyticsService: @unchecked Sendable {
         let paramString = allParams.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
         logger.debug("📊 Analytics: \(event.rawValue) [\(paramString)]")
         #endif
+        
+        // Send to Firebase Analytics
+        Analytics.logEvent(event.rawValue, parameters: allParams)
         
         // Send to TelemetryDeck if available
         #if canImport(TelemetryDeck)
@@ -220,6 +299,9 @@ public final class AnalyticsService: @unchecked Sendable {
     ///   - value: The value (no PII allowed)
     public func setUserProperty(_ property: AnalyticsUserProperty, value: String?) {
         guard isEnabled, let value = value else { return }
+        
+        // Send to Firebase Analytics
+        Analytics.setUserProperty(value, forName: property.rawValue)
         
         #if canImport(TelemetryDeck)
         TelemetryDeck.updateDefaultParameters([property.rawValue: value])
@@ -293,11 +375,6 @@ public final class AnalyticsService: @unchecked Sendable {
         setUserProperty(.subscriptionTier, value: tier)
     }
     
-    /// Track connected exchange count
-    public func updateConnectedExchangeCount(_ count: Int) {
-        setUserProperty(.connectedExchangeCount, value: String(count))
-    }
-    
     // MARK: - Error Tracking (Anonymous)
     
     /// Track an error (no stack traces or user data)
@@ -309,6 +386,380 @@ public final class AnalyticsService: @unchecked Sendable {
             "error_domain": domain,
             "error_code": code
         ])
+    }
+    
+    // MARK: - Subscription & Monetization Tracking
+    
+    /// Track when user views the subscription/paywall screen
+    /// - Parameters:
+    ///   - source: Where the paywall was triggered from (e.g., "feature_gate", "periodic", "settings")
+    ///   - feature: The feature that triggered the paywall (if any)
+    public func trackPaywallViewed(source: String, feature: String? = nil) {
+        var params = ["source": source]
+        if let feature = feature {
+            params["trigger_feature"] = feature
+        }
+        params["current_tier"] = SubscriptionManager.shared.effectiveTier.rawValue
+        track(.paywallViewed, parameters: params)
+    }
+    
+    /// Track when user dismisses the paywall without upgrading
+    /// - Parameter source: Where the paywall was triggered from
+    public func trackPaywallDismissed(source: String) {
+        track(.paywallDismissed, parameters: [
+            "source": source,
+            "current_tier": SubscriptionManager.shared.effectiveTier.rawValue
+        ])
+    }
+    
+    /// Track subscription upgrade attempt
+    /// - Parameters:
+    ///   - fromTier: Current tier
+    ///   - toTier: Target tier
+    ///   - isAnnual: Whether annual billing was selected
+    public func trackSubscriptionUpgradeStarted(fromTier: String, toTier: String, isAnnual: Bool) {
+        track(.subscriptionUpgradeStarted, parameters: [
+            "from_tier": fromTier,
+            "to_tier": toTier,
+            "billing_period": isAnnual ? "annual" : "monthly"
+        ])
+    }
+    
+    /// Track successful subscription upgrade
+    /// - Parameters:
+    ///   - tier: New subscription tier
+    ///   - isAnnual: Whether annual billing was selected
+    ///   - price: Subscription price (optional, for revenue tracking)
+    ///   - currency: Currency code (optional, defaults to USD)
+    public func trackSubscriptionUpgradeCompleted(tier: String, isAnnual: Bool, price: Double? = nil, currency: String = "USD") {
+        track(.subscriptionUpgradeCompleted, parameters: [
+            "tier": tier,
+            "billing_period": isAnnual ? "annual" : "monthly"
+        ])
+        track(.paywallConversion, parameters: [
+            "converted_to": tier
+        ])
+        
+        // REVENUE TRACKING: Log Firebase purchase event for App Store revenue analytics
+        if let price = price {
+            let purchaseParams: [String: Any] = [
+                AnalyticsParameterItemID: "\(tier)_\(isAnnual ? "annual" : "monthly")",
+                AnalyticsParameterItemName: "\(tier.capitalized) Subscription",
+                AnalyticsParameterItemCategory: "subscription",
+                AnalyticsParameterPrice: price,
+                AnalyticsParameterCurrency: currency,
+                AnalyticsParameterValue: price,
+                "billing_period": isAnnual ? "annual" : "monthly",
+                "tier": tier
+            ]
+            Analytics.logEvent(AnalyticsEventPurchase, parameters: purchaseParams)
+            
+            #if DEBUG
+            logger.debug("📊 Revenue tracked: \(tier) - \(currency) \(price)")
+            #endif
+        }
+        
+        // Update user property
+        setUserProperty(.subscriptionTier, value: tier)
+    }
+    
+    /// Track failed subscription upgrade
+    /// - Parameters:
+    ///   - tier: Attempted tier
+    ///   - reason: Failure reason (anonymized)
+    public func trackSubscriptionUpgradeFailed(tier: String, reason: String) {
+        track(.subscriptionUpgradeFailed, parameters: [
+            "attempted_tier": tier,
+            "failure_reason": reason
+        ])
+    }
+    
+    /// Track subscription restoration
+    /// - Parameter tier: Restored subscription tier
+    public func trackSubscriptionRestored(tier: String) {
+        track(.subscriptionRestored, parameters: [
+            "tier": tier
+        ])
+        setUserProperty(.subscriptionTier, value: tier)
+        
+        #if DEBUG
+        logger.debug("📊 Subscription restored: \(tier)")
+        #endif
+    }
+    
+    /// Track subscription cancellation
+    /// - Parameters:
+    ///   - tier: Cancelled subscription tier
+    ///   - reason: Cancellation reason (if available)
+    public func trackSubscriptionCancelled(tier: String, reason: String? = nil) {
+        var params: [String: String] = ["tier": tier]
+        if let reason = reason {
+            params["reason"] = reason
+        }
+        track(.subscriptionCancelled, parameters: params)
+        setUserProperty(.subscriptionTier, value: "free")
+        
+        #if DEBUG
+        logger.debug("📊 Subscription cancelled: \(tier)")
+        #endif
+    }
+    
+    // MARK: - Exchange & Portfolio Tracking
+    
+    /// Track exchange connection
+    /// - Parameters:
+    ///   - exchangeName: Name of the exchange (e.g., "Coinbase", "Binance")
+    ///   - provider: Connection provider/method
+    public func trackExchangeConnected(exchangeName: String, provider: String? = nil) {
+        var params: [String: String] = ["exchange": exchangeName]
+        if let provider = provider {
+            params["provider"] = provider
+        }
+        track(.exchangeConnected, parameters: params)
+        
+        #if DEBUG
+        logger.debug("📊 Exchange connected: \(exchangeName)")
+        #endif
+    }
+    
+    /// Track exchange disconnection
+    /// - Parameter exchangeName: Name of the exchange
+    public func trackExchangeDisconnected(exchangeName: String) {
+        track(.exchangeDisconnected, parameters: [
+            "exchange": exchangeName
+        ])
+        
+        #if DEBUG
+        logger.debug("📊 Exchange disconnected: \(exchangeName)")
+        #endif
+    }
+    
+    /// Update connected exchange count user property
+    /// - Parameter count: Number of connected exchanges
+    public func updateConnectedExchangeCount(_ count: Int) {
+        setUserProperty(.connectedExchangeCount, value: String(count))
+    }
+    
+    /// Track portfolio sync
+    /// - Parameters:
+    ///   - success: Whether sync was successful
+    ///   - exchangeCount: Number of exchanges synced
+    public func trackPortfolioSync(success: Bool, exchangeCount: Int) {
+        track(.portfolioRefreshed, parameters: [
+            "success": success ? "true" : "false",
+            "exchange_count": String(exchangeCount)
+        ])
+    }
+    
+    // MARK: - Feature Access Tracking
+    
+    /// Track when user attempts to access a premium feature
+    /// - Parameters:
+    ///   - feature: The feature being accessed
+    ///   - granted: Whether access was granted
+    public func trackFeatureAccess(feature: PremiumFeature, granted: Bool) {
+        let params: [String: String] = [
+            "feature": feature.rawValue,
+            "feature_name": feature.displayName,
+            "required_tier": feature.requiredTier.rawValue,
+            "current_tier": SubscriptionManager.shared.effectiveTier.rawValue
+        ]
+        
+        if granted {
+            track(.featureAccessGranted, parameters: params)
+        } else {
+            track(.featureAccessDenied, parameters: params)
+            track(.featureAccessAttempt, parameters: params)
+        }
+    }
+    
+    // MARK: - AI Usage Tracking
+    
+    /// Track AI prompt usage
+    /// - Parameters:
+    ///   - promptNumber: Which prompt number this is today
+    ///   - limit: The user's daily limit
+    ///   - modelUsed: Which AI model was used
+    public func trackAIPromptUsed(promptNumber: Int, limit: Int, modelUsed: String) {
+        let tier = SubscriptionManager.shared.effectiveTier
+        track(.aiPromptUsed, parameters: [
+            "prompt_number": String(promptNumber),
+            "daily_limit": limit == Int.max ? "unlimited" : String(limit),
+            "tier": tier.rawValue,
+            "model_used": modelUsed
+        ])
+        
+        // Track if using premium model (Elite)
+        if modelUsed == "gpt-4o" {
+            track(.aiModelUpgrade, parameters: ["tier": tier.rawValue])
+        }
+        
+        // Update user property
+        setUserProperty(.aiPromptsUsedToday, value: String(promptNumber))
+        
+        // Track limit warnings
+        if tier != .premium {
+            let remaining = limit - promptNumber
+            if remaining == 0 {
+                track(.aiPromptLimitReached, parameters: [
+                    "tier": tier.rawValue,
+                    "limit": String(limit)
+                ])
+            } else if remaining <= 2 && remaining > 0 {
+                track(.aiPromptLimitWarning, parameters: [
+                    "tier": tier.rawValue,
+                    "remaining": String(remaining)
+                ])
+            }
+        }
+    }
+    
+    /// Track AI prediction generation
+    /// - Parameters:
+    ///   - coinSymbol: The coin symbol (e.g., "BTC")
+    ///   - tier: User's subscription tier
+    public func trackAIPredictionGenerated(coinSymbol: String, tier: String) {
+        track(.aiPredictionGenerated, parameters: [
+            "coin_symbol": coinSymbol,
+            "tier": tier
+        ])
+    }
+    
+    /// Track AI insight generation
+    /// - Parameter insightType: Type of insight (e.g., "portfolio", "market", "coin")
+    public func trackAIInsightGenerated(insightType: String) {
+        track(.aiInsightGenerated, parameters: [
+            "insight_type": insightType,
+            "tier": SubscriptionManager.shared.effectiveTier.rawValue
+        ])
+    }
+    
+    // MARK: - AI Cost & Utilization Tracking
+    
+    /// AI feature types for tracking
+    public enum AIFeatureType: String {
+        case chat = "chat"
+        case coinInsight = "coin_insight"
+        case portfolioInsight = "portfolio_insight"
+        case prediction = "prediction"
+        case priceMovement = "price_movement"
+        case fearGreed = "fear_greed"
+        case deepDive = "deep_dive"
+        case riskAnalysis = "risk_analysis"
+    }
+    
+    /// Track detailed AI feature usage for cost analysis
+    /// - Parameters:
+    ///   - feature: The AI feature being used
+    ///   - model: The model used (gpt-4o or gpt-4o-mini)
+    ///   - maxTokens: Max tokens requested
+    ///   - tier: User's subscription tier
+    ///   - cached: Whether this was a cache hit (no API cost)
+    ///   - isChat: Whether this is a direct chat interaction (vs automated feature)
+    public func trackAIFeatureUsage(
+        feature: AIFeatureType,
+        model: String,
+        maxTokens: Int,
+        tier: SubscriptionTierType,
+        cached: Bool = false,
+        isChat: Bool = false
+    ) {
+        // Estimate cost based on model and tokens
+        let estimatedCost: Double
+        if cached {
+            estimatedCost = 0
+        } else if model == "gpt-4o" {
+            // GPT-4o: ~$2.50/1M input + $10/1M output ≈ $0.025 per call
+            estimatedCost = 0.025
+        } else {
+            // GPT-4o-mini: ~$0.15/1M input + $0.60/1M output ≈ $0.002 per call
+            estimatedCost = 0.002
+        }
+        
+        // Determine if user got premium model upgrade
+        let gotPremiumModel = model == "gpt-4o" && tier == .platinum && isChat
+        
+        if cached {
+            track(.aiCacheHit, parameters: [
+                "feature": feature.rawValue,
+                "tier": tier.rawValue
+            ])
+        } else {
+            track(.aiFeatureUsage, parameters: [
+                "feature": feature.rawValue,
+                "model": model,
+                "max_tokens": String(maxTokens),
+                "tier": tier.rawValue,
+                "is_chat": isChat ? "true" : "false",
+                "premium_model_used": gotPremiumModel ? "true" : "false",
+                "estimated_cost_cents": String(Int(estimatedCost * 100))
+            ])
+            
+            track(.aiCostEstimate, parameters: [
+                "feature": feature.rawValue,
+                "tier": tier.rawValue,
+                "cost_per_call": String(format: "%.4f", estimatedCost)
+            ])
+            
+            // Track premium model upgrade for Platinum chat
+            if gotPremiumModel {
+                track(.aiModelUpgrade, parameters: [
+                    "tier": tier.rawValue,
+                    "feature": feature.rawValue
+                ])
+            }
+        }
+    }
+    
+    /// Track when cooldown prevents an API call (cost savings)
+    /// - Parameters:
+    ///   - feature: The AI feature
+    ///   - tier: User's subscription tier
+    public func trackAICooldownTriggered(feature: AIFeatureType, tier: SubscriptionTierType) {
+        track(.aiCooldownTriggered, parameters: [
+            "feature": feature.rawValue,
+            "tier": tier.rawValue
+        ])
+    }
+    
+    /// Generate and track a daily AI utilization report
+    /// Call this at end of day or on app termination
+    @MainActor
+    public func generateDailyUtilizationReport() {
+        let tier = SubscriptionManager.shared.effectiveTier
+        let manager = SubscriptionManager.shared
+        
+        // Get usage data from various sources
+        let chatUsed = manager.aiPromptsUsedToday
+        let chatLimit = tier.aiPromptsPerDay
+        let chatUtilization = chatLimit > 0 ? Double(chatUsed) / Double(chatLimit) * 100 : 0
+        
+        track(.aiUtilizationReport, parameters: [
+            "tier": tier.rawValue,
+            "chat_used": String(chatUsed),
+            "chat_limit": String(chatLimit),
+            "chat_utilization_pct": String(Int(chatUtilization)),
+            "date": ISO8601DateFormatter().string(from: Date())
+        ])
+        
+        #if DEBUG
+        logger.info("📊 AI Utilization Report - Tier: \(tier.rawValue), Chat: \(chatUsed)/\(chatLimit) (\(Int(chatUtilization))%)")
+        #endif
+    }
+    
+    // MARK: - Conversion Funnel Helpers
+    
+    /// Track the complete subscription funnel for a user
+    /// Call this periodically or on key events to update funnel stage
+    @MainActor
+    public func updateConversionFunnelStage() {
+        let tier = SubscriptionManager.shared.effectiveTier
+        let paywallManager = PaywallManager.shared
+        
+        // Update user properties for funnel analysis
+        setUserProperty(.subscriptionTier, value: tier.rawValue)
+        setUserProperty(.totalFeatureAttempts, value: String(paywallManager.totalFeatureAttempts))
+        setUserProperty(.paywallViews, value: String(paywallManager.promptDismissCount))
     }
 }
 

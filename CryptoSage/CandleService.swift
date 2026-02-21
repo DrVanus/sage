@@ -1,5 +1,9 @@
 import Foundation
 
+// NOTE: This file defines exchange-native Candle and CandleInterval types for Binance and similar services.
+// They are intentionally distinct from the MarketModels.swift types (MMECandle/MMECandleInterval) used by the
+// composite pricing pipeline. Keep these names as-is for compatibility with Binance REST responses.
+
 public struct Candle: Codable, Equatable {
     public let openTime: Date
     public let open: Double
@@ -52,10 +56,6 @@ public enum CandleInterval: String, CaseIterable {
     case oneWeek = "1w"
 }
 
-#if canImport(ExchangeHostPolicy)
-import ExchangeHostPolicy
-#endif
-
 public protocol CandleService {
     /// Fetches candles asynchronously for a given symbol and interval.
     /// - Parameters:
@@ -72,34 +72,27 @@ public final class BinanceCandleService: CandleService {
 
     public init(session: URLSession = .shared) {
         self.session = session
-        #if canImport(ExchangeHostPolicy)
-        // Use ExchangeHostPolicy to resolve Binance endpoint host if available
-        if let host = ExchangeHostPolicy.binanceBaseHost() {
-            self.baseURL = URL(string: "https://\(host)/api/v3")!
-        } else {
-            self.baseURL = URL(string: "https://api.binance.com/api/v3")!
-        }
-        #else
+        // Default to global REST base; request path handles policy switching (e.g., 451 -> US)
         self.baseURL = URL(string: "https://api.binance.com/api/v3")!
-        #endif
     }
 
     public func fetchCandles(symbol: String, interval: CandleInterval, limit: Int = 500) async throws -> [Candle] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("klines"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "symbol", value: symbol),
-            URLQueryItem(name: "interval", value: interval.rawValue),
-            URLQueryItem(name: "limit", value: "\(limit)")
-        ]
-
-        guard let url = components.url else {
-            throw URLError(.badURL)
+        func buildURL(base: URL) -> URL? {
+            var components = URLComponents(url: base.appendingPathComponent("klines"), resolvingAgainstBaseURL: false)!
+            components.queryItems = [
+                URLQueryItem(name: "symbol", value: symbol),
+                URLQueryItem(name: "interval", value: interval.rawValue),
+                URLQueryItem(name: "limit", value: "\(limit)")
+            ]
+            return components.url
         }
 
-        let (data, response) = try await session.data(from: url)
-        guard let httpResponse = response as? HTTPURLResponse, 200..<300 ~= httpResponse.statusCode else {
-            throw URLError(.badServerResponse)
-        }
+        guard let initial = buildURL(base: baseURL) else { throw URLError(.badURL) }
+        let (data, _) = try await ExchangeHTTP.getWithPolicyFallback(
+            initial: initial,
+            session: session,
+            buildFromEndpoints: { eps in buildURL(base: eps.restBase)! }
+        )
 
         // Binance kline API returns [[Any]] array where each inner array has:
         // [

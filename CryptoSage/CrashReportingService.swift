@@ -9,6 +9,14 @@
 import Foundation
 import os.log
 
+// Conditionally import Sentry if available
+#if canImport(Sentry)
+import Sentry
+private let sentryAvailable = true
+#else
+private let sentryAvailable = false
+#endif
+
 // MARK: - Crash Reporting Service
 
 /// Service for crash reporting and error tracking.
@@ -64,13 +72,28 @@ public final class CrashReportingService: @unchecked Sendable {
     
     // MARK: - Sentry Configuration
     
+    /// Sentry DSN - Configure this with your project's DSN from https://sentry.io
+    /// Leave empty or as placeholder to disable Sentry (local logging will still work)
+    private let sentryDSN: String? = {
+        // SETUP: Replace with your Sentry DSN from https://sentry.io
+        // 1. Create a project at sentry.io
+        // 2. Get the DSN from Project Settings -> Client Keys (DSN)
+        // 3. Add Swift Package: https://github.com/getsentry/sentry-cocoa
+        // 4. Replace the placeholder below with your DSN
+        let dsn = ""  // ⚠️ PRODUCTION: Set your Sentry DSN here before App Store release (https://sentry.io)
+        return dsn.isEmpty || dsn.contains("YOUR_") ? nil : dsn
+    }()
+    
     private func configureSentry() {
         #if canImport(Sentry)
-        import Sentry
+        // Skip Sentry initialization if DSN is not configured
+        guard let dsn = sentryDSN else {
+            logger.info("Sentry DSN not configured - using local crash logging only")
+            return
+        }
         
         SentrySDK.start { options in
-            // Replace with your Sentry DSN from sentry.io
-            options.dsn = "YOUR_SENTRY_DSN_HERE"
+            options.dsn = dsn
             
             // Enable performance monitoring
             options.tracesSampleRate = 0.2  // 20% of transactions
@@ -97,6 +120,7 @@ public final class CrashReportingService: @unchecked Sendable {
             // Don't send PII
             options.sendDefaultPii = false
         }
+        logger.info("Sentry crash reporting configured")
         #endif
     }
     
@@ -109,18 +133,11 @@ public final class CrashReportingService: @unchecked Sendable {
     public func captureError(_ error: Error, context: String? = nil) {
         guard isEnabled else { return }
         
-        var extras: [String: Any] = [:]
-        if let context = context {
-            extras["context"] = context
-        }
-        
         #if DEBUG
         logger.error("Captured error: \(error.localizedDescription) context: \(context ?? "none")")
         #endif
         
         #if canImport(Sentry)
-        import Sentry
-        
         SentrySDK.capture(error: error) { scope in
             if let context = context {
                 scope.setContext(value: ["location": context], key: "app_context")
@@ -141,8 +158,6 @@ public final class CrashReportingService: @unchecked Sendable {
         #endif
         
         #if canImport(Sentry)
-        import Sentry
-        
         SentrySDK.capture(message: message) { scope in
             scope.setLevel(level.sentryLevel)
         }
@@ -165,8 +180,6 @@ public final class CrashReportingService: @unchecked Sendable {
         #endif
         
         #if canImport(Sentry)
-        import Sentry
-        
         let breadcrumb = Breadcrumb()
         breadcrumb.category = category
         breadcrumb.message = message
@@ -186,8 +199,6 @@ public final class CrashReportingService: @unchecked Sendable {
         guard isEnabled else { return }
         
         #if canImport(Sentry)
-        import Sentry
-        
         let user = User()
         user.userId = userID
         SentrySDK.setUser(user)
@@ -197,8 +208,6 @@ public final class CrashReportingService: @unchecked Sendable {
     /// Clear user context (e.g., on sign out)
     public func clearUserContext() {
         #if canImport(Sentry)
-        import Sentry
-        
         SentrySDK.setUser(nil)
         #endif
     }
@@ -214,8 +223,6 @@ public final class CrashReportingService: @unchecked Sendable {
         guard isEnabled else { return nil }
         
         #if canImport(Sentry)
-        import Sentry
-        
         return SentrySDK.startTransaction(name: name, operation: operation)
         #else
         return nil
@@ -226,10 +233,36 @@ public final class CrashReportingService: @unchecked Sendable {
     /// - Parameter transaction: The transaction handle from startTransaction
     public func finishTransaction(_ transaction: Any?) {
         #if canImport(Sentry)
-        import Sentry
-        
         if let span = transaction as? Span {
             span.finish()
+        }
+        #endif
+    }
+    
+    // MARK: - Non-Fatal Event Logging
+    
+    /// Log a non-fatal event for telemetry and diagnostics
+    /// Use this for tracking issues that don't crash the app but indicate problems
+    /// - Parameters:
+    ///   - name: Event name (e.g., "LayoutAnomalyRecovery", "CacheCorruption")
+    ///   - attributes: Additional data about the event
+    public func logNonFatalEvent(name: String, attributes: [String: String] = [:]) {
+        guard isEnabled else { return }
+        
+        #if DEBUG
+        let attrStr = attributes.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
+        logger.info("📊 Non-fatal event: \(name) [\(attrStr)]")
+        #endif
+        
+        // Add as breadcrumb for crash correlation
+        addBreadcrumb(category: "event", message: name, data: attributes)
+        
+        #if canImport(Sentry)
+        // Capture as an informational message with context
+        SentrySDK.capture(message: "Event: \(name)") { scope in
+            scope.setLevel(.info)
+            scope.setContext(value: attributes, key: "event_attributes")
+            scope.setTag(value: name, key: "event_type")
         }
         #endif
     }
@@ -275,51 +308,3 @@ extension Error {
         CrashReportingService.shared.captureError(self, context: context)
     }
 }
-
-// MARK: - Sentry Stubs (for compilation without package)
-
-#if !canImport(Sentry)
-/// Stub types for compilation without Sentry SDK
-private enum SentrySDK {
-    static func start(configureOptions: (SentryOptions) -> Void) {}
-    static func capture(error: Error, block: ((SentryScope) -> Void)? = nil) {}
-    static func capture(message: String, block: ((SentryScope) -> Void)? = nil) {}
-    static func addBreadcrumb(_ breadcrumb: Breadcrumb) {}
-    static func setUser(_ user: User?) {}
-    static func startTransaction(name: String, operation: String) -> Any? { nil }
-}
-
-private class SentryOptions {
-    var dsn: String = ""
-    var tracesSampleRate: NSNumber = 0
-    var attachScreenshot: Bool = false
-    var profilesSampleRate: NSNumber = 0
-    var environment: String = ""
-    var releaseName: String = ""
-    var sendDefaultPii: Bool = false
-}
-
-private class SentryScope {
-    func setContext(value: [String: Any], key: String) {}
-    func setLevel(_ level: SentryLevel) {}
-}
-
-private enum SentryLevel {
-    case debug, info, warning, error, fatal
-}
-
-private class Breadcrumb {
-    var category: String = ""
-    var message: String = ""
-    var level: SentryLevel = .info
-    var data: [String: Any]?
-}
-
-private class User {
-    var userId: String = ""
-}
-
-private protocol Span {
-    func finish()
-}
-#endif

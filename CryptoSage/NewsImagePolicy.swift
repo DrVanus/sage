@@ -12,8 +12,15 @@ public struct NewsImagePolicy {
         "tracking.example"
     ]
 
-    /// Returns a normalized URL by stripping query items and fragments,
+    /// Tracking parameters to strip from image URLs (these don't affect image content)
+    private static let trackingParams: Set<String> = [
+        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+        "fbclid", "gclid", "igshid", "mc_cid", "mc_eid"
+    ]
+    
+    /// Returns a normalized URL by stripping tracking query params and fragments,
     /// ensuring the scheme is http or https, and the host is not blocklisted.
+    /// Image-related query parameters (sizing, format, quality) are preserved.
     /// - Parameter original: The original URL to normalize.
     /// - Returns: A normalized URL or nil if the URL is invalid or blocked.
     public static func normalizedURL(from original: URL) -> URL? {
@@ -27,7 +34,14 @@ public struct NewsImagePolicy {
             return nil
         }
         var components = URLComponents(url: original, resolvingAgainstBaseURL: false)
-        components?.query = nil
+        // Only strip tracking parameters, preserve image-related params (sizing, format, etc.)
+        if let items = components?.queryItems, !items.isEmpty {
+            components?.queryItems = items.filter { !trackingParams.contains($0.name.lowercased()) }
+            // If all items were filtered out, set to nil to avoid empty "?" in URL
+            if components?.queryItems?.isEmpty == true {
+                components?.queryItems = nil
+            }
+        }
         components?.fragment = nil
         return components?.url
     }
@@ -43,7 +57,7 @@ public struct NewsImagePolicy {
         request.timeoutInterval = timeout
 
         do {
-            let (response, _) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 return false
             }

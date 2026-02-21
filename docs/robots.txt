@@ -1,0 +1,6 @@
+# CryptoSage robots.txt
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://cryptosage.ai/sitemap.xml

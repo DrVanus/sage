@@ -11,6 +11,9 @@ import SwiftUI
 struct PortfolioLegendView: View {
     let holdings: [Holding]
     let totalValue: Double
+    /// Optional color map from the pie chart so legend dots match slice colors exactly.
+    /// When nil, falls back to PortfolioViewModel's deterministic color palette.
+    var colorMap: [String: Color]? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -30,12 +33,28 @@ struct PortfolioLegendView: View {
         }
     }
     
+    /// Returns the slice color for the given symbol.
+    /// Prefers colors from the pie chart's `colorMap` so legend dots always match
+    /// the actual donut slices. Falls back to the same deterministic hex palette
+    /// used by `PortfolioViewModel.color(for:)`.
     private func sliceColor(for symbol: String) -> Color {
-        let donutSliceColors: [Color] = [
-            .green, Color("BrandAccent"), .mint, .blue, .teal, .purple, Color("GoldAccent")
+        if let mapped = colorMap?[symbol] { return mapped }
+
+        // Deterministic palette matching PortfolioViewModel.color(for:)
+        let palette: [UInt32] = [
+            0x2891FF, 0x1ABC9C, 0xF39C12, 0x9B59B6,
+            0xE74C3C, 0x2ECC71, 0xE84393, 0x8E44AD,
+            0x2980B9, 0x00C2FF, 0xF1C40F, 0x16A085,
+            0x34495E, 0xFF4D4F, 0x27AE60, 0xD35400
         ]
-        let hash = abs(symbol.hashValue)
-        return donutSliceColors[hash % donutSliceColors.count]
+        // Stable hash that won't vary between launches (hashValue is randomised)
+        let stable = symbol.utf8.reduce(0) { ($0 &* 31) &+ Int($1) }
+        let hex = palette[abs(stable) % palette.count]
+        return Color(
+            red:   Double((hex >> 16) & 0xFF) / 255.0,
+            green: Double((hex >> 8)  & 0xFF) / 255.0,
+            blue:  Double( hex        & 0xFF) / 255.0
+        )
     }
 }
 

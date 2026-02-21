@@ -32,19 +32,20 @@ public struct SimplePercentChip: View {
 
     public var body: some View {
         Text(text)
-            .font(.system(size: fontSize, weight: .semibold))
+            .font(.system(size: fontSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundColor(textColor)
             .lineLimit(1)
-            .truncationMode(.tail)
-            .minimumScaleFactor(0.7)
+            .minimumScaleFactor(0.45)
             .allowsTightening(true)
+            .padding(.horizontal, max(4, hPad))
+            .padding(.vertical, max(2, vPad))
+            .frame(maxWidth: maxWidth)
             .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, hPad)
-            .padding(.vertical, vPad)
             .background(backdrop, in: Capsule())
-            .overlay(Capsule().stroke(Color.black.opacity(0.18), lineWidth: 0.6))
-            .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
-            .frame(minWidth: minWidth, maxWidth: maxWidth, alignment: .center)
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+            )
     }
 }

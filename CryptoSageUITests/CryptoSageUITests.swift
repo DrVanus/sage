@@ -30,6 +30,31 @@ final class CryptoSageUITests: XCTestCase {
 
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
+    
+    @MainActor
+    func testTimeframeSwitchSmoke() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        // Move to market/trading context if the tab exists.
+        let marketTab = app.tabBars.buttons["Market"].firstMatch
+        if marketTab.waitForExistence(timeout: 3) {
+            marketTab.tap()
+        }
+        
+        let labels = ["1m", "5m", "15m", "30m", "1H", "4H", "24H", "1W", "1M", "3M", "6M", "1Y", "3Y", "ALL"]
+        var tappedCount = 0
+        for label in labels {
+            let button = app.buttons[label].firstMatch
+            if button.waitForExistence(timeout: 1) {
+                button.tap()
+                tappedCount += 1
+            }
+        }
+        
+        XCTAssertGreaterThan(tappedCount, 0, "Expected at least one timeframe button to be available.")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
 
     @MainActor
     func testLaunchPerformance() throws {

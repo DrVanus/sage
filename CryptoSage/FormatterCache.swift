@@ -4,7 +4,7 @@ enum FormatterCache {
     static let currency0: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        f.currencyCode = "USD"
+        f.currencyCode = CurrencyManager.currencyCode
         f.maximumFractionDigits = 0
         return f
     }()
@@ -12,7 +12,7 @@ enum FormatterCache {
     static let currency2: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        f.currencyCode = "USD"
+        f.currencyCode = CurrencyManager.currencyCode
         f.minimumFractionDigits = 2
         f.maximumFractionDigits = 2
         return f

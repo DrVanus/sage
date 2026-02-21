@@ -1,5 +1,10 @@
 import SwiftUI
 
+extension Conversation {
+    var _id: UUID { id }
+    var lastActivityDate: Date { lastMessageDate ?? createdAt }
+}
+
 struct ConversationHistoryView: View {
     // Passed in from parent
     var conversations: [Conversation]
@@ -17,16 +22,36 @@ struct ConversationHistoryView: View {
     
     // Whether the search bar is visible
     @State private var showSearch: Bool = false
+    @FocusState private var isSearchFocused: Bool
+    
+    // Color scheme for adaptive light/dark mode
+    @Environment(\.colorScheme) private var colorScheme
+    
+    // Adaptive background gradient
+    private var backgroundGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(
+                gradient: Gradient(colors: [Color.black, Color(red: 0.07, green: 0.07, blue: 0.07)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else {
+            return LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.98, green: 0.98, blue: 0.97),
+                    Color(red: 0.94, green: 0.95, blue: 0.96)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
     
     var body: some View {
         NavigationView {
             ZStack {
-                // Slight gradient or solid black
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color(red: 0.07, green: 0.07, blue: 0.07)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                // Adaptive background gradient
+                backgroundGradient
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
@@ -40,19 +65,55 @@ struct ConversationHistoryView: View {
                     conversationList()
                 }
                 
-                // Floating "New Chat" button
+                // Floating "New Chat" button with premium gold styling - adaptive for light/dark
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
                         Button(action: onNewChat) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(.black)
-                                .padding(18)
-                                .background(Color.yellow)
-                                .clipShape(Circle())
-                                .shadow(color: .yellow.opacity(0.4), radius: 6, x: 0, y: 2)
+                            let isDark = colorScheme == .dark
+                            ZStack {
+                                // Base gold gradient
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: isDark
+                                                ? [BrandColors.goldLight, BrandColors.goldBase]
+                                                : [BrandColors.goldBase, BrandColors.goldDark],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                
+                                // Gloss highlight for premium glass feel
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(isDark ? 0.30 : 0.40), Color.clear],
+                                            startPoint: .top,
+                                            endPoint: .center
+                                        )
+                                    )
+                                
+                                // Plus icon with luminous glow
+                                Image(systemName: "plus")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(isDark ? .black.opacity(0.88) : .white.opacity(0.95))
+                            }
+                            .frame(width: 54, height: 54)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: isDark
+                                                ? [BrandColors.goldLight.opacity(0.6), BrandColors.goldBase.opacity(0.2)]
+                                                : [BrandColors.goldDark.opacity(0.40), BrandColors.goldBase.opacity(0.15)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: isDark ? 1 : 1.2
+                                    )
+                            )
                         }
                         .padding(.trailing, 20)
                         .padding(.bottom, 30)
@@ -72,11 +133,17 @@ struct ConversationHistoryView: View {
                         Image(systemName: "magnifyingglass")
                             .imageScale(.large)
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
                 }
             })
         }
         .presentationDragIndicator(.visible)
+        // LIGHT MODE FIX: Ensure navigation bar fully adapts to light/dark mode.
+        // Previously the header appeared black in light mode because toolbarColorScheme was missing.
+        .toolbarBackground(colorScheme == .dark ? Color.black.opacity(0.9) : Color(red: 0.98, green: 0.98, blue: 0.97), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(colorScheme == .dark ? .dark : .light, for: .navigationBar)
+        .presentationBackground(colorScheme == .dark ? Color.black : Color(red: 0.98, green: 0.98, blue: 0.97))
         // Rename alert
         .alert("Rename Conversation",
                isPresented: Binding<Bool>(
@@ -99,19 +166,30 @@ struct ConversationHistoryView: View {
 extension ConversationHistoryView {
     
     private func searchBar() -> some View {
-        HStack {
-            TextField("Search Conversations", text: $searchText)
-                .padding(10)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
-                .foregroundColor(.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: .yellow.opacity(0.3), radius: 4, x: 0, y: 0)
-                .padding(.horizontal)
-                .padding(.top, 8)
+        let isDark = colorScheme == .dark
+        return HStack {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(DS.Adaptive.textTertiary)
+                TextField("Search Conversations", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .focused($isSearchFocused)
+                    .submitLabel(.search)
+                    .foregroundColor(DS.Adaptive.textPrimary)
+            }
+            .padding(10)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isSearchFocused = true
+            }
+            .background(DS.Adaptive.chipBackground)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(BrandColors.goldLight.opacity(isDark ? 0.3 : 0.25), lineWidth: isDark ? 1 : 0.5)
+            )
+            .padding(.horizontal)
+            .padding(.top, 8)
         }
         .padding(.bottom, 4)
     }
@@ -126,23 +204,37 @@ extension ConversationHistoryView {
         let pinnedConvos = filtered.filter { $0.pinned }
         let unpinnedConvos = filtered.filter { !$0.pinned }
         
+        let pinnedSorted = pinnedConvos.sorted { ($0.lastMessageDate ?? $0.createdAt) > ($1.lastMessageDate ?? $1.createdAt) }
+        let unpinnedSorted = unpinnedConvos.sorted { ($0.lastMessageDate ?? $0.createdAt) > ($1.lastMessageDate ?? $1.createdAt) }
+        
         return List {
-            if !pinnedConvos.isEmpty {
+            if !pinnedSorted.isEmpty {
                 Section(header: pinnedHeader()) {
-                    ForEach(pinnedConvos, id: \.id) { convo in
-                        conversationRow(convo)
+                    ForEach(pinnedSorted, id: \._id) { convo in
+                        conversationCell(convo)
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
             }
             
-            Section(header: allConversationsHeader()) {
-                ForEach(unpinnedConvos, id: \.id) { convo in
-                    conversationRow(convo)
+            if !unpinnedSorted.isEmpty {
+                if !pinnedSorted.isEmpty {
+                    Section(header: recentHeader()) {
+                        ForEach(unpinnedSorted, id: \._id) { convo in
+                            conversationCell(convo)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                } else {
+                    // No pinned section; show recent conversations without a redundant header
+                    ForEach(unpinnedSorted, id: \._id) { convo in
+                        conversationCell(convo)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
             }
         }
         .listStyle(.plain)
@@ -153,77 +245,69 @@ extension ConversationHistoryView {
     private func pinnedHeader() -> some View {
         HStack {
             Text("PINNED")
-                .foregroundColor(.yellow)
-                .font(.headline)
+                .foregroundColor(BrandColors.goldLight)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
             Spacer()
         }
         .padding(.vertical, 4)
         .background(Color.clear)
     }
     
-    private func allConversationsHeader() -> some View {
+    private func recentHeader() -> some View {
         HStack {
-            Text("ALL CONVERSATIONS")
-                .foregroundColor(.white)
-                .font(.headline)
+            Text("RECENT")
+                .foregroundColor(DS.Adaptive.textSecondary)
+                .font(.caption)
+                .textCase(.uppercase)
             Spacer()
         }
         .padding(.vertical, 4)
         .background(Color.clear)
     }
     
-    private func conversationRow(_ convo: Conversation) -> some View {
-        HStack {
+    private func conversationCell(_ convo: Conversation) -> some View {
+        let preview = convo.messages.last?.text ?? ""
+        let date = convo.lastActivityDate
+        return HStack(alignment: .center, spacing: 12) {
+            // Leading pin indicator when pinned
             if convo.pinned {
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
+                Image(systemName: "pin.fill")
+                    .foregroundColor(BrandColors.goldLight)
+                    .font(.caption)
             }
-            Text(convo.title)
-                .foregroundColor(.white)
-                .lineLimit(1)
-            Spacer()
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onSelectConversation(convo)
-        }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                onDeleteConversation(convo)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-            
-            Button {
-                conversationToRename = convo
-                newTitle = convo.title
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-            .tint(.blue)
-            
-            Button {
-                onTogglePin(convo)
-            } label: {
-                if convo.pinned {
-                    Label("Unpin", systemImage: "pin.slash")
-                } else {
-                    Label("Pin", systemImage: "pin.fill")
+            VStack(alignment: .leading, spacing: 3) {
+                Text(convo.title.isEmpty ? "Untitled Chat" : convo.title)
+                    .foregroundColor(DS.Adaptive.textPrimary)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+                if !preview.isEmpty {
+                    Text(preview)
+                        .foregroundColor(DS.Adaptive.textSecondary)
+                        .font(.subheadline)
+                        .lineLimit(1)
                 }
             }
-            .tint(.yellow)
+            Spacer()
+            Text(relativeString(for: date))
+                .foregroundColor(DS.Adaptive.textTertiary)
+                .font(.caption)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelectConversation(convo) }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) { onDeleteConversation(convo) } label: { Label("Delete", systemImage: "trash") }
+            Button { conversationToRename = convo; newTitle = convo.title } label: { Label("Rename", systemImage: "pencil") }.tint(.blue)
+            Button { onTogglePin(convo) } label: {
+                Label(convo.pinned ? "Unpin" : "Pin", systemImage: convo.pinned ? "pin.slash" : "pin.fill")
+            }.tint(BrandColors.goldBase)
         }
         .contextMenu {
-            Button(convo.pinned ? "Unpin" : "Pin") {
-                onTogglePin(convo)
-            }
-            Button("Rename") {
-                conversationToRename = convo
-                newTitle = convo.title
-            }
-            Button("Delete", role: .destructive) {
-                onDeleteConversation(convo)
-            }
+            Button(convo.pinned ? "Unpin" : "Pin") { onTogglePin(convo) }
+            Button("Rename") { conversationToRename = convo; newTitle = convo.title }
+            Button("Delete", role: .destructive) { onDeleteConversation(convo) }
         }
     }
     
@@ -232,5 +316,11 @@ extension ConversationHistoryView {
         onRenameConversation(convo, newTitle)
         conversationToRename = nil
         newTitle = ""
+    }
+    
+    private func relativeString(for date: Date) -> String {
+        let fmt = RelativeDateTimeFormatter()
+        fmt.unitsStyle = .abbreviated
+        return fmt.localizedString(for: date, relativeTo: Date())
     }
 }

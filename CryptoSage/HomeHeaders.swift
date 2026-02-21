@@ -1,11 +1,42 @@
 //
 //  HomeHeaders.swift
-//  CSAI1
+//  CryptoSage
 //
-//  Extracted header views used on the Home page.
+//  Premium header views used on the Home page.
 //
 
 import SwiftUI
+
+// MARK: - Premium Section Header (matches Portfolio card style)
+struct PremiumSectionHeader: View {
+    let systemImage: String
+    let title: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            GoldHeaderGlyph(systemName: systemImage)
+            
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DS.Adaptive.textPrimary)
+            
+            Spacer(minLength: 8)
+            
+            if let actionTitle, let action {
+                Button(action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    action()
+                }) {
+                    Text(actionTitle)
+                }
+                .buttonStyle(CSTextLinkButtonStyle())
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
 
 // MARK: - Reusable heading with optional icon
 struct SectionHeading: View {
@@ -16,27 +47,21 @@ struct SectionHeading: View {
     var showsDivider: Bool = true
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: 10) {
             if let icon = iconName {
-                Image(systemName: icon)
-                    .symbolRenderingMode(.monochrome)
-                    .foregroundStyle(.csGold)
-                    .font(.system(size: iconSize, weight: .semibold, design: .rounded))
-                    .frame(width: iconSize + 4, height: iconSize + 4, alignment: .center)
-                    .accessibilityHidden(true)
+                GoldHeaderGlyphSmall(systemName: icon)
             }
             Text(text)
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(DS.Adaptive.textPrimary)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 2)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .overlay(alignment: .bottom) {
             if showsDivider {
                 Rectangle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(DS.Adaptive.divider)
                     .frame(height: 0.5)
             }
         }
@@ -54,31 +79,32 @@ struct SectionHeader: View {
     var iconSize: CGFloat = 16
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Image(systemName: systemImage)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.csGold)
-                .font(.system(size: iconSize, weight: .semibold, design: .rounded))
-                .frame(width: iconSize + 4, height: iconSize + 4, alignment: .center)
-                .accessibilityHidden(true)
+        HStack(alignment: .center, spacing: 10) {
+            GoldHeaderGlyphSmall(systemName: systemImage)
+            
             Text(title)
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(DS.Adaptive.textPrimary)
+            
             Spacer(minLength: 0)
+            
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.csGoldSolid)
-                    .accessibilityLabel("\(title) – \(actionTitle)")
+                Button(action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    action()
+                }) {
+                    Text(actionTitle)
+                }
+                .buttonStyle(CSTextLinkButtonStyle())
+                .accessibilityLabel("\(title) – \(actionTitle)")
             }
         }
-        .padding(.leading, 2)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .overlay(
             Group {
                 if showsDivider {
                     Rectangle()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(DS.Adaptive.divider)
                         .frame(height: 0.5)
                 }
             }, alignment: .bottom
@@ -92,93 +118,68 @@ struct NewsSectionHeader: View {
     let onAllNews: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Image(systemName: "newspaper")
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.csGold)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .frame(width: 20, height: 20)
-                .accessibilityHidden(true)
+        HStack(alignment: .center, spacing: 10) {
+            GoldHeaderGlyphSmall(systemName: "newspaper.fill")
+            
             Text(title)
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(DS.Adaptive.textPrimary)
+            
             Spacer(minLength: 0)
-            Button(action: onAllNews) {
-                HStack(spacing: 6) {
-                    Text("All News")
-                    Image(systemName: "chevron.right")
-                }
+            
+            Button(action: {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onAllNews()
+            }) {
+                Text("All News")
             }
-            .buttonStyle(CSSecondaryCTAButtonStyle(height: 28, cornerRadius: 10, horizontalPadding: 10, font: .caption.weight(.semibold)))
+            .buttonStyle(CSTextLinkButtonStyle())
             .accessibilityLabel("See all news")
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
-        .overlay(
-            Group {
-                if showsDivider {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: 0.5)
-                }
-            }, alignment: .bottom
-        )
+        .padding(.vertical, 6)
     }
 }
 
 // MARK: - AI Insights header row
 struct AIInsightsHeaderRow: View {
-    var isAskHidden: Bool
-    var onToggleAsk: () -> Void
-    var onOpenAll: () -> Void
+    // PERFORMANCE FIX v20: Removed @EnvironmentObject appState (18+ @Published)
+    // Only used for dismissHomeSubviews - now via AppState.shared
+    /// FIX v5.0.3: Changed from @State to @Binding so the navigationDestination can be
+    /// placed at the parent level (outside any lazy container).
+    @Binding var openAllInsights: Bool
+    
     var body: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "lightbulb")
-                    .symbolRenderingMode(.monochrome)
-                    .foregroundStyle(.csGold)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .frame(width: 20, height: 20)
-                    .accessibilityHidden(true)
-                Text("AI Insights")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.white)
-            }
+        HStack(alignment: .center, spacing: 10) {
+            GoldHeaderGlyphSmall(systemName: "lightbulb.fill")
+            
+            Text("AI Insights")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(DS.Adaptive.textPrimary)
+            
             Spacer(minLength: 8)
-            if isAskHidden {
-                Button(action: onToggleAsk) {
-                    Image(systemName: "eye")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.06))
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Show Ask AI prompts")
+            
+            // All Insights button
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                openAllInsights = true
+            } label: {
+                Text("All Insights")
             }
-            Button(action: onOpenAll) {
-                HStack(spacing: 6) {
-                    Text("All Insights")
-                    Image(systemName: "chevron.right")
-                }
-            }
-            .buttonStyle(CSSecondaryCTAButtonStyle(height: 28, cornerRadius: 10, horizontalPadding: 10, font: .caption.weight(.semibold)))
+            .buttonStyle(CSTextLinkButtonStyle())
             .accessibilityLabel("Open all insights")
         }
-        .padding(.leading, 2)
-        .padding(.vertical, 4)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(height: 0.5)
+        .padding(.vertical, 6)
+        // FIX v5.0.3: navigationDestination for AllAIInsightsView removed — should be
+        // placed at the parent level (outside any lazy container) to fix SwiftUI warning.
+        .onReceive(AppState.shared.$dismissHomeSubviews) { shouldDismiss in
+            // Defer to avoid "Modifying state during view update"
+            DispatchQueue.main.async {
+                if shouldDismiss && openAllInsights {
+                    openAllInsights = false
+                    AppState.shared.dismissHomeSubviews = false
+                }
+            }
         }
     }
 }
@@ -194,8 +195,16 @@ struct WatchlistHeaderUnified: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Row 1: shared section header
-            SectionHeader(systemImage: "eye", title: "Watchlist", actionTitle: nil, action: nil, showsDivider: false)
+            // Row 1: Section title with gold icon - consistent with other sections
+            HStack(alignment: .center, spacing: 8) {
+                GoldHeaderGlyph(systemName: "eye.fill")
+                
+                Text("Watchlist")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(DS.Adaptive.textPrimary)
+                
+                Spacer(minLength: 0)
+            }
 
             // Row 2: column labels aligned to watchlist columns
             HStack(spacing: 0) {
@@ -204,37 +213,33 @@ struct WatchlistHeaderUnified: View {
                     .frame(width: max(0, leadingWidth))
 
                 Text("7D")
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .tracking(0.15)
-                    .foregroundStyle(Color.white.opacity(0.68))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(DS.Adaptive.textSecondary.opacity(0.8))
                     .frame(width: max(0, sparkWidth), alignment: .center)
+                    .padding(.trailing, 4)
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.06))
-                    .frame(width: max(0, outerDividerW), height: 14)
+                    .fill(DS.Adaptive.divider.opacity(0.4))
+                    .frame(width: max(0, outerDividerW), height: 12)
 
                 HStack(spacing: max(0, percentSpacing)) {
                     Text("1H")
-                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                        .tracking(0.15)
-                        .foregroundStyle(Color.white.opacity(0.68))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.Adaptive.textSecondary.opacity(0.8))
                         .frame(width: max(0, percentWidth), alignment: .trailing)
                     Rectangle()
-                        .fill(Color.white.opacity(0.06))
-                        .frame(width: max(0, innerDividerW), height: 12)
+                        .fill(DS.Adaptive.divider.opacity(0.3))
+                        .frame(width: max(0, innerDividerW), height: 8)
                         .accessibilityHidden(true)
                     Text("24H")
-                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                        .tracking(0.15)
-                        .foregroundStyle(Color.white.opacity(0.68))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.Adaptive.textSecondary.opacity(0.8))
                         .frame(width: max(0, percentWidth), alignment: .trailing)
                 }
-                .frame(width: max(0, percentWidth * 2 + percentSpacing + innerDividerW), alignment: .trailing)
+                .padding(.leading, 4)
+                .frame(width: max(0, percentWidth * 2 + percentSpacing + innerDividerW + 4), alignment: .trailing)
             }
-            .padding(.top, 0)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5)
-            }
+            .padding(.bottom, 4)
         }
     }
 }
@@ -251,39 +256,50 @@ struct MinimalRibbonBar: View {
     let onRefreshData: () -> Void
     let onRunRiskScan: () -> Void
     var fade: CGFloat = 1.0
+    
+    @State private var showSettingsMenu: Bool = false
 
     var body: some View {
         HStack(spacing: 10) {
             Text(title).foregroundStyle(.secondary)
             Divider().frame(height: 14)
-            Text(totalText).foregroundStyle(.white).monospacedDigit()
+            Text(totalText).foregroundStyle(DS.Adaptive.textPrimary).monospacedDigit()
             HStack(spacing: 4) {
                 Image(systemName: isUp ? "arrow.up" : "arrow.down").foregroundStyle(isUp ? .green : .red)
-                Text(changeText).foregroundStyle(.white).monospacedDigit()
+                Text(changeText).foregroundStyle(DS.Adaptive.textPrimary).monospacedDigit()
             }
             .padding(.horizontal, 6).padding(.vertical, 3)
             .background(Capsule().fill((isUp ? Color.green : Color.red).opacity(0.18)))
             Spacer()
             Button(action: onRunRiskScan) { Image(systemName: "shield.lefthalf.filled") }
-                .buttonStyle(.plain).foregroundStyle(.white)
+                .buttonStyle(.plain).foregroundStyle(DS.Adaptive.textPrimary)
             Button(action: onNotifications) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell")
                     if hasPendingNotifications { Circle().fill(.red).frame(width: 6, height: 6).offset(x: 3, y: -3) }
                 }
             }
-            .buttonStyle(.plain).foregroundStyle(.white)
-            Menu {
-                Button("Settings", action: onSettings)
-                Button("Refresh Data", action: onRefreshData)
+            .buttonStyle(.plain).foregroundStyle(DS.Adaptive.textPrimary)
+            Button {
+                #if os(iOS)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
+                showSettingsMenu = true
             } label: {
-                Image(systemName: "gearshape").foregroundStyle(.white)
+                Image(systemName: "gearshape").foregroundStyle(DS.Adaptive.textPrimary)
             }
             .buttonStyle(.plain)
+            .popover(isPresented: $showSettingsMenu, arrowEdge: .bottom) {
+                HeaderActionMenu(isPresented: $showSettingsMenu, actions: [
+                    .init(title: "Settings", icon: "gearshape", action: onSettings),
+                    .init(title: "Refresh Data", icon: "arrow.clockwise", action: onRefreshData)
+                ])
+                .presentationCompactAdaptation(.popover)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color.black.opacity(0.65))
+        .background(DS.Adaptive.background.opacity(0.65))
         .opacity(Double(fade))
     }
 }
@@ -294,21 +310,24 @@ struct TopNavBar: View {
     let hasPendingNotifications: Bool
     let onNotifications: () -> Void
     let onSettings: () -> Void
-    @Binding var demoModeEnabled: Bool
     let reseedDemo: () -> Void
     let clearDemo: () -> Void
     let onRefreshData: () -> Void
     let onRunRiskScan: () -> Void
+    
+    /// Uses unified DemoModeManager for demo mode toggle
+    @ObservedObject private var demoModeManager = DemoModeManager.shared
+    @State private var showSettingsMenu: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(DS.Adaptive.textPrimary)
             Spacer()
             Button(action: onRunRiskScan) { Image(systemName: "shield.lefthalf.filled") }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                .foregroundStyle(DS.Adaptive.textPrimary)
             Button(action: onNotifications) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell")
@@ -316,22 +335,228 @@ struct TopNavBar: View {
                 }
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            Menu {
-                Toggle("Use Demo Portfolio", isOn: $demoModeEnabled)
-                Button("Reseed Demo Portfolio", action: reseedDemo)
-                Button("Clear Demo Portfolio", role: .destructive, action: clearDemo)
-                Divider()
-                Button("Settings", action: onSettings)
-                Button("Refresh Data", action: onRefreshData)
+            .foregroundStyle(DS.Adaptive.textPrimary)
+            Button {
+                #if os(iOS)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
+                showSettingsMenu = true
             } label: {
                 Image(systemName: "gearshape")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(DS.Adaptive.textPrimary)
             }
             .buttonStyle(.plain)
+            .popover(isPresented: $showSettingsMenu, arrowEdge: .bottom) {
+                TopNavSettingsMenu(
+                    isPresented: $showSettingsMenu,
+                    isDemoMode: $demoModeManager.isDemoMode,
+                    onReseedDemo: reseedDemo,
+                    onClearDemo: clearDemo,
+                    onSettings: onSettings,
+                    onRefreshData: onRefreshData
+                )
+                .presentationCompactAdaptation(.popover)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color.black.opacity(0.65))
+        .background(DS.Adaptive.background.opacity(0.65))
+    }
+}
+
+// MARK: - Header Action Menu (Styled popover for simple action lists)
+struct HeaderActionMenuItem {
+    let title: String
+    let icon: String?
+    let isDestructive: Bool
+    let action: () -> Void
+    
+    init(title: String, icon: String? = nil, isDestructive: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.icon = icon
+        self.isDestructive = isDestructive
+        self.action = action
+    }
+}
+
+struct HeaderActionMenu: View {
+    @Binding var isPresented: Bool
+    let actions: [HeaderActionMenuItem]
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDark: Bool { colorScheme == .dark }
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            ForEach(Array(actions.enumerated()), id: \.offset) { index, item in
+                actionRow(item)
+                if index < actions.count - 1 {
+                    Rectangle()
+                        .fill(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 8)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        // PERFORMANCE FIX v19: Replaced .ultraThinMaterial with solid color
+        .background(DS.Adaptive.chipBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            LinearGradient(
+                colors: isDark
+                    ? [Color.white.opacity(0.10), .clear]
+                    : [Color.white.opacity(0.6), .clear],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .allowsHitTesting(false)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isDark ? Color.white.opacity(0.10) : Color.black.opacity(0.08), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        )
+        .frame(minWidth: 160, maxWidth: 220)
+    }
+    
+    @ViewBuilder
+    private func actionRow(_ item: HeaderActionMenuItem) -> some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            item.action()
+            isPresented = false
+        } label: {
+            HStack(spacing: 8) {
+                if let icon = item.icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(item.isDestructive ? Color.red : (isDark ? Color.white.opacity(0.9) : DS.Adaptive.textPrimary))
+                        .frame(width: 20)
+                }
+                Text(item.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(item.isDestructive ? Color.red : (isDark ? Color.white.opacity(0.92) : DS.Adaptive.textPrimary))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Top Nav Settings Menu (Extended menu with toggle support)
+struct TopNavSettingsMenu: View {
+    @Binding var isPresented: Bool
+    @Binding var isDemoMode: Bool
+    let onReseedDemo: () -> Void
+    let onClearDemo: () -> Void
+    let onSettings: () -> Void
+    let onRefreshData: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDarkMode: Bool { colorScheme == .dark }
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            // Demo mode toggle
+            demoModeToggle
+            
+            divider
+            
+            // Demo actions
+            actionRow(title: "Reseed Demo Portfolio", icon: "arrow.triangle.2.circlepath", action: onReseedDemo)
+            actionRow(title: "Clear Demo Portfolio", icon: "trash", isDestructive: true, action: onClearDemo)
+            
+            divider
+            
+            // Main actions
+            actionRow(title: "Settings", icon: "gearshape", action: onSettings)
+            actionRow(title: "Refresh Data", icon: "arrow.clockwise", action: onRefreshData)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        // PERFORMANCE FIX v19: Replaced .ultraThinMaterial with solid color
+        .background(DS.Adaptive.chipBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            LinearGradient(
+                colors: isDarkMode
+                    ? [Color.white.opacity(0.10), .clear]
+                    : [Color.white.opacity(0.6), .clear],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .allowsHitTesting(false)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isDarkMode ? Color.white.opacity(0.10) : Color.black.opacity(0.08), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        )
+        .frame(minWidth: 200, maxWidth: 260)
+    }
+    
+    private var demoModeToggle: some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+                isDemoMode.toggle()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isDemoMode ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isDemoMode ? DS.Colors.gold : (isDarkMode ? Color.white.opacity(0.5) : DS.Adaptive.textTertiary))
+                    .frame(width: 20)
+                Text("Use Demo Portfolio")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isDarkMode ? Color.white.opacity(0.92) : DS.Adaptive.textPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var divider: some View {
+        Rectangle()
+            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+            .frame(height: 0.5)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+    }
+    
+    @ViewBuilder
+    private func actionRow(title: String, icon: String, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            action()
+            isPresented = false
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isDestructive ? Color.red : (isDarkMode ? Color.white.opacity(0.9) : DS.Adaptive.textPrimary))
+                    .frame(width: 20)
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isDestructive ? Color.red : (isDarkMode ? Color.white.opacity(0.92) : DS.Adaptive.textPrimary))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

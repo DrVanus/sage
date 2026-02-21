@@ -33,33 +33,24 @@ enum AppTheme {
 }
 
 // MARK: - ThemedRootView
-/// A container that enforces a black top bar in both light/dark mode
-/// and tries to keep the status bar text white.
+/// A container that respects the current color scheme for navigation bar styling
+/// and applies the app-wide preferred color scheme.
 struct ThemedRootView<Content: View>: View {
     let content: Content
     
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
         
-        // Force black nav bar background:
+        // Use default system appearance - let color scheme handle light/dark
         let appearance = UINavigationBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = .black
-        appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        appearance.configureWithDefaultBackground()
         
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
         
-        // For older iOS:
-        UINavigationBar.appearance().barTintColor = .black
-        UINavigationBar.appearance().tintColor = .white
-        UINavigationBar.appearance().isTranslucent = false
-        
-        // Attempt to force white status bar text:
-        
-        // If you want the entire window to be forced dark, uncomment below:
-        // UIApplication.shared.windows.first?.overrideUserInterfaceStyle = .dark
+        // Allow system to handle translucency properly
+        UINavigationBar.appearance().isTranslucent = true
     }
     
     var body: some View {
@@ -69,24 +60,43 @@ struct ThemedRootView<Content: View>: View {
 }
 
 // MARK: - FuturisticBackground
+/// MEMORY FIX: Drastically simplified from 9 heavy layers to lightweight gradients only.
+/// Previously, each instance created:
+///   - A MetalPerlinNoiseView (MTKView with triple-buffered GPU textures = ~3 MB)
+///   - AnimatedSparkleOverlay (12 animated circles with timers)
+///   - InteractiveTouchOverlay (touch tracking + ripple animations)
+///   - 6 layers with blend modes (.overlay, .lighten, .multiply, .plusLighter)
+///     Each blend mode forces a SEPARATE offscreen render buffer at full screen resolution
+///     (~14 MB per buffer on iPhone Pro Max = ~84 MB per FuturisticBackground instance)
+///
+/// With 27 views using FuturisticBackground, the GPU memory alone could exceed 500+ MB,
+/// causing iOS to terminate the app with "too much memory."
+///
+/// This simplified version keeps the premium gradient feel while using ZERO offscreen
+/// render buffers and ZERO GPU textures. The visual difference is subtle - just the
+/// animated noise and sparkles are gone, but the gradient + wave pattern remain.
 struct FuturisticBackground: View {
     @Environment(\.colorScheme) var colorScheme
+    
+    // Premium light mode colors
+    private let lightBgTop = Color(red: 0.98, green: 0.98, blue: 0.97)      // Warm off-white
+    private let lightBgBottom = Color(red: 0.94, green: 0.95, blue: 0.96)   // Cool light gray
     
     var body: some View {
         ZStack {
             if colorScheme == .light {
-                // Light mode: a darker silver gradient so the top isn’t too white
+                // Light mode: clean, bright gradient with subtle warmth
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color(white: 0.35),  // slightly darker silver
-                        Color(white: 0.75)   // mid-silver
+                        lightBgTop,
+                        lightBgBottom
                     ]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
             } else {
-                // Dark mode: black -> gray
+                // Dark mode: black -> subtle gray
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color.black,
@@ -98,69 +108,55 @@ struct FuturisticBackground: View {
                 .ignoresSafeArea()
             }
             
-            // 2) Radial highlight in the center
+            // Radial highlight in the center - NO blend mode (avoids offscreen buffer)
             RadialGradient(
                 gradient: Gradient(colors: [
-                    Color.white.opacity(0.05),
+                    colorScheme == .light 
+                        ? Color.white.opacity(0.6) 
+                        : Color.white.opacity(0.05),
                     Color.clear
                 ]),
                 center: .center,
                 startRadius: 10,
                 endRadius: 400
             )
-            .blendMode(.lighten)
             .ignoresSafeArea()
 
-            // 3) Primary wave lines
-            WavePatternShape(lineCount: 10, amplitude: 8)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                .blendMode(.overlay)
-                .ignoresSafeArea()
+            // Keep texture subtle in light mode only; dark mode lines look like banding.
+            if colorScheme == .light {
+                WavePatternShape(lineCount: 8, amplitude: 6)
+                    .stroke(Color.black.opacity(0.02), lineWidth: 0.8)
+                    .ignoresSafeArea()
+            }
 
-            // 4) Secondary wave lines
-            WavePatternShape(lineCount: 8, amplitude: 5)
-                .stroke(Color.white.opacity(0.015), lineWidth: 0.5)
-                .blendMode(.overlay)
-                .rotationEffect(.degrees(180))
-                .offset(y: 80)
+            // Mode-specific overlay - NO blend mode
+            if colorScheme == .dark {
+                // Dark mode: darker top overlay to keep nav area black
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(0.9),
+                        Color.clear
+                    ]),
+                    startPoint: .top,
+                    endPoint: .center
+                )
                 .ignoresSafeArea()
-
-            // 5) Darker top overlay to keep nav area black
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black.opacity(0.9),
-                    Color.clear
-                ]),
-                startPoint: .top,
-                endPoint: .center
-            )
-            .ignoresSafeArea()
-            .blendMode(.multiply)
-
-            // 6) Slight color shift
-            Color.clear
-                .hueRotation(.degrees(10))
-                .saturation(1.25)
+            } else {
+                // Light mode: subtle warm tint at bottom for depth
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.clear,
+                        Color(red: 0.96, green: 0.94, blue: 0.90).opacity(0.3)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
                 .ignoresSafeArea()
-                .allowsHitTesting(false)
-
-            // 7) Subtle star sparkles
-            AnimatedSparkleOverlay(sparkleCount: 12)
-                .blendMode(.plusLighter)
-                .allowsHitTesting(false)
-                .ignoresSafeArea()
-
-            // 8) Metal-based noise
-            MetalPerlinNoiseView()
-                .opacity(0.10)
-                .blendMode(.overlay)
-                .allowsHitTesting(false)
-                .ignoresSafeArea()
-
-            // 9) Interactive ripple overlay
-            InteractiveTouchOverlay()
-                .ignoresSafeArea()
+            }
         }
+        // NOTE: .drawingGroup() intentionally NOT used here - it creates a ~14 MB offscreen
+        // buffer per instance, and FuturisticBackground is used in 24+ views. The simple
+        // gradients here are lightweight enough for SwiftUI to composite directly.
     }
 }
 
@@ -199,45 +195,86 @@ struct AnimatedSparkleOverlay: View {
         var position: CGPoint
         var offset: CGPoint
         var baseOpacity: Double
+        var size: CGFloat
+        var animationPhase: Double // Staggered animation timing
+        var hasGoldTint: Bool
     }
     
     @State private var sparkles: [Sparkle] = []
     @State private var animateFlag = false
     @State private var containerSize: CGSize = .zero
+    @State private var sparkleTimer: Timer? = nil
     
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 ForEach(sparkles) { sp in
-                    Circle()
-                        // smaller star specks
-                        .frame(width: 1.5, height: 1.5)
-                        .position(
-                            x: sp.position.x + (animateFlag ? sp.offset.x : -sp.offset.x),
-                            y: sp.position.y + (animateFlag ? sp.offset.y : -sp.offset.y)
-                        )
-                        .foregroundColor(.white.opacity(animateFlag ? sp.baseOpacity : 0))
+                    // Premium sparkle with subtle gold tint variation
+                    ZStack {
+                        // Outer glow (subtle)
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        (sp.hasGoldTint ? BrandColors.goldBase : Color.white).opacity(0.3),
+                                        Color.clear
+                                    ],
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: sp.size * 2
+                                )
+                            )
+                            .frame(width: sp.size * 4, height: sp.size * 4)
+                        
+                        // Core sparkle
+                        Circle()
+                            .fill(sp.hasGoldTint ? BrandColors.goldLight : Color.white)
+                            .frame(width: sp.size, height: sp.size)
+                    }
+                    .position(
+                        x: sp.position.x + (animateFlag ? sp.offset.x : -sp.offset.x),
+                        y: sp.position.y + (animateFlag ? sp.offset.y : -sp.offset.y)
+                    )
+                    .opacity(animateFlag ? sp.baseOpacity : sp.baseOpacity * 0.2)
+                    .scaleEffect(animateFlag ? 1.0 : 0.6)
+                    .animation(
+                        .easeInOut(duration: 3 + sp.animationPhase)
+                        .repeatForever(autoreverses: true)
+                        .delay(sp.animationPhase),
+                        value: animateFlag
+                    )
                 }
             }
             .onAppear {
-                containerSize = geo.size
-                generateSparkles()
-                
-                // Re-randomize sparkles every 8 seconds
-                Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
-                    withAnimation(.easeInOut(duration: 2)) {
-                        generateSparkles()
+                // Defer to avoid "Modifying state during view update"
+                DispatchQueue.main.async {
+                    containerSize = geo.size
+                    generateSparkles()
+                    
+                    // Re-randomize sparkles every 10 seconds for subtle variation
+                    sparkleTimer?.invalidate()
+                    sparkleTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [self] _ in
+                        DispatchQueue.main.async {
+                            withAnimation(.easeInOut(duration: 3)) {
+                                generateSparkles()
+                            }
+                        }
                     }
-                }
-                
-                // Continuously fade in/out
-                withAnimation(Animation.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
-                    animateFlag.toggle()
+                    
+                    // Trigger the animation
+                    animateFlag = true
                 }
             }
-            .onChange(of: geo.size) { newSize in
-                containerSize = newSize
-                generateSparkles()
+            .onDisappear {
+                sparkleTimer?.invalidate()
+                sparkleTimer = nil
+            }
+            .onChange(of: geo.size) { _, newSize in
+                // Defer to avoid "Modifying state during view update"
+                DispatchQueue.main.async {
+                    containerSize = newSize
+                    generateSparkles()
+                }
             }
         }
     }
@@ -246,17 +283,23 @@ struct AnimatedSparkleOverlay: View {
         guard containerSize.width > 0, containerSize.height > 0 else {
             return
         }
-        sparkles = (0..<sparkleCount).map { _ in
+        sparkles = (0..<sparkleCount).map { index in
             let x = CGFloat.random(in: 0..<containerSize.width)
             let y = CGFloat.random(in: 0..<containerSize.height)
-            let offX = CGFloat.random(in: -3...3)
-            let offY = CGFloat.random(in: -3...3)
-            let op = Double.random(in: 0.02...0.08)
+            let offX = CGFloat.random(in: -4...4)
+            let offY = CGFloat.random(in: -4...4)
+            let op = Double.random(in: 0.03...0.12)
+            let size = CGFloat.random(in: 1.0...2.0)
+            let phase = Double.random(in: 0...2) // Stagger animations
+            let hasGold = index % 4 == 0 // Every 4th sparkle has gold tint
             
             return Sparkle(
                 position: CGPoint(x: x, y: y),
                 offset: CGPoint(x: offX, y: offY),
-                baseOpacity: op
+                baseOpacity: op,
+                size: size,
+                animationPhase: phase,
+                hasGoldTint: hasGold
             )
         }
     }
@@ -264,6 +307,7 @@ struct AnimatedSparkleOverlay: View {
 
 // MARK: - InteractiveTouchOverlay
 struct InteractiveTouchOverlay: View {
+    var isDarkMode: Bool = true
     @State private var ripples: [Ripple] = []
     
     struct Ripple: Identifiable {
@@ -273,12 +317,16 @@ struct InteractiveTouchOverlay: View {
         var opacity: Double = 0.4
     }
     
+    private var rippleColor: Color {
+        isDarkMode ? Color.white : Color.black.opacity(0.3)
+    }
+    
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 ForEach(ripples) { ripple in
                     Circle()
-                        .fill(Color.white.opacity(ripple.opacity))
+                        .fill(rippleColor.opacity(ripple.opacity))
                         .frame(width: ripple.radius * 2, height: ripple.radius * 2)
                         .position(ripple.position)
                 }
@@ -290,9 +338,15 @@ struct InteractiveTouchOverlay: View {
                         addRipple(at: value.location)
                     }
             )
+            // PERFORMANCE FIX v2: Reduce from 30fps to 10fps - ripple animations don't need high framerate
+            // PERFORMANCE FIX v19: Changed .common to .default - timer pauses during scroll
             .onReceive(
-                Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+                Timer.publish(every: 1.0 / 10.0, on: .main, in: .default).autoconnect()
             ) { _ in
+                // Only process if there are ripples to animate
+                guard !ripples.isEmpty else { return }
+                // PERFORMANCE FIX: Skip ripple animation during scroll
+                guard !ScrollStateManager.shared.shouldBlockHeavyOperation() else { return }
                 updateRipples()
             }
         }
@@ -304,8 +358,9 @@ struct InteractiveTouchOverlay: View {
     
     private func updateRipples() {
         for i in 0..<ripples.count {
-            ripples[i].radius += 1.2
-            ripples[i].opacity -= 0.007
+            // Adjusted for 30fps (larger increments)
+            ripples[i].radius += 2.4
+            ripples[i].opacity -= 0.014
         }
         ripples.removeAll { $0.opacity <= 0 }
     }

@@ -14,18 +14,34 @@ class ThreeCommasService: ObservableObject {
             do {
                 let accounts = try await ThreeCommasAPI.shared.listAccounts()
                 guard let firstAccount = accounts.first else {
-                    await MainActor.run { self.balance = 0.0 }
+                    _ = await MainActor.run {
+                        Task { @MainActor [weak self] in
+                            self?.balance = 0.0
+                        }
+                    }
                     return
                 }
                 let balances = try await ThreeCommasAPI.shared
                     .loadAccountBalances(accountId: firstAccount.id)
                 if let entry = balances.first(where: { $0.currency == symbol }) {
-                    await MainActor.run { self.balance = entry.balance }
+                    _ = await MainActor.run { [entry] in
+                        Task { @MainActor [weak self] in
+                            self?.balance = entry.balance
+                        }
+                    }
                 } else {
-                    await MainActor.run { self.balance = 0.0 }
+                    _ = await MainActor.run {
+                        Task { @MainActor [weak self] in
+                            self?.balance = 0.0
+                        }
+                    }
                 }
             } catch {
-                await MainActor.run { self.balance = 0.0 }
+                _ = await MainActor.run {
+                    Task { @MainActor [weak self] in
+                        self?.balance = 0.0
+                    }
+                }
             }
         }
     }

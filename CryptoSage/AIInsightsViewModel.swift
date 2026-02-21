@@ -47,42 +47,46 @@ final class AIInsightsViewModel: ObservableObject {
             .delay(for: .seconds(1.0), scheduler: DispatchQueue.main)  // simulate delay
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                // Populate mock data for demonstration
-                self.summaryMetrics = [
-                    SummaryMetric(iconName: "chart.line.uptrend.xyaxis", valueText: "8%",  title: "vs BTC"),
-                    SummaryMetric(iconName: "shield.fill",               valueText: "7/10", title: "Risk Score"),
-                    SummaryMetric(iconName: "rosette",                   valueText: "75%",  title: "Win Rate")
-                ]
-                // Example performance points
-                self.performanceData = (0..<30).map { i in
-                    PerformancePoint(date: Calendar.current.date(byAdding: .day, value: -i, to: Date())!,
-                                     value: Double.random(in: 90_000...110_000))
-                }.reversed()
-                self.contributors = [ // replace with real contributor data
-                    Contributor(name: "BTC", contribution: 0.4),
-                    Contributor(name: "ETH", contribution: 0.3),
-                    Contributor(name: "SOL", contribution: 0.15),
-                    Contributor(name: "ADA", contribution: 0.15)
-                ]
-                self.tradeQualityData = TradeQualityData(bestTrade: Trade(symbol: "SOL", profitPct: 12.3),
-                                                         worstTrade: Trade(symbol: "DOGE", profitPct: -8.5),
-                                                         histogramBins: [0,0,1,3,5,2,1])
-                self.diversificationData = DiversificationData(percentages: [
-                    AssetWeight(asset: "BTC", weight: 0.5),
-                    AssetWeight(asset: "ETH", weight: 0.3),
-                    AssetWeight(asset: "SOL", weight: 0.2)
-                ])
-                self.momentumData = MomentumData(strategies: [
-                    StrategyMomentum(name: "Trend Follow", score: 0.7),
-                    StrategyMomentum(name: "Mean Reversion", score: 0.4),
-                    StrategyMomentum(name: "Breakout", score: 0.6)
-                ])
-                self.feeData = FeeData(fees: [
-                    FeeItem(label: "Network Fees", pct: 0.015),
-                    FeeItem(label: "Slippage", pct: 0.005)
-                ])
-                
-                self.isLoading = false
+                // Defer state modifications to avoid "Modifying state during view update"
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    // Populate mock data for demonstration
+                    self.summaryMetrics = [
+                        SummaryMetric(iconName: "chart.line.uptrend.xyaxis", valueText: "8%",  title: "vs BTC"),
+                        SummaryMetric(iconName: "shield.fill",               valueText: "7/10", title: "Risk Score"),
+                        SummaryMetric(iconName: "rosette",                   valueText: "75%",  title: "Win Rate")
+                    ]
+                    // Example performance points
+                    self.performanceData = (0..<30).map { i in
+                        PerformancePoint(date: Calendar.current.date(byAdding: .day, value: -i, to: Date())!,
+                                         value: Double.random(in: 90_000...110_000))
+                    }.reversed()
+                    self.contributors = [ // replace with real contributor data
+                        Contributor(name: "BTC", contribution: 0.4),
+                        Contributor(name: "ETH", contribution: 0.3),
+                        Contributor(name: "SOL", contribution: 0.15),
+                        Contributor(name: "ADA", contribution: 0.15)
+                    ]
+                    self.tradeQualityData = TradeQualityData(bestTrade: Trade(symbol: "SOL", profitPct: 12.3),
+                                                             worstTrade: Trade(symbol: "DOGE", profitPct: -8.5),
+                                                             histogramBins: [0,0,1,3,5,2,1])
+                    self.diversificationData = DiversificationData(percentages: [
+                        AssetWeight(asset: "BTC", weight: 0.5),
+                        AssetWeight(asset: "ETH", weight: 0.3),
+                        AssetWeight(asset: "SOL", weight: 0.2)
+                    ])
+                    self.momentumData = MomentumData(strategies: [
+                        StrategyMomentum(name: "Trend Follow", score: 0.7),
+                        StrategyMomentum(name: "Mean Reversion", score: 0.4),
+                        StrategyMomentum(name: "Breakout", score: 0.6)
+                    ])
+                    self.feeData = FeeData(fees: [
+                        FeeItem(label: "Network Fees", pct: 0.015),
+                        FeeItem(label: "Slippage", pct: 0.005)
+                    ])
+                    
+                    self.isLoading = false
+                }
             }
             .store(in: &cancellables)
     }
@@ -105,6 +109,7 @@ struct TradeQualityData {
     let bestTrade: Trade
     let worstTrade: Trade
     let histogramBins: [Int]   // Example distribution
+    var isUnrealized: Bool = false  // True when showing unrealized P&L for open positions
 }
 
 struct Trade {

@@ -10,6 +10,7 @@ import UIKit
 import AppKit
 #endif
 
+#if USE_UI_SHIMS
 // Fallback async image with simple caching disabled (placeholder only)
 public struct CachingAsyncImage: View {
     public let url: URL?
@@ -36,7 +37,10 @@ public struct CachingAsyncImage: View {
             }
         }
         .onAppear { loader.load(from: url, referer: referer, maxPixel: maxPixel) }
-        .onChange(of: url) { _ in loader.load(from: url, referer: referer, maxPixel: maxPixel) }
+        .onChange(of: url) { _ in
+            // Defer to avoid "Modifying state during view update"
+            DispatchQueue.main.async { loader.load(from: url, referer: referer, maxPixel: maxPixel) }
+        }
         .onDisappear { loader.cancel() }
     }
 
@@ -66,7 +70,26 @@ public struct CachingAsyncImage: View {
 
         func load(from url: URL?, referer: URL?, maxPixel: Int?) {
             cancel()
-            guard let url = url else { state = .failed; return }
+            guard let origURL = url else { state = .failed; return }
+            // Normalize via centralized policy and enforce HTTPS
+            let normalized = NewsImagePolicy.normalizedURL(from: origURL) ?? origURL
+            var target = normalized
+            if target.scheme?.lowercased() == "http" {
+                if var comps = URLComponents(url: target, resolvingAgainstBaseURL: false) {
+                    comps.scheme = "https"
+                    target = comps.url ?? target
+                }
+            } else if target.scheme == nil, target.absoluteString.hasPrefix("//") {
+                if let https = URL(string: "https:" + target.absoluteString) { target = https }
+            }
+            // Strip common tracking params only (leave image sizing params intact)
+            if var comps = URLComponents(url: target, resolvingAgainstBaseURL: false), let items = comps.queryItems, !items.isEmpty {
+                let blocked = Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid"])
+                comps.queryItems = items.filter { !blocked.contains($0.name.lowercased()) }
+                target = comps.url ?? target
+            }
+            let url = target
+
             if let cached = Self.cache.object(forKey: url as NSURL) {
                 state = .loaded(Image(uiImage: cached))
                 return
@@ -84,7 +107,34 @@ public struct CachingAsyncImage: View {
                     let (data, response) = try await URLSession.shared.data(for: req)
                     guard !Task.isCancelled else { return }
                     if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                        await MainActor.run { self.state = .failed }
+                        await MainActor.run {
+                            Task { @MainActor [weak self] in
+                                self?.state = .failed
+                            }
+                        }
+                        return
+                    }
+                    // Validate MIME/content-type and data size before decoding
+                    if let http = response as? HTTPURLResponse {
+                        if let ct = http.value(forHTTPHeaderField: "Content-Type")?.lowercased() {
+                            let ok = ct.contains("image/") || ct.contains("application/octet-stream")
+                            if !ok {
+                                await MainActor.run {
+                                    Task { @MainActor [weak self] in
+                                        self?.state = .failed
+                                    }
+                                }
+                                return
+                            }
+                        }
+                    }
+                    // Guard against obviously wrong payload sizes (e.g., HTML error pages)
+                    if data.count < 64 {
+                        await MainActor.run {
+                            Task { @MainActor [weak self] in
+                                self?.state = .failed
+                            }
+                        }
                         return
                     }
                     #if os(iOS)
@@ -93,57 +143,90 @@ public struct CachingAsyncImage: View {
                     let img = NSImage(data: data)
                     #endif
                     guard let baseImage = img else {
-                        await MainActor.run { self.state = .failed }
+                        await MainActor.run {
+                            Task { @MainActor [weak self] in
+                                self?.state = .failed
+                            }
+                        }
                         return
                     }
                     #if os(iOS)
                     let finalImage: UIImage
                     if let maxPixel, maxPixel > 0 {
-                        let maxSide = CGFloat(maxPixel)
-                        let size = baseImage.size
-                        let scale = min(1.0, maxSide / max(size.width, size.height))
-                        if scale < 0.999 {
-                            let newSize = CGSize(width: max(1, size.width * scale), height: max(1, size.height * scale))
-                            let renderer = UIGraphicsImageRenderer(size: newSize)
-                            finalImage = renderer.image { _ in baseImage.draw(in: CGRect(origin: .zero, size: newSize)) }
+                        // PERFORMANCE FIX: Use CGImageSource for efficient downsampling
+                        // This is much faster and more memory-efficient than UIGraphicsImageRenderer
+                        let options: [CFString: Any] = [
+                            kCGImageSourceShouldCache: false,
+                            kCGImageSourceCreateThumbnailFromImageAlways: true,
+                            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                            kCGImageSourceCreateThumbnailWithTransform: true
+                        ]
+                        if let source = CGImageSourceCreateWithData(data as CFData, nil),
+                           let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) {
+                            finalImage = UIImage(cgImage: cgImage)
                         } else {
+                            // Fallback to baseImage if downsampling fails
                             finalImage = baseImage
                         }
                     } else {
                         finalImage = baseImage
                     }
                     Self.cache.setObject(finalImage, forKey: url as NSURL)
-                    await MainActor.run { self.state = .loaded(Image(uiImage: finalImage)) }
+                    await MainActor.run { [finalImage] in
+                        Task { @MainActor [weak self] in
+                            self?.state = .loaded(Image(uiImage: finalImage))
+                        }
+                    }
                     #else
                     // macOS simple wrap
                     Self.cache.setObject(baseImage, forKey: url as NSURL)
-                    await MainActor.run { self.state = .loaded(Image(nsImage: baseImage)) }
+                    await MainActor.run { [baseImage] in
+                        Task { @MainActor [weak self] in
+                            self?.state = .loaded(Image(nsImage: baseImage))
+                        }
+                    }
                     #endif
                 } catch {
                     guard !Task.isCancelled else { return }
-                    await MainActor.run { self.state = .failed }
+                    await MainActor.run {
+                        Task { @MainActor [weak self] in
+                            self?.state = .failed
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-// Simple relative time text (e.g., "5m ago")
+// Simple relative time text (e.g., "5m ago") - updates every minute
 public struct RelativeTimeText: View {
     public let date: Date
+    @State private var now = Date()
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    
     public init(date: Date) { self.date = date }
+    
     public var body: some View {
-        Text(Self.format(date))
+        Text(Self.format(date, now: now))
+            .onReceive(timer) { tick in now = tick }
     }
-    private static func format(_ date: Date) -> String {
-        let seconds = Int(Date().timeIntervalSince(date))
-        if seconds < 60 { return "now" }
+    
+    private static func format(_ date: Date, now: Date) -> String {
+        let seconds = Int(now.timeIntervalSince(date))
+        // Handle slight future dates gracefully
+        if seconds < 0 && seconds > -300 { return "just now" }
+        if seconds < 60 { return "just now" }
         let minutes = seconds / 60
         if minutes < 60 { return "\(minutes)m ago" }
         let hours = minutes / 60
         if hours < 24 { return "\(hours)h ago" }
         let days = hours / 24
-        return "\(days)d ago"
+        if days < 7 { return "\(days)d ago" }
+        // For older items, use a date formatter
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 }
 
@@ -182,3 +265,5 @@ public struct CryptoNewsErrorView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 }
+#endif // USE_UI_SHIMS
+

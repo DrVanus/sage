@@ -31,29 +31,37 @@ struct WatchlistReorderView: View {
                 }
                 .onMove(perform: move)
             }
-            .environment(\._editMode, .constant(.active)) // always show drag handles
+            .environment(\.editMode, .constant(.active)) // always show drag handles
             .scrollContentBackground(.hidden)
             .background(Color.black)
             .navigationTitle("Reorder Watchlist")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    CSNavButton(icon: "xmark", action: { dismiss() }, accessibilityText: "Close", compact: true)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { applyAndDismiss() }.bold()
+                    Button { applyAndDismiss() } label: {
+                        Text("Done")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(DS.Adaptive.gold)
+                    }
                 }
             }
+            .toolbarBackground(DS.Adaptive.background, for: .navigationBar)
             .onAppear {
-                // Seed with current order filtered to existing favorites
-                let favs = Array(favorites.favoriteIDs)
-                let current = favorites.getOrder()
-                // Build order: current order first, then any new favs not yet in order
-                var seen = Set<String>()
-                var out: [String] = []
-                for id in current where favs.contains(id) { if !seen.contains(id) { out.append(id); seen.insert(id) } }
-                for id in favs where !seen.contains(id) { out.append(id); seen.insert(id) }
-                self.order = out
+                // Defer to avoid "Modifying state during view update"
+                DispatchQueue.main.async {
+                    // Seed with current order filtered to existing favorites
+                    let favs = Array(favorites.favoriteIDs)
+                    let current = favorites.getOrder()
+                    // Build order: current order first, then any new favs not yet in order
+                    var seen = Set<String>()
+                    var out: [String] = []
+                    for id in current where favs.contains(id) { if !seen.contains(id) { out.append(id); seen.insert(id) } }
+                    for id in favs where !seen.contains(id) { out.append(id); seen.insert(id) }
+                    self.order = out
+                }
             }
         }
         .tint(.yellow)

@@ -1,0 +1,19 @@
+// Replace the pctBtn label section (lines 664-671) with this:
+
+        } label: {
+            Text(pct == 100 ? "Max" : "\(pct)%")
+                .font(.system(size: 9, weight: .semibold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundColor(textColor)
+                .padding(.horizontal, 3)
+                .frame(height: height - 4)
+                .background(Capsule().fill(bgStyle))
+        }
+
+// Key changes:
+// 1. "100%" changed to "Max" 
+// 2. Font size changed from isCompact ? 10 : 11 to fixed 9
+// 3. Added .lineLimit(1) to prevent text wrapping
+// 4. Added .fixedSize(horizontal: true, vertical: false) to prevent compression
+// 5. Padding changed from isCompact ? 6 : 8 to fixed 3

@@ -5,7 +5,8 @@ public actor CompositePriceService {
         public var staleTickerCutoff: TimeInterval = 90 // seconds
         public var outlierK: Double = 3.0               // MAD multiplier
         public var maxVenueWeightCap: Double = 0.5      // cap any single venue to 50%
-        public var defaultInterval: CandleInterval = .m5
+        public var defaultInterval: MMECandleInterval = .m5
+        public var allowedExchangeIDs: [String]? = nil
         public init() {}
     }
 
@@ -22,9 +23,9 @@ public actor CompositePriceService {
     // MARK: - Public API
 
     public struct CompositeResult {
-        public let price: CompositePrice
-        public let series: CompositeSeries?
-        public init(price: CompositePrice, series: CompositeSeries?) {
+        public let price: MMECompositePrice
+        public let series: MMECompositeSeries?
+        public init(price: MMECompositePrice, series: MMECompositeSeries?) {
             self.price = price
             self.series = series
         }
@@ -47,10 +48,10 @@ public actor CompositePriceService {
         // 3) Convert to USD
         let usdTickers = await convertToUSD(tickers: fresh)
         let prices = usdTickers.map { $0.1 }
-        let weightsRaw = usdTickers.map { $0.0.volume24hBase ?? 0 }
+        _ = usdTickers.map { $0.0.volume24hBase ?? 0 }
         // 4) Outlier filter via MAD
         let mask = robustInlierMask(values: prices, k: config.outlierK)
-        var filtered: [(Ticker, Double)] = []
+        var filtered: [(MMETicker, Double)] = []
         for i in 0..<usdTickers.count { if mask[i] { filtered.append(usdTickers[i]) } }
         if filtered.isEmpty { filtered = usdTickers }
         // 5) Weights with venue cap
@@ -68,10 +69,10 @@ public actor CompositePriceService {
             priceUSD = median(filtered.map { $0.1 })
             method = "median"
         }
-        let constituents: [CompositeConstituent] = zip(filtered, norm).map { item, w in
-            CompositeConstituent(pair: item.0.pair, priceUSD: item.1, weight: w)
+        let constituents: [MMECompositeConstituent] = zip(filtered, norm).map { item, w in
+            MMECompositeConstituent(pair: item.0.pair, priceUSD: item.1, weight: w)
         }
-        let price = CompositePrice(assetSymbol: base, priceUSD: priceUSD, method: method, constituents: constituents, ts: now)
+        let price = MMECompositePrice(assetSymbol: base, priceUSD: priceUSD, method: method, constituents: constituents, ts: now)
         // 7) Series (optional)
         let series = await buildCompositeSeries(base: base, constituents: constituents, interval: config.defaultInterval)
         return CompositeResult(price: price, series: series)
@@ -79,10 +80,17 @@ public actor CompositePriceService {
 
     // MARK: - Internals
 
-    private func gatherPairs(baseSymbol: String, preferredQuotes: [String]) async -> [MarketPair] {
+    private func gatherPairs(baseSymbol: String, preferredQuotes: [String]) async -> [MMEMarketPair] {
+        let allowed: Set<String>? = { 
+            if let ids = config.allowedExchangeIDs, !ids.isEmpty { 
+                return Set(ids.map { $0.lowercased() }) 
+            } else { 
+                return nil 
+            } 
+        }()
         let targets = preferredQuotes.map { $0.uppercased() }
-        var set = Set<MarketPair>()
-        for adapter in adapters {
+        var set = Set<MMEMarketPair>()
+        for adapter in adapters where (allowed == nil || allowed!.contains(adapter.id.lowercased())) {
             let pairs = await adapter.supportedPairs(for: baseSymbol)
             for p in pairs where targets.contains(p.quoteSymbol.uppercased()) {
                 set.insert(p)
@@ -91,23 +99,30 @@ public actor CompositePriceService {
         return Array(set)
     }
 
-    private func fetchTickers(for pairs: [MarketPair]) async -> [Ticker] {
-        await withTaskGroup(of: [Ticker].self) { group in
-            for adapter in adapters {
+    private func fetchTickers(for pairs: [MMEMarketPair]) async -> [MMETicker] {
+        let allowed: Set<String>? = {
+            if let ids = config.allowedExchangeIDs, !ids.isEmpty {
+                return Set(ids.map { $0.lowercased() })
+            } else {
+                return nil
+            }
+        }()
+        return await withTaskGroup(of: [MMETicker].self) { group in
+            for adapter in adapters where (allowed == nil || allowed!.contains(adapter.id.lowercased())) {
                 let sub = pairs.filter { $0.exchangeID == adapter.id }
                 if sub.isEmpty { continue }
                 group.addTask {
                     do { return try await adapter.fetchTickers(for: sub) } catch { return [] }
                 }
             }
-            var out: [Ticker] = []
+            var out: [MMETicker] = []
             for await arr in group { out.append(contentsOf: arr) }
             return out
         }
     }
 
-    private func convertToUSD(tickers: [Ticker]) async -> [(Ticker, Double)] {
-        var out: [(Ticker, Double)] = []
+    private func convertToUSD(tickers: [MMETicker]) async -> [(MMETicker, Double)] {
+        var out: [(MMETicker, Double)] = []
         for t in tickers {
             let q = t.pair.quoteSymbol.uppercased()
             if q == "USD" { out.append((t, t.last)); continue }
@@ -117,10 +132,10 @@ public actor CompositePriceService {
         return out
     }
 
-    private func buildCompositeSeries(base: String, constituents: [CompositeConstituent], interval: CandleInterval) async -> CompositeSeries? {
+    private func buildCompositeSeries(base: String, constituents: [MMECompositeConstituent], interval: MMECandleInterval) async -> MMECompositeSeries? {
         // Fetch candles for each constituent and merge by timestamp with weight
         let limit = 300
-        let perPair: [[Candle]] = await withTaskGroup(of: [Candle].self) { group in
+        let perPair: [[MMECandle]] = await withTaskGroup(of: [MMECandle].self) { group in
             for item in constituents {
                 if let adapter = adapters.first(where: { $0.id == item.pair.exchangeID }) {
                     group.addTask {
@@ -128,7 +143,7 @@ public actor CompositePriceService {
                     }
                 }
             }
-            var res: [[Candle]] = []
+            var res: [[MMECandle]] = []
             for await arr in group { res.append(arr) }
             return res
         }
@@ -159,7 +174,7 @@ public actor CompositePriceService {
         }
         guard !closes.isEmpty else { return nil }
         let now = Date().timeIntervalSince1970
-        return CompositeSeries(assetSymbol: base, interval: interval, closesUSD: closes, timestamps: times, ts: now)
+        return MMECompositeSeries(assetSymbol: base, interval: interval, closesUSD: closes, timestamps: times, ts: now)
     }
 
     // MARK: - Math helpers
@@ -189,7 +204,7 @@ public actor CompositePriceService {
     private func capWeights(_ venues: [String], weights: [Double], cap: Double) -> [Double] {
         // Normalize first, then cap per-venue and renormalize.
         let sum = max(1e-12, weights.reduce(0, +))
-        var norm = weights.map { max(0, $0) / sum }
+        let norm = weights.map { max(0, $0) / sum }
         // Aggregate per-venue
         var venueSum: [String: Double] = [:]
         for (i, v) in venues.enumerated() { venueSum[v, default: 0] += norm[i] }

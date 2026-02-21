@@ -59,15 +59,40 @@ struct CoinDetailView: View {
     @AppStorage("TV.Indicators.Selected") private var tvIndicatorsRaw: String = ""
     @State private var priceHighlight = false
     @State private var lastLivePriceSample: Double? = nil
-    @State private var goTrade: Bool = false
     @State private var showIndicatorMenu: Bool = false
     @State private var showTimeframePopover: Bool = false
     @State private var timeframeButtonFrame: CGRect = .zero
     @State private var timeframePopoverEdge: Edge = .bottom
     @State private var selectedInfoTab: InfoTab = .overview
     @State private var showDeepDive: Bool = false
-    @State private var showNotesEditor: Bool = false
     @State private var showDiagnostics: Bool = false
+    
+    // AI Insight state - initialized with cached value to prevent loading flash on revisit
+    @State private var aiInsight: CoinAIInsight?
+    @State private var isGeneratingInsight: Bool = false
+    @State private var aiInsightError: String? = nil
+    
+    // AI Trading Signal state
+    @State private var tradingSignal: TradingSignal? = nil
+    @State private var isGeneratingSignal: Bool = false
+    
+    // Why is it moving state (used by WhyIsItMovingSheet)
+    @State private var showWhySheet: Bool = false
+    @State private var whyExplanation: String = ""
+    @State private var isGeneratingWhy: Bool = false
+    
+    // Task tracking for cancellation on disappear (memory leak prevention)
+    @State private var insightTask: Task<Void, Never>? = nil
+    @State private var signalTask: Task<Void, Never>? = nil
+    @State private var fallbackTask: Task<Void, Never>? = nil
+    @State private var startupTask: Task<Void, Never>? = nil
+    @State private var signalDebounceTask: Task<Void, Never>? = nil
+    @State private var lastSignalIndicatorsSignature: String = ""
+    @State private var showWhyMovingCard: Bool = false
+    @State private var whyVisibilityTask: Task<Void, Never>? = nil
+    
+    // Quick actions state
+    @State private var showSetAlert: Bool = false
 
     // Fast backfill to avoid endless shimmers
     @State private var fallbackCap: Double? = nil
@@ -87,14 +112,100 @@ struct CoinDetailView: View {
     @State private var cachedMaxSupply: Double? = nil
     @State private var cached1hChange: Double? = nil
     @State private var cached7dChange: Double? = nil
+    
+    // PERFORMANCE FIX: Cache freshCoin to avoid O(n) array search on every computed property access
+    @State private var cachedFreshCoin: MarketCoin? = nil
+    
+    // PERFORMANCE FIX: Throttled publisher to reduce update frequency
+    private let throttledPricePublisher = LivePriceManager.shared.publisher
+        .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject private var marketVM: MarketViewModel
+    
+    private var isDark: Bool { colorScheme == .dark }
 
-    // Latest coin snapshot from the shared market VM (falls back to initial)
+    // PERFORMANCE FIX: Use cached coin to avoid O(n) search during body computation
+    // Updated via .onChange(of: marketVM.allCoins) and .onAppear
     private var freshCoin: MarketCoin {
-        marketVM.allCoins.first(where: { $0.id == coin.id }) ?? coin
+        cachedFreshCoin ?? coin
+    }
+    
+    // Helper to find and cache the fresh coin from marketVM
+    private func updateCachedFreshCoin() {
+        if let found = marketVM.allCoins.first(where: { $0.id == coin.id }) {
+            cachedFreshCoin = found
+        }
+    }
+
+    @MainActor
+    private func applyCachedStatsOnAppear() {
+        cachedChange24h = LivePriceManager.shared.bestChange24hPercent(for: freshCoin.symbol)
+        cachedVolume24h = LivePriceManager.shared.bestVolumeUSD(for: freshCoin)
+        cachedRank = LivePriceManager.shared.bestRank(for: freshCoin)
+        cachedMaxSupply = LivePriceManager.shared.bestMaxSupply(for: freshCoin)
+        cached1hChange = LivePriceManager.shared.bestChange1hPercent(for: freshCoin.symbol)
+        cached7dChange = LivePriceManager.shared.bestChange7dPercent(for: freshCoin.symbol)
+
+        if let best = cachedChange24h {
+            change24h = best
+        }
+        priceVM.updateSymbol(coin.symbol.uppercased())
+        lastStatsUpdate = Date()
+        lastLivePriceSample = displayedPrice
+        if let cached = loadCachedStats(for: coin.symbol.uppercased()) {
+            if let v = cached.cap, v > 0 { fallbackCap = v }
+            if let v = cached.fdv, v > 0 { fallbackFDV = v }
+            if let v = cached.circ, v > 0 { fallbackCirc = v }
+            if let v = cached.max, v > 0 { fallbackMax = v }
+            if let v = cached.vol, v > 0 { fallbackVolume24h = v }
+            if let r = cached.rank, r > 0 { fallbackRank = r }
+            lastStatsUpdate = Date()
+        }
+        let sharedSet = parseIndicatorSet(from: tvIndicatorsRaw)
+        if !sharedSet.isEmpty { indicators = sharedSet }
+    }
+
+    private func startDeferredStartupRefreshes() {
+        startupTask?.cancel()
+        startupTask = Task {
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                techVM.refresh(
+                    symbol: coin.symbol.uppercased(),
+                    interval: selectedInterval,
+                    currentPrice: displayedPrice,
+                    sparkline: freshCoin.sparklineIn7d
+                )
+                fetchFallbackStatsIfNeeded()
+            }
+
+            guard !Task.isCancelled else { return }
+            if marketVM.allCoins.isEmpty {
+                // Let initial page rendering settle before pulling a full market snapshot.
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                guard !Task.isCancelled else { return }
+                await marketVM.loadAllData()
+            }
+        }
+    }
+
+    private func scheduleWhyMovingVisibility(for change: Double) {
+        whyVisibilityTask?.cancel()
+        let currentVisible = showWhyMovingCard
+        whyVisibilityTask = Task {
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled else { return }
+            let showThreshold: Double = currentVisible ? 4.6 : 5.0
+            let shouldShow = abs(change) >= showThreshold
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showWhyMovingCard = shouldShow
+                }
+            }
+        }
     }
 
     // Always prefer a sparkline-derived 24h change when available for consistency; otherwise use normalized provider values
@@ -209,8 +320,16 @@ struct CoinDetailView: View {
     init(coin: MarketCoin) {
         self.coin = coin
         _change24h     = State(initialValue: coin.dailyChange ?? 0)
-        _priceVM = StateObject(wrappedValue: PriceViewModel(symbol: coin.symbol.uppercased(), timeframe: .live))
+        _priceVM = StateObject(wrappedValue: PriceViewModel.shared(for: coin.symbol.uppercased(), timeframe: .live))
         _techVM = StateObject(wrappedValue: TechnicalsViewModel())
+        
+        // Pre-load ANY cached AI insight synchronously (even if stale) to prevent loading flash
+        // This shows the previous insight immediately - fresh or stale - instead of a spinner
+        // If stale, we'll refresh in background without showing loading state
+        let cachedInsight = MainActor.assumeIsolated {
+            CoinAIInsightService.shared.getAnyCachedInsight(for: coin.symbol)
+        }
+        _aiInsight = State(initialValue: cachedInsight)
     }
 
     private var tvSymbol: String {
@@ -225,12 +344,23 @@ struct CoinDetailView: View {
     }
     
     private var displayedPrice: Double {
-        // Prefer the MarketViewModel snapshot (kept in sync with LivePriceManager) for spot price
-        if let fresh = marketVM.allCoins.first(where: { $0.id == coin.id })?.priceUsd, fresh > 0 { return fresh }
+        // PRICE CONSISTENCY FIX: Use bestPrice for consistency with HomeView/MarketView
+        // bestPrice checks live coins array first, then allCoins, then caches
+        if let best = marketVM.bestPrice(for: coin.id), best > 0 { return best }
         // Fallback to the local PriceViewModel stream if needed
         if priceVM.price > 0 { return priceVM.price }
         // Seed from initial coin payload as last resort
         return coin.priceUsd ?? 0
+    }
+    
+    // PRICE CONSISTENCY: Check if price data is stale
+    // NOTE: Disabled the gray styling - it was too aggressive and confusing to users
+    // The price updates from marketVM which refreshes every few seconds, so prices
+    // are generally current. TradeView doesn't show staleness either.
+    // Only show staleness indicator when we truly have no price data at all.
+    private var isPriceDataStale: Bool {
+        // Only show stale when we have zero price - otherwise trust the displayed price
+        return displayedPrice <= 0
     }
     
     private func imageURLForSymbol(_ symbol: String) -> URL? {
@@ -322,76 +452,89 @@ struct CoinDetailView: View {
                 .ignoresSafeArea()
 
             contentScrollView
-
-            NavigationLink("", isActive: $goTrade) {
-                TradeView(symbol: coin.symbol.uppercased(), showBackButton: true)
-                    .environmentObject(MarketViewModel.shared)
+            
+            // Timeframe anchored dropdown overlay
+            if showTimeframePopover {
+                CSAnchoredGridMenu(
+                    isPresented: $showTimeframePopover,
+                    anchorRect: timeframeButtonFrame,
+                    items: ChartInterval.allCases,
+                    selectedItem: selectedInterval,
+                    titleForItem: { $0.rawValue },
+                    onSelect: { selectedInterval = $0 },
+                    columns: 3,
+                    preferredWidth: 240,
+                    edgePadding: 16,
+                    title: "Timeframe"
+                )
             }
-            .hidden()
         }
+        .animation(.easeInOut(duration: 0.2), value: showTimeframePopover)
         .sheet(isPresented: $showIndicatorMenu) {
             ChartIndicatorMenu(isPresented: $showIndicatorMenu, isUsingNativeChart: selectedChartType == .cryptoSageAI)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showDeepDive) {
-            DeepDiveSheetView(symbol: coin.symbol.uppercased(), price: displayedPrice, change24h: displayedChange24hValue, sparkline: freshCoin.sparklineIn7d)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+        .fullScreenCover(isPresented: $showDeepDive) {
+            DeepDiveSheetView(
+                symbol: coin.symbol.uppercased(),
+                price: displayedPrice,
+                change24h: displayedChange24hValue,
+                sparkline: freshCoin.sparklineIn7d,
+                existingInsight: aiInsight,
+                coinImageURL: coin.imageUrl
+            )
         }
         .sheet(isPresented: $showDiagnostics) {
             CoinDiagnosticsSheet(items: diagnosticsItems, sparklineInfo: diagnosticsSparklineInfo, lastStatsUpdate: lastStatsUpdate)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        // Removed NotesEditorSheet per instructions
-
         .navigationBarBackButtonHidden(true)
         .onAppear {
+            // PERFORMANCE FIX: Initialize cached fresh coin immediately
+            updateCachedFreshCoin()
+            
             // Analytics: Track coin detail view
             AnalyticsService.shared.track(.coinDetailViewed, parameters: ["symbol": coin.symbol.uppercased()])
             
+            // Record chart view for ad cooldown (user is analyzing, don't interrupt)
+            AdManager.shared.recordChartViewShown()
+            
             // Ensure we are subscribed to the same unified live price stream used by Trading
             LivePriceManager.shared.primeVolumeIfNeeded(for: coin.symbol)
-            
-            // Defer state modifications to avoid "Modifying state during view update"
-            DispatchQueue.main.async {
-                // Populate cached LivePriceManager values on appear
-                cachedChange24h = LivePriceManager.shared.bestChange24hPercent(for: freshCoin.symbol)
-                cachedVolume24h = LivePriceManager.shared.bestVolumeUSD(for: freshCoin)
-                cachedRank = LivePriceManager.shared.bestRank(for: freshCoin)
-                cachedMaxSupply = LivePriceManager.shared.bestMaxSupply(for: freshCoin)
-                cached1hChange = LivePriceManager.shared.bestChange1hPercent(for: freshCoin.symbol)
-                cached7dChange = LivePriceManager.shared.bestChange7dPercent(for: freshCoin.symbol)
 
-                if let best = cachedChange24h {
-                    change24h = best
+            Task { @MainActor in
+                applyCachedStatsOnAppear()
+                startDeferredStartupRefreshes()
+                scheduleWhyMovingVisibility(for: displayedChange24hValue)
+                if tradingSignal == nil {
+                    signalTask?.cancel()
+                    signalTask = Task { await generateTradingSignal() }
                 }
-                priceVM.updateSymbol(coin.symbol.uppercased())
-                lastStatsUpdate = Date()
-                lastLivePriceSample = displayedPrice
-                if let cached = loadCachedStats(for: coin.symbol.uppercased()) {
-                    if let v = cached.cap, v > 0 { fallbackCap = v }
-                    if let v = cached.fdv, v > 0 { fallbackFDV = v }
-                    if let v = cached.circ, v > 0 { fallbackCirc = v }
-                    if let v = cached.max, v > 0 { fallbackMax = v }
-                    if let v = cached.vol, v > 0 { fallbackVolume24h = v }
-                    if let r = cached.rank, r > 0 { fallbackRank = r }
-                    lastStatsUpdate = Date()
-                }
-                techVM.refresh(symbol: coin.symbol.uppercased(), interval: selectedInterval, currentPrice: displayedPrice, sparkline: freshCoin.sparklineIn7d)
-                let sharedSet = parseIndicatorSet(from: tvIndicatorsRaw)
-                if !sharedSet.isEmpty { indicators = sharedSet }
-                // Kick a quick backfill so stats don't shimmer forever
-                fetchFallbackStatsIfNeeded()
-                // If market snapshot is empty, refresh it in the background
-                if marketVM.allCoins.isEmpty { Task { await marketVM.loadAllData() } }
             }
         }
         .onDisappear {
-            priceVM.stopLiveUpdates()
+            // Cancel any pending async tasks to prevent memory leaks
+            startupTask?.cancel()
+            signalDebounceTask?.cancel()
+            whyVisibilityTask?.cancel()
+            insightTask?.cancel()
+            signalTask?.cancel()
+            fallbackTask?.cancel()
+            startupTask = nil
+            signalDebounceTask = nil
+            whyVisibilityTask = nil
+            insightTask = nil
+            signalTask = nil
+            fallbackTask = nil
         }
-        .onChange(of: priceVM.price) { _ in
+        .onChange(of: priceVM.price) { _, _ in
+            // PERFORMANCE FIX v13: Skip during global startup phase
+            guard !isInGlobalStartupPhase() else { return }
+            // PERFORMANCE FIX: Skip during scroll to prevent "multiple updates per frame"
+            guard !ScrollStateManager.shared.isScrolling else { return }
+            
             // Defer state modifications to avoid "Modifying state during view update"
             DispatchQueue.main.async {
                 withAnimation(.easeInOut(duration: 0.15)) { priceHighlight = true }
@@ -409,17 +552,20 @@ struct CoinDetailView: View {
                 lastStatsUpdate = Date()
             }
         }
-        .onChange(of: selectedInterval) { newInterval in
-            techVM.refresh(symbol: coin.symbol.uppercased(), interval: newInterval, currentPrice: displayedPrice, sparkline: freshCoin.sparklineIn7d)
+        .onChange(of: selectedInterval) { _, newInterval in
+            // Defer to avoid "Modifying state during view update"
+            DispatchQueue.main.async {
+                techVM.refresh(symbol: coin.symbol.uppercased(), interval: newInterval, currentPrice: displayedPrice, sparkline: freshCoin.sparklineIn7d)
+            }
         }
-        .onChange(of: indicators) { new in
+        .onChange(of: indicators) { _, new in
             // Defer state modifications to avoid "Modifying state during view update"
             DispatchQueue.main.async {
                 let raw = serializeIndicatorSet(new)
                 if tvIndicatorsRaw != raw { tvIndicatorsRaw = raw }
             }
         }
-        .onChange(of: tvIndicatorsRaw) { raw in
+        .onChange(of: tvIndicatorsRaw) { _, raw in
             // Defer state modifications to avoid "Modifying state during view update"
             DispatchQueue.main.async {
                 let set = parseIndicatorSet(from: raw)
@@ -429,10 +575,16 @@ struct CoinDetailView: View {
         .onReceive(marketVM.objectWillChange) { _ in
             // Defer state modifications to avoid "Modifying state during view update"
             DispatchQueue.main.async {
+                // PERFORMANCE FIX: Update cached fresh coin when market data changes
+                updateCachedFreshCoin()
                 fetchFallbackStatsIfNeeded()
             }
         }
-        .onReceive(LivePriceManager.shared.publisher) { coins in
+        // PERFORMANCE FIX: Use throttled publisher (500ms) to reduce update frequency
+        .onReceive(throttledPricePublisher) { coins in
+            // PERFORMANCE FIX: Skip updates during scroll to prevent jank
+            guard !ScrollStateManager.shared.isScrolling else { return }
+            
             // Compute the latest price for this coin from the live emission
             let newPrice = (coins.first { $0.id == coin.id || $0.symbol.lowercased() == coin.symbol.lowercased() }?.priceUsd) ?? displayedPrice
             let old = lastLivePriceSample ?? newPrice
@@ -458,9 +610,14 @@ struct CoinDetailView: View {
                 lastStatsUpdate = Date()
             }
         }
+        .onChange(of: displayedChange24hValue) { _, newValue in
+            scheduleWhyMovingVisibility(for: newValue)
+        }
         .safeAreaInset(edge: .top) { navBar }
-        .safeAreaInset(edge: .bottom) { tradeButton }
         .tint(.yellow)
+        // NAVIGATION: Enable both native iOS pop gesture AND custom edge swipe with visual feedback
+        .enableInteractivePopGesture()
+        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
     }
 
     // MARK: - Lightweight fallback stats cache
@@ -489,15 +646,56 @@ struct CoinDetailView: View {
     // MARK: - Main Scroll Content
     private var contentScrollView: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            LazyVStack(spacing: 12) {
+                // Portfolio position banner (if user holds this coin)
+                portfolioPositionBanner
+                
+                // Chart with streamlined controls
                 chartSection
+                
+                // Prominent "Why is it moving?" card for significant moves
+                if showWhyMovingCard {
+                    WhyIsMovingCard(
+                        coinId: coin.id,
+                        symbol: coin.symbol.uppercased(),
+                        coinName: coin.name,
+                        change24h: displayedChange24hValue
+                    )
+                }
+                
+                // Overview/News/Ideas tabs - moved directly under chart for better UX
                 overviewSection
+                
+                // AI Trading Signal - more compact card
+                aiTradingSignalSection
+                
+                // Key Levels visualization
+                keyLevelsSection
+                
+                // Stats and Technicals
                 statsCardView
                 technicalsSection
             }
             .padding(.horizontal)
             .padding(.top, 4)
             .padding(.bottom, 10)
+        }
+        // PERFORMANCE FIX v21: UIKit scroll bridge for snappier deceleration + KVO tracking
+        .withUIKitScrollBridge()
+        .sheet(isPresented: $showWhySheet) {
+            WhyIsItMovingSheet(
+                symbol: coin.symbol.uppercased(),
+                change24h: displayedChange24hValue,
+                explanation: whyExplanation,
+                isLoading: isGeneratingWhy
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSetAlert) {
+            AddAlertView(prefilledSymbol: coin.symbol.uppercased(), prefilledPrice: displayedPrice)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -518,38 +716,42 @@ struct CoinDetailView: View {
             tvStudies: tvStudies,
             tvAltSymbols: tvAltSymbols,
             isCompact: isCompact,
-            edgeProvider: { frame in bestPopoverEdge(for: frame) }
+            edgeProvider: { frame in bestPopoverEdge(for: frame) },
+            livePrice: displayedPrice
         )
         .frame(maxWidth: .infinity)
     }
 
     // MARK: - Stats Card View
     private var statsCardView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Text("Live Coin Data")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Circle()
-                    .fill(isStatsFresh ? Color.green : Color.orange)
-                    .frame(width: 6, height: 6)
-                    .accessibilityLabel(isStatsFresh ? "Live" : "Stale")
+        let isOffline = priceVM.transportMode == .offline
+        
+        return VStack(alignment: .leading, spacing: 14) {
+            // Premium header
+            HStack(spacing: 8) {
+                GoldHeaderGlyph(systemName: "chart.bar.doc.horizontal")
+                
+                Text("Coin Data")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textPrimary)
                 
                 Spacer()
                 
-                // Price transport mode indicator (shows WS or Polling)
-                let isWS = priceVM.transportMode == .ws
-                Text(priceVM.transportMode.rawValue)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule()
-                            .fill((isWS ? Color.green : Color.teal).opacity(0.15))
-                    )
-                    .foregroundStyle(isWS ? Color.green : Color.teal)
-                    .accessibilityLabel(isWS ? "WebSocket live" : "REST polling")
-                    .opacity(0.9)
+                // Connection status badge
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(isOffline ? Color.orange : Color.green)
+                        .frame(width: 5, height: 5)
+                    Text(priceVM.transportMode.displayString)
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill((isOffline ? Color.orange : Color.green).opacity(0.12))
+                )
+                .foregroundColor(isOffline ? Color.orange : Color.green)
             }
             .contentShape(Rectangle())
             .onLongPressGesture {
@@ -562,18 +764,15 @@ struct CoinDetailView: View {
             coreStatsView
             extendedStatsView
         }
-        .padding()
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(DS.Adaptive.stroke, lineWidth: 1)
         )
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 6)
-        .padding(.vertical, 4)
     }
 
     // Added computed properties for displayed 1h and 7d changes
@@ -631,22 +830,47 @@ struct CoinDetailView: View {
                 isFresh: is1hChangeFresh,
                 infoMessage: is1hChangeFresh ? nil : "Data derived from sparkline; may differ from real-time price movement"
             )
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
 
-            statRow(title: "24h Change", value: changeText, valueColor: displayedChange24hValue >= 0 ? .green : .red)
-            Divider().background(Color.white.opacity(0.12))
+            // 24h Change row with "Why?" button for significant moves
+            HStack {
+                HStack(spacing: 6) {
+                    Text("24h Change")
+                        .font(.footnote)
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+                Spacer()
+                HStack(spacing: 8) {
+                    // "Why?" button appears for significant moves (>=5%)
+                    WhyIsItMovingButton(
+                        symbol: coin.symbol.uppercased(),
+                        coinName: coin.name,
+                        coinId: coin.id,
+                        priceChange: displayedChange24hValue
+                    )
+                    
+                    Text(changeText)
+                        .monospacedDigit()
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(displayedChange24hValue >= 0 ? .green : .red)
+                        .contentTransition(.numericText())
+                        .frame(minWidth: 72, alignment: .trailing)
+                }
+            }
+            .transaction { $0.animation = nil }
+            Divider().background(DS.Adaptive.divider)
 
             statRow(title: "7d Change", value: change7dText, valueColor: (displayedChange7dValue ?? 0) >= 0 ? .green : .red)
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
 
             statRow(title: "Realized Vol (24h)", value: realizedVol24hText, infoMessage: "Std. dev. of intraday returns over last 24h from sparkline; not annualized.")
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
 
             statRow(title: "Market Cap", value: marketCapText, infoMessage: "Prefer provider Market Cap; may be derived from price × supply or global estimates when missing.")
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
 
             statRow(title: "FDV", value: fdvText, infoMessage: "Fully Diluted Valuation = price × max supply (falls back to total/circulating when max is unavailable).")
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
 
             statRow(title: "Volume (24h)", value: volumeText)
         }
@@ -656,11 +880,11 @@ struct CoinDetailView: View {
     // MARK: - Extended Stats View
     private var extendedStatsView: some View {
         VStack(spacing: 12) {
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
             statRow(title: "Rank", value: rankText, valueColor: rankColor, shimmerWidth: 40)
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
             statRow(title: "Circ. Supply", value: circText, infoMessage: "Prefer provider circulating supply; else derived as Market Cap ÷ Price; else falls back to total/max supply.")
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(DS.Adaptive.divider)
             statRow(title: "Max Supply", value: maxSupplyText, infoMessage: "Prefer provider max supply; else total supply; else circulating supply.")
         }
         .transaction { $0.animation = nil }
@@ -670,12 +894,20 @@ struct CoinDetailView: View {
     private var technicalsSection: some View {
         let summary = techVM.summary
         let w = UIScreen.main.bounds.width
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 7) {
+            // Header row
             HStack(spacing: 6) {
+                GoldHeaderGlyph(systemName: "waveform.path.ecg")
+                
                 Text("Technicals")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                if isTechFresh {
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textPrimary)
+                
+                if techVM.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .tint(DS.Colors.gold)
+                } else if isTechFresh {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 6, height: 6)
@@ -683,12 +915,13 @@ struct CoinDetailView: View {
                 }
                 Text(selectedInterval.rawValue)
                     .font(.caption2.weight(.semibold))
-                    .foregroundColor(.white.opacity(0.85))
-                    .padding(.vertical, 3)
-                    .padding(.horizontal, 8)
-                    .background(Color.white.opacity(0.06))
+                    .fontWidth(.condensed)
+                    .foregroundColor(DS.Adaptive.textSecondary)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(DS.Adaptive.cardBackground)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+                    .overlay(Capsule().stroke(DS.Adaptive.stroke, lineWidth: 0.6))
                 
                 Spacer()
                 NavigationLink {
@@ -701,24 +934,36 @@ struct CoinDetailView: View {
                         Image(systemName: "chevron.right")
                     }
                     .font(.footnote.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
                 }
             }
-            let gaugeHeight: CGFloat = (w < 390 ? 150 : (w < 480 ? 164 : 176))
-            TechnicalsGaugeView(summary: summary, timeframeLabel: selectedInterval.rawValue, lineWidth: (w < 390 ? 6.5 : 7.5), preferredHeight: gaugeHeight)
-                .scaleEffect(w < 390 ? 0.87 : (w < 430 ? 0.89 : (w < 480 ? 0.91 : 0.92)), anchor: .top)
-                .padding(.horizontal, 6)
-                .padding(.top, 2)
-                .padding(.bottom, 10)
+            
+            // Gauge with proper sizing and arc labels/end caps enabled
+            let gaugeHeight: CGFloat = (w < 390 ? 140 : (w < 430 ? 155 : (w < 480 ? 165 : 175)))
+            let gaugeLineWidth: CGFloat = (w < 390 ? 6.0 : (w < 430 ? 7.0 : 7.5))
+            TechnicalsGaugeView(
+                summary: summary,
+                timeframeLabel: selectedInterval.rawValue,
+                lineWidth: gaugeLineWidth,
+                preferredHeight: gaugeHeight,
+                showArcLabels: true,
+                showEndCaps: true,
+                showVerdictLine: true
+            )
+            .padding(.horizontal, 4)
+            .padding(.top, 4)
+            .padding(.bottom, 2) // Tighter spacing before summary grid
 
-            // Consolidated summary + key facts in a tighter two-row layout
+            // Summary grid below gauge
             LocalTechSummaryGrid(
                 summary: summary,
                 indicators: summary.indicators,
                 sourceLabel: techVM.sourceLabel,
                 preferred: techVM.preferredSource,
+                requestedSource: techVM.requestedSource,
+                isSwitchingSource: techVM.isSourceSwitchInFlight,
                 onSelect: { pref in
-                    techVM.preferredSource = pref
+                    techVM.setPreferredSource(pref)
                     techVM.refresh(
                         symbol: coin.symbol.uppercased(),
                         interval: selectedInterval,
@@ -728,40 +973,34 @@ struct CoinDetailView: View {
                     )
                 }
             )
-            .padding(.bottom, 0)
             
-            HStack {
-                Spacer()
-                TechnicalsSourceMenu(
-                    sourceLabel: techVM.sourceLabel,
-                    preferred: techVM.preferredSource,
-                    onSelect: { pref in
-                        techVM.preferredSource = pref
-                        techVM.refresh(
-                            symbol: coin.symbol.uppercased(),
-                            interval: selectedInterval,
-                            currentPrice: displayedPrice,
-                            sparkline: freshCoin.sparklineIn7d,
-                            forceBypassCache: true
-                        )
-                    }
-                )
-            }
-            .padding(.top, 4)
-            .id("TechSourceMenuRow")
-            .transaction { txn in txn.animation = nil }
         }
-        .padding()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.04))
+            ZStack {
+                // Base gradient background matching TechnicalsCardStyle
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(DS.Adaptive.cardBackground)
+                
+                // Subtle inner highlight at top
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                DS.Adaptive.overlay(0.04),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+            }
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(DS.Adaptive.stroke, lineWidth: 1)
         )
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 6)
         .padding(.vertical, 2)
         .transaction { txn in txn.animation = nil }
     }
@@ -798,23 +1037,54 @@ struct CoinDetailView: View {
         return v
     }
     
-    // Derive a 24h percent change from a 7D sparkline (expects ~hourly samples)
+    // Derive a 24h percent change from a 7D sparkline using smart step detection
     private func derived24hChangePercentFromSparkline(_ series: [Double]) -> Double? {
-        let s = series
-        guard s.count >= 25 else { return nil }
-        guard let last = s.last, last.isFinite, last > 0 else { return nil }
-        let prev = s[s.count - 25]
-        guard prev.isFinite, prev > 0 else { return nil }
+        let s = series.filter { $0.isFinite && $0 > 0 }
+        let n = s.count
+        guard n >= 3 else { return nil }
+        guard let last = s.last, last > 0 else { return nil }
+        
+        // SMART STEP CALCULATION: Detect actual data coverage based on point count
+        let stepHours: Double = {
+            if n >= 140 && n <= 200 { return 1.0 }        // Hourly data
+            else if n >= 35 && n < 140 { return 4.0 }     // 4-hour interval
+            else if n >= 5 && n < 35 { return 24.0 }      // Daily data
+            else { return (24.0 * 7.0) / Double(max(1, n - 1)) }  // Fallback
+        }()
+        
+        // Calculate lookback for 24 hours
+        let lookbackSteps = max(1, min(n - 1, Int(round(24.0 / stepHours))))
+        let prevIdx = n - 1 - lookbackSteps
+        guard prevIdx >= 0 else { return nil }
+        let prev = s[prevIdx]
+        guard prev > 0 else { return nil }
         let frac = (last - prev) / prev
         return frac * 100.0
     }
 
     private func derived1hChangePercentFromSparkline(_ series: [Double]) -> Double? {
-        let s = series
-        guard s.count >= 2 else { return nil }
-        guard let last = s.last, last.isFinite, last > 0 else { return nil }
-        let prev = s[s.count - 2]
-        guard prev.isFinite, prev > 0 else { return nil }
+        let s = series.filter { $0.isFinite && $0 > 0 }
+        let n = s.count
+        guard n >= 2 else { return nil }
+        guard let last = s.last, last > 0 else { return nil }
+        
+        // SMART STEP CALCULATION: Detect actual data coverage based on point count
+        let stepHours: Double = {
+            if n >= 140 && n <= 200 { return 1.0 }        // Hourly data
+            else if n >= 35 && n < 140 { return 4.0 }     // 4-hour interval
+            else if n >= 5 && n < 35 { return 24.0 }      // Daily data (can't get 1h from this)
+            else { return (24.0 * 7.0) / Double(max(1, n - 1)) }  // Fallback
+        }()
+        
+        // For daily data (24h steps), we can't accurately derive 1h change
+        if stepHours >= 24.0 { return nil }
+        
+        // Calculate lookback for 1 hour
+        let lookbackSteps = max(1, min(n - 1, Int(round(1.0 / stepHours))))
+        let prevIdx = n - 1 - lookbackSteps
+        guard prevIdx >= 0 else { return nil }
+        let prev = s[prevIdx]
+        guard prev > 0 else { return nil }
         return (last - prev) / prev * 100.0
     }
 
@@ -829,10 +1099,32 @@ struct CoinDetailView: View {
         if data.isEmpty { return nil }
         let n = data.count
         guard n >= 3 else { return nil }
-        // Estimate samples/hour assuming ~7 days of data
-        let pointsPerHour = max(1, Int(round(Double(max(1, n - 1)) / (7.0 * 24.0))))
-        let lookback = max(1, pointsPerHour * max(1, hours))
-        let minWindow = min(n - 1, max(3, lookback))
+        
+        // SMART STEP CALCULATION: Detect actual data coverage based on point count
+        // Common sparkline formats:
+        // - 168 points (140-200): Hourly data over 7 days
+        // - 42 points (35-55): 4-hour intervals over 7 days
+        // - 7 points (5-14): Daily data over 7 days
+        let (estimatedTotalHours, stepHours): (Double, Double) = {
+            if n >= 140 && n <= 200 {
+                return (Double(n - 1), 1.0)  // Hourly data
+            } else if n >= 35 && n < 140 {
+                return (Double(n - 1) * 4.0, 4.0)  // 4-hour interval
+            } else if n >= 5 && n < 35 {
+                return (Double(n - 1) * 24.0, 24.0)  // Daily data
+            } else {
+                let totalH = 24.0 * 7.0
+                let step = totalH / Double(max(1, n - 1))
+                return (totalH, step)  // Fallback
+            }
+        }()
+        
+        // Validate minimum coverage for requested timeframe
+        let minimumCoverageRequired = Double(hours) * 0.8
+        if estimatedTotalHours < minimumCoverageRequired { return nil }
+        
+        let lookbackSteps = max(1, Int(round(Double(hours) / stepHours)))
+        let minWindow = min(n - 1, max(3, lookbackSteps))
         let nominalIndex = max(0, (n - 1) - minWindow)
 
         func findUsableIndex(around idx: Int, maxSteps: Int = 12) -> Int? {
@@ -863,8 +1155,8 @@ struct CoinDetailView: View {
         let prev = data[prevIdx]
         guard prev > 0 else { return nil }
         let change = ((lastVal - prev) / prev) * 100.0
-        // Clamp tiny noise to zero
-        if abs(change) < 0.0005 { return 0 }
+        // Remove micro-noise: return nil (not 0) to avoid displaying misleading "0.00%"
+        if abs(change) < 0.0005 { return nil }
         return change
     }
 
@@ -872,8 +1164,15 @@ struct CoinDetailView: View {
         let dataRaw = prices.filter { $0.isFinite && $0 > 0 }
         let n = dataRaw.count
         guard n >= 6 else { return nil }
-        // Estimate samples per hour assuming ~7 days of data
-        let pointsPerHour = max(1, Int(round(Double(max(1, n - 1)) / (7.0 * 24.0))))
+        
+        // SMART STEP CALCULATION: Detect actual data coverage based on point count
+        let stepHours: Double = {
+            if n >= 140 && n <= 200 { return 1.0 }  // Hourly data
+            else if n >= 35 && n < 140 { return 4.0 }  // 4-hour interval
+            else if n >= 5 && n < 35 { return 24.0 }  // Daily data
+            else { return (24.0 * 7.0) / Double(max(1, n - 1)) }  // Fallback
+        }()
+        let pointsPerHour = max(1, Int(round(1.0 / stepHours)))
         let windowLen = max(6, min(n, pointsPerHour * max(1, hours)))
         var window = Array(dataRaw.suffix(windowLen))
         // If we have a good anchor price, replace the last sample to reduce drift
@@ -949,7 +1248,9 @@ struct CoinDetailView: View {
             return arr
         }()
 
-        Task {
+        // Cancel previous fallback task and track new one for cleanup on disappear
+        fallbackTask?.cancel()
+        fallbackTask = Task {
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 8
             config.timeoutIntervalForResource = 8
@@ -969,13 +1270,18 @@ struct CoinDetailView: View {
             }
 
             for id in idCandidates where !id.isEmpty {
+                // Check for task cancellation before each network request
+                guard !Task.isCancelled else { break }
                 guard let url = URL(string: "https://api.coingecko.com/api/v3/coins/\(id)?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false") else { continue }
                 do {
-                    let (data, _) = try await session.data(from: url)
+                    let req = APIConfig.coinGeckoRequest(url: url)
+                    let (data, _) = try await session.data(for: req)
+                    guard !Task.isCancelled else { break }
                     let decoded = try JSONDecoder().decode(CGResponse.self, from: data)
                     if let md = decoded.market_data {
                         let sym = symbol
                         await MainActor.run {
+                            guard !Task.isCancelled else { return }
                             if let usdCap = md.market_cap?["usd"], usdCap.isFinite, usdCap > 0 { self.fallbackCap = usdCap }
                             if let usdFDV = md.fully_diluted_valuation?["usd"], usdFDV.isFinite, usdFDV > 0 { self.fallbackFDV = usdFDV }
                             if let vol = md.total_volume?["usd"], vol.isFinite, vol > 0 { self.fallbackVolume24h = vol }
@@ -992,7 +1298,10 @@ struct CoinDetailView: View {
                     // try next candidate
                 }
             }
-            await MainActor.run { self.isFetchingFallback = false }
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                self.isFetchingFallback = false
+            }
         }
     }
 
@@ -1003,12 +1312,13 @@ struct CoinDetailView: View {
             InfoTabs(selected: $selectedInfoTab)
             switch selectedInfoTab {
             case .overview:
-                OverviewCard(
-                    text: overviewSummaryText(),
+                AIOverviewCard(
+                    insight: aiInsight,
+                    fallbackText: overviewSummaryText(),
                     symbol: coin.symbol.uppercased(),
-                    onTap: { showDeepDive = true },
-                    onAddNotes: { },
-                    showNotesButton: false
+                    isGenerating: isGeneratingInsight,
+                    error: aiInsightError,
+                    onTap: { showDeepDive = true }
                 )
             case .news:
                 CoinNewsEmbed(symbol: coin.symbol.uppercased())
@@ -1018,19 +1328,437 @@ struct CoinDetailView: View {
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(DS.Adaptive.stroke, lineWidth: 1)
         )
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 6)
         .padding(.vertical, 2)
+        .task(id: coin.id) {
+            // Use task(id:) instead of onAppear to prevent duplicate generations
+            // This only triggers when the coin changes, not on every view recreation
+            
+            // Check if we already have a fresh cached insight - show immediately without loading
+            if let freshCached = CoinAIInsightService.shared.getCachedInsight(for: coin.symbol) {
+                aiInsight = freshCached
+                return // Fresh cache exists, no need to do anything
+            }
+            
+            // Try to get ANY cached insight (even stale) to show immediately
+            if let cached = CoinAIInsightService.shared.getAnyCachedInsight(for: coin.symbol) {
+                aiInsight = cached
+                // Only refresh in background if truly stale AND not within cooldown
+                if !cached.isFresh && CoinAIInsightService.shared.canRefresh(for: coin.symbol) {
+                    await generateAIInsight(forceRefresh: false, showLoading: false)
+                }
+            } else {
+                // No cached insight at all - generate with loading spinner
+                await generateAIInsight(forceRefresh: false, showLoading: true)
+            }
+        }
     }
     
-    // Removed selectedInfoTabBinding property per instructions
+    // MARK: - AI Insight Generation
+    @MainActor
+    private func generateAIInsight(forceRefresh: Bool, showLoading: Bool = true) async {
+        // Check for fresh cached insight first (not just any cached insight)
+        if !forceRefresh, let cached = CoinAIInsightService.shared.getCachedInsight(for: coin.symbol) {
+            aiInsight = cached
+            return
+        }
+        
+        // Don't regenerate if already generating
+        guard !isGeneratingInsight else { return }
+        
+        // Only show loading spinner if requested (not when refreshing stale cache in background)
+        if showLoading {
+            isGeneratingInsight = true
+        }
+        aiInsightError = nil
+        
+        // Create fallback insight immediately for better UX
+        let fallbackText = CoinAIInsightService.shared.generateFallbackInsight(
+            symbol: coin.symbol,
+            price: displayedPrice,
+            change24h: displayedChange24hValue,
+            sparkline: freshCoin.sparklineIn7d
+        )
+        let fallbackInsight = CoinAIInsight(
+            symbol: coin.symbol.uppercased(),
+            insightText: fallbackText,
+            price: displayedPrice,
+            change24h: displayedChange24hValue
+        )
+        
+        // Use timeout to prevent infinite loading (8 seconds max)
+        let timeoutTask = Task {
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            return true
+        }
+        
+        let insightTask = Task { () -> CoinAIInsight? in
+            do {
+                return try await CoinAIInsightService.shared.generateInsight(
+                    symbol: coin.symbol,
+                    price: displayedPrice,
+                    change24h: displayedChange24hValue,
+                    change7d: displayedChange7dValue,
+                    sparkline: freshCoin.sparklineIn7d,
+                    forceRefresh: forceRefresh
+                )
+            } catch {
+                aiInsightError = error.localizedDescription
+                return nil
+            }
+        }
+        
+        // Race between timeout and actual insight generation
+        let result = await withTaskGroup(of: CoinAIInsight?.self) { group -> CoinAIInsight? in
+            group.addTask {
+                await insightTask.value
+            }
+            group.addTask {
+                _ = await timeoutTask.value
+                return nil
+            }
+            
+            // Return first non-nil result or nil if timeout wins
+            for await result in group {
+                if result != nil {
+                    group.cancelAll()
+                    return result
+                }
+            }
+            return nil
+        }
+        
+        // Use result or fallback
+        if let insight = result {
+            aiInsight = insight
+        } else {
+            aiInsight = fallbackInsight
+            if aiInsightError == nil {
+                aiInsightError = "Timed out - showing cached analysis"
+            }
+        }
+        
+        isGeneratingInsight = false
+    }
+    
+    // MARK: - Portfolio Position Banner
+    @ViewBuilder
+    private var portfolioPositionBanner: some View {
+        let holdings = AIFunctionTools.shared.portfolioHoldings
+        if let holding = holdings.first(where: { $0.coinSymbol.uppercased() == coin.symbol.uppercased() }) {
+            let pnl = holding.profitLoss
+            let pnlPercent = holding.costBasis > 0 ? ((holding.currentPrice - holding.costBasis) / holding.costBasis) * 100 : 0
+            let isPositive = pnl >= 0
+            
+            HStack(spacing: 12) {
+                // Coin icon
+                VStack(spacing: 2) {
+                    Image(systemName: "briefcase.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(DS.Colors.gold)
+                    Text("HOLDING")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+                
+                // Position details
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(formatQuantity(holding.quantity)) \(coin.symbol.uppercased())")
+                        .font(.subheadline.bold())
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                    Text("Worth \(formatCurrency(holding.currentValue))")
+                        .font(.caption)
+                        .foregroundColor(DS.Adaptive.textSecondary)
+                }
+                
+                Spacer()
+                
+                // P/L
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(isPositive ? "+" : "")\(formatCurrency(pnl))")
+                        .font(.subheadline.bold())
+                        .foregroundColor(isPositive ? .green : .red)
+                    Text("\(isPositive ? "+" : "")\(String(format: "%.1f", pnlPercent))%")
+                        .font(.caption)
+                        .foregroundColor(isPositive ? .green : .red)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isPositive ? Color.green.opacity(0.08) : Color.red.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isPositive ? Color.green.opacity(0.3) : Color.red.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+    
+    // MARK: - AI Trading Signal Section
+    @ViewBuilder
+    private var aiTradingSignalSection: some View {
+        AITradingSignalCard(
+            symbol: coin.symbol.uppercased(),
+            price: displayedPrice,
+            sparkline: freshCoin.sparklineIn7d,
+            change24h: displayedChange24hValue,
+            signal: tradingSignal,
+            isLoading: isGeneratingSignal
+        )
+        .onAppear {
+            if tradingSignal == nil {
+                signalTask?.cancel()
+                signalTask = Task { await generateTradingSignal() }
+            }
+        }
+        // Regenerate trading signal when TechnicalsViewModel updates with new RSI data
+        // This ensures the AI Trading Signal RSI matches the chart's RSI
+        // Cancel previous task to prevent race conditions from rapid updates
+        .onChange(of: techVM.summary.indicators) { _, _ in
+            scheduleDebouncedSignalGeneration()
+        }
+    }
+
+    private func indicatorsSignature(_ indicators: [IndicatorSignal]) -> String {
+        indicators
+            .map { "\($0.label)|\(String(describing: $0.signal))|\($0.valueText ?? "")" }
+            .joined(separator: "||")
+    }
+
+    private func scheduleDebouncedSignalGeneration() {
+        let signature = indicatorsSignature(techVM.summary.indicators)
+        guard signature != lastSignalIndicatorsSignature else { return }
+        lastSignalIndicatorsSignature = signature
+
+        signalDebounceTask?.cancel()
+        signalDebounceTask = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            signalTask?.cancel()
+            signalTask = Task { await generateTradingSignal() }
+        }
+    }
+    
+    @MainActor
+    private func generateTradingSignal() async {
+        guard !isGeneratingSignal else { return }
+        let service = AITradingSignalService.shared
+        let fearGreed = ExtendedFearGreedViewModel.shared.currentValue
+
+        // Render something immediately so the card doesn't appear late.
+        if tradingSignal == nil {
+            if let cached = service.cachedSignal(for: coin.id) {
+                tradingSignal = cached
+            } else {
+                let preview = await service.localPreviewSignal(
+                    symbol: coin.symbol.uppercased(),
+                    price: displayedPrice,
+                    change24h: displayedChange24hValue,
+                    sparkline: freshCoin.sparklineIn7d,
+                    techVM: techVM,
+                    fearGreedValue: fearGreed
+                )
+                tradingSignal = preview
+            }
+        }
+
+        isGeneratingSignal = true
+
+        // Use AITradingSignalService: Firebase/DeepSeek first, local fallback.
+        let signal = await service.fetchSignal(
+            coinId: coin.id,
+            symbol: coin.symbol.uppercased(),
+            price: displayedPrice,
+            change24h: displayedChange24hValue,
+            change7d: freshCoin.priceChangePercentage7dInCurrency,
+            sparkline: freshCoin.sparklineIn7d,
+            techVM: techVM,
+            fearGreedValue: fearGreed
+        )
+        tradingSignal = signal
+        
+        isGeneratingSignal = false
+    }
+    
+    // Quick actions now integrated into aiTradingSignalSection for cleaner layout
+    
+    private func shareCurrentCoin() {
+        #if os(iOS)
+        let text = "\(coin.name) (\(coin.symbol.uppercased())) is trading at \(priceText) (\(displayedChange24hValue >= 0 ? "+" : "")\(String(format: "%.2f", displayedChange24hValue))% 24h) - via CryptoSage"
+        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
+        #endif
+    }
+    
+    private func toggleWatchlist() {
+        let symbol = coin.symbol.uppercased()
+        if MarketViewModel.shared.watchlistCoins.contains(where: { $0.symbol.uppercased() == symbol }) {
+            FavoritesManager.shared.removeFromFavorites(coinID: symbol)
+        } else {
+            FavoritesManager.shared.addToFavorites(coinID: symbol)
+        }
+        #if os(iOS)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
+    }
+    
+    @MainActor
+    private func generateWhyExplanation() async {
+        guard !isGeneratingWhy else { return }
+        isGeneratingWhy = true
+        
+        // Build context for explanation
+        let direction = displayedChange24hValue >= 0 ? "up" : "down"
+        let changeText = String(format: "%.1f%%", abs(displayedChange24hValue))
+        
+        // Check for relevant news
+        let newsVM = CryptoNewsFeedViewModel.shared
+        let relevantNews = newsVM.articles.filter { article in
+            article.title.localizedCaseInsensitiveContains(coin.symbol) ||
+            article.title.localizedCaseInsensitiveContains(freshCoin.name)
+        }.prefix(3)
+        
+        // Get market context
+        let sentiment = ExtendedFearGreedViewModel.shared.currentValue
+        let globalChange = MarketViewModel.shared.globalChange24hPercent
+        
+        // Try AI explanation (Firebase or local key)
+        if APIConfig.hasAICapability {
+            do {
+                var prompt = "\(coin.symbol.uppercased()) is \(direction) \(changeText) in the last 24 hours. "
+                prompt += "Current price: \(formatCurrency(displayedPrice)). "
+                
+                if let sentiment = sentiment {
+                    prompt += "Market sentiment: \(sentiment)/100. "
+                }
+                if let global = globalChange {
+                    prompt += "Overall market is \(global >= 0 ? "up" : "down") \(String(format: "%.1f%%", abs(global))). "
+                }
+                if !relevantNews.isEmpty {
+                    prompt += "Recent headlines: "
+                    for article in relevantNews {
+                        prompt += "\(article.title). "
+                    }
+                }
+                prompt += "Explain why this coin might be moving in 2-3 sentences. Be specific and reference the data."
+                
+                let response = try await AIService.shared.sendMessage(
+                    prompt,
+                    systemPrompt: "You explain crypto price movements concisely. No markdown. Be specific with data.",
+                    usePremiumModel: false,
+                    includeTools: false,
+                    isAutomatedFeature: false, // Use Firebase backend (automated features skip Firebase)
+                    maxTokens: 256 // Brief explanation (2-3 sentences)
+                )
+                whyExplanation = response
+            } catch {
+                whyExplanation = buildFallbackWhyExplanation(relevantNews: Array(relevantNews), sentiment: sentiment, globalChange: globalChange)
+            }
+        } else {
+            whyExplanation = buildFallbackWhyExplanation(relevantNews: Array(relevantNews), sentiment: sentiment, globalChange: globalChange)
+        }
+        
+        isGeneratingWhy = false
+    }
+    
+    private func buildFallbackWhyExplanation(relevantNews: [CryptoNewsArticle], sentiment: Int?, globalChange: Double?) -> String {
+        let direction = displayedChange24hValue >= 0 ? "up" : "down"
+        let changeText = String(format: "%.1f%%", abs(displayedChange24hValue))
+        
+        var explanation = "\(coin.symbol.uppercased()) is \(direction) \(changeText) today. "
+        
+        // Market context
+        if let global = globalChange {
+            if (global >= 0) == (displayedChange24hValue >= 0) {
+                explanation += "This aligns with the broader market which is \(global >= 0 ? "up" : "down") \(String(format: "%.1f%%", abs(global))). "
+            } else {
+                explanation += "This is diverging from the market which is \(global >= 0 ? "up" : "down") \(String(format: "%.1f%%", abs(global))). "
+            }
+        }
+        
+        // Sentiment
+        if let sentiment = sentiment {
+            if sentiment < 30 {
+                explanation += "Market fear (sentiment at \(sentiment)) may be creating selling pressure. "
+            } else if sentiment > 70 {
+                explanation += "Market greed (sentiment at \(sentiment)) is driving buying activity. "
+            }
+        }
+        
+        // News
+        if !relevantNews.isEmpty {
+            explanation += "Recent news: \(relevantNews.first?.title ?? ""). "
+        }
+        
+        return explanation
+    }
+    
+    // MARK: - Key Levels Section
+    @ViewBuilder
+    private var keyLevelsSection: some View {
+        let sparkline = freshCoin.sparklineIn7d
+        let (support, resistance) = calculateSupportResistance(sparkline: sparkline)
+        
+        if support != nil || resistance != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 7) {
+                    GoldHeaderGlyph(systemName: "chart.line.flattrend.xyaxis")
+                    Text("Key Levels")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                    Spacer()
+                }
+                
+                PriceLadderView(
+                    currentPrice: displayedPrice,
+                    support: support,
+                    resistance: resistance
+                )
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(DS.Adaptive.cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(DS.Adaptive.stroke, lineWidth: 1)
+            )
+        }
+    }
+    
+    private func calculateSupportResistance(sparkline: [Double]) -> (Double?, Double?) {
+        guard sparkline.count >= 10, displayedPrice > 0 else { return (nil, nil) }
+        
+        let window = Array(sparkline.suffix(96))
+        var lows: [Double] = []
+        var highs: [Double] = []
+        
+        if window.count >= 3 {
+            for i in 1..<(window.count - 1) {
+                let a = window[i - 1]
+                let b = window[i]
+                let c = window[i + 1]
+                if b < a && b < c { lows.append(b) }
+                if b > a && b > c { highs.append(b) }
+            }
+        }
+        
+        let support = lows.filter { $0 <= displayedPrice }.max() ?? window.filter { $0 <= displayedPrice }.max()
+        let resistance = highs.filter { $0 >= displayedPrice }.min() ?? window.filter { $0 >= displayedPrice }.min()
+        
+        return (support, resistance)
+    }
 
     // Build a concise, AI-style overview using price, 24h change and recent swing levels
     private func overviewSummaryText() -> String {
@@ -1110,51 +1838,226 @@ struct CoinDetailView: View {
 
     // MARK: - Custom Nav Bar
     private var navBar: some View {
-        HStack(spacing: 8) {
-            Button {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                presentationMode.wrappedValue.dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(Color.white.opacity(0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.12), lineWidth: 0.8))
+        // LAYOUT FIX: Use fixed-width containers for left/right to ensure true centering
+        // The right side has 3 buttons vs 1 on left, so we balance with frame widths
+        let buttonSize: CGFloat = 36  // Each button is ~36px (16px icon + 8px padding * 2)
+        let buttonSpacing: CGFloat = 6
+        let rightSideWidth: CGFloat = (buttonSize * 3) + (buttonSpacing * 2)  // 3 buttons + spacing
+        
+        return HStack(spacing: 0) {
+            // Left side - back button with fixed width matching right side
+            HStack {
+                CSNavButton(
+                    icon: "chevron.left",
+                    action: { presentationMode.wrappedValue.dismiss() }
+                )
+                
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
-
+            .frame(width: rightSideWidth)
+            
+            // Center - coin info (will expand to fill remaining space)
             NavBarCenterView(
                 symbol: coin.symbol.uppercased(),
                 imageURL: imageURLForSymbol(coin.symbol),
                 change24h: displayedChange24hValue,
                 formattedPrice: priceText,
                 priceHighlight: priceHighlight,
-                showPrice: true
+                showPrice: true,
+                isPriceStale: isPriceDataStale
             )
+            .frame(maxWidth: .infinity)
+            
+            // Right side - action buttons with fixed width
+            HStack(spacing: buttonSpacing) {
+                Spacer(minLength: 0)
 
-            Spacer(minLength: 0)
+                // Watchlist toggle button
+                let isOnWatchlist = MarketViewModel.shared.watchlistCoins.contains(where: { $0.symbol.uppercased() == coin.symbol.uppercased() })
+                Button {
+                    #if os(iOS)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    #endif
+                    toggleWatchlist()
+                } label: {
+                    Image(systemName: isOnWatchlist ? "star.fill" : "star")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(
+                            isOnWatchlist
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: colorScheme == .dark
+                                        ? [BrandColors.goldLight, BrandColors.goldBase]
+                                        : [BrandColors.goldBase, BrandColors.goldDark],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                  ))
+                                : AnyShapeStyle(DS.Adaptive.textPrimary)
+                        )
+                        .padding(8)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(DS.Adaptive.cardBackground)
+                                if isOnWatchlist {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.white.opacity(colorScheme == .dark ? 0.05 : 0.15), Color.clear],
+                                                startPoint: .top,
+                                                endPoint: .center
+                                            )
+                                        )
+                                }
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8).stroke(
+                                isOnWatchlist
+                                    ? LinearGradient(
+                                        colors: colorScheme == .dark
+                                            ? [BrandColors.goldLight.opacity(0.5), BrandColors.goldBase.opacity(0.15)]
+                                            : [BrandColors.goldDark.opacity(0.30), BrandColors.goldBase.opacity(0.10)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                      )
+                                    : LinearGradient(colors: [DS.Adaptive.stroke], startPoint: .leading, endPoint: .trailing),
+                                lineWidth: isOnWatchlist ? 1 : 0.8
+                            )
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isOnWatchlist ? "Remove from watchlist" : "Add to watchlist")
+                .accessibilityHint("Toggle watchlist state for this coin")
 
-            Button {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                showDeepDive = true
-            } label: {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(Color.white.opacity(0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.12), lineWidth: 0.8))
+                // Alert button (global coin action, intentionally separate from AI signal card)
+                Button {
+                    #if os(iOS)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    #endif
+                    showSetAlert = true
+                } label: {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: colorScheme == .dark
+                                    ? [BrandColors.goldLight, BrandColors.goldBase]
+                                    : [BrandColors.goldBase, BrandColors.goldDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .padding(8)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(DS.Adaptive.cardBackground)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                (colorScheme == .dark ? BrandColors.goldBase : BrandColors.goldDark).opacity(colorScheme == .dark ? 0.07 : 0.035),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 18
+                                        )
+                                    )
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(colorScheme == .dark ? 0.05 : 0.14), Color.clear],
+                                            startPoint: .top,
+                                            endPoint: .center
+                                        )
+                                    )
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: colorScheme == .dark
+                                            ? [BrandColors.goldLight.opacity(0.34), BrandColors.goldBase.opacity(0.12)]
+                                            : [BrandColors.goldDark.opacity(0.24), BrandColors.goldBase.opacity(0.08)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: colorScheme == .dark ? 1 : 1.15
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Create alert")
+                .accessibilityHint("Open alert settings for this coin")
+                
+                // AI Deep Dive button — premium glass treatment
+                Button {
+                    #if os(iOS)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    #endif
+                    showDeepDive = true
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: colorScheme == .dark
+                                    ? [BrandColors.goldLight, BrandColors.goldBase]
+                                    : [BrandColors.goldBase, BrandColors.goldDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .padding(8)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(DS.Adaptive.cardBackground)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                (colorScheme == .dark ? BrandColors.goldBase : BrandColors.goldDark).opacity(colorScheme == .dark ? 0.08 : 0.04),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 18
+                                        )
+                                    )
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(colorScheme == .dark ? 0.05 : 0.15), Color.clear],
+                                            startPoint: .top,
+                                            endPoint: .center
+                                        )
+                                    )
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8).stroke(
+                                LinearGradient(
+                                    colors: colorScheme == .dark
+                                        ? [BrandColors.goldLight.opacity(0.35), BrandColors.goldBase.opacity(0.12)]
+                                        : [BrandColors.goldDark.opacity(0.25), BrandColors.goldBase.opacity(0.08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: colorScheme == .dark ? 1 : 1.2
+                            )
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open AI Deep Dive")
+                .accessibilityHint("Show full AI analysis for this coin")
             }
-            .buttonStyle(.plain)
+            .frame(width: rightSideWidth)
         }
         .padding(.horizontal, 12)
         .padding(.top, 6)
@@ -1162,52 +2065,19 @@ struct CoinDetailView: View {
         .background(Color.clear)
     }
 
-    // MARK: - Trade Button
-    private var tradeButton: some View {
-        Button(action: {
-            #if os(iOS)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            #endif
-            goTrade = true
-        }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(goldButtonGradient)
-                    .overlay(
-                        LinearGradient(colors: [Color.white.opacity(0.16), Color.clear], startPoint: .top, endPoint: .center)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(ctaRimStrokeGradient, lineWidth: 1)
-                    )
-                    .overlay(
-                        ctaBottomShade
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    )
-                Text("Trade \(coin.symbol.uppercased())")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.black.opacity(0.96))
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 12)
-            }
-            .frame(height: 52)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
-            .padding(.bottom, 10)
-        }
-        .buttonStyle(GlowButtonStyle(isSell: false))
-        .accessibilityLabel("Trade \(coin.symbol.uppercased())")
-        .accessibilityHint("Opens trading for \(coin.symbol.uppercased())")
-    }
-    
     // MARK: - Price Formatter
+    // PERFORMANCE FIX v25: Cached formatters to avoid allocating NumberFormatter on every call.
+    // These formatters are mutated per-call to set fraction digits, but the allocation is done once.
+    private static let _decimalFormatter: NumberFormatter = {
+        let f = NumberFormatter(); f.numberStyle = .decimal; return f
+    }()
+    private static let _currencyFormatter: NumberFormatter = {
+        let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = CurrencyManager.currencyCode; return f
+    }()
+    
     private func formatPrice(_ value: Double) -> String {
-        guard value > 0 else { return "$0.00" }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
+        guard value > 0 else { return "\(CurrencyManager.symbol)0.00" }
+        let formatter = Self._decimalFormatter
         if value < 1.0 {
             formatter.minimumFractionDigits = 2
             formatter.maximumFractionDigits = 8
@@ -1215,13 +2085,37 @@ struct CoinDetailView: View {
             formatter.minimumFractionDigits = 2
             formatter.maximumFractionDigits = 2
         }
-        return "$" + (formatter.string(from: NSNumber(value: value)) ?? "0.00")
+        return CurrencyManager.symbol + (formatter.string(from: NSNumber(value: value)) ?? "0.00")
+    }
+    
+    private func formatCurrency(_ value: Double) -> String {
+        let formatter = Self._currencyFormatter
+        formatter.currencyCode = CurrencyManager.currencyCode
+        if value >= 1 {
+            formatter.maximumFractionDigits = 2
+            formatter.minimumFractionDigits = 2
+        } else {
+            formatter.maximumFractionDigits = 4
+            formatter.minimumFractionDigits = 2
+        }
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
+    }
+    
+    private func formatQuantity(_ value: Double) -> String {
+        let formatter = Self._decimalFormatter
+        if value >= 1000 {
+            formatter.maximumFractionDigits = 0
+        } else if value >= 1 {
+            formatter.maximumFractionDigits = 2
+        } else {
+            formatter.maximumFractionDigits = 6
+        }
+        return formatter.string(from: NSNumber(value: value)) ?? "0"
     }
 
     // MARK: - Large Number Formatter
     private func formatLargeNumber(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
+        let formatter = Self._decimalFormatter
 
         func formatted(_ short: Double, suffix: String) -> String {
             if short < 10 {
@@ -1254,12 +2148,12 @@ struct CoinDetailView: View {
     private func leadingIcon(_ systemName: String) -> some View {
         ZStack {
             Circle()
-                .fill(Color.white.opacity(0.08))
-                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
-                .shadow(color: Color.black.opacity(0.25), radius: 2, x: 0, y: 1)
+                // LIGHT MODE FIX: Adaptive icon background
+                .fill(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                .overlay(Circle().stroke(isDark ? Color.white.opacity(0.18) : Color.black.opacity(0.10), lineWidth: 0.8))
             Image(systemName: systemName)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(isDark ? .white : DS.Adaptive.textPrimary)
         }
         .frame(width: 24, height: 24)
     }
@@ -1269,36 +2163,79 @@ struct CoinDetailView: View {
             .monospacedDigit()
             .font(.subheadline)
             .fontWeight(.semibold)
-            .foregroundColor(color)
+            .foregroundColor(isDark ? color : DS.Adaptive.textPrimary)
             .padding(.vertical, 3)
             .padding(.horizontal, 6)
-            .background(Color.white.opacity(0.09))
+            // LIGHT MODE FIX: Adaptive value capsule
+            .background(isDark ? Color.white.opacity(0.09) : Color.black.opacity(0.05))
             .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.16), lineWidth: 0.8))
+            .overlay(Capsule().stroke(isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.10), lineWidth: 0.8))
     }
     
     private struct SmallInfoButton: View {
         let message: String
         @State private var show = false
+        @State private var dismissTask: Task<Void, Never>? = nil
         var body: some View {
             Button {
                 #if os(iOS)
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 #endif
-                show = true
+                dismissTask?.cancel()
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    show.toggle()
+                }
+                if show {
+                    dismissTask = Task {
+                        try? await Task.sleep(nanoseconds: 3_500_000_000)
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                show = false
+                            }
+                        }
+                    }
+                }
             } label: {
                 Image(systemName: "info.circle")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.6))
             }
             .buttonStyle(.plain)
-            .popover(isPresented: $show) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundColor(.primary)
+            .overlay(alignment: .topTrailing) {
+                if show {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(message)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(DS.Adaptive.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: 220, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(DS.Adaptive.cardBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(DS.Adaptive.stroke, lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.16), radius: 10, x: 0, y: 4)
+                    .offset(x: -6, y: -8)
+                    .zIndex(20)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+                    .onTapGesture {
+                        dismissTask?.cancel()
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            show = false
+                        }
+                    }
                 }
-                .padding()
+            }
+            .onDisappear {
+                dismissTask?.cancel()
+                dismissTask = nil
             }
         }
     }
@@ -1525,123 +2462,6 @@ struct CoinDetailView: View {
     }
 }
 
-
-// MARK: - Compact chart source toggle (AI <-> TV)
-private struct ChartSourceToggle: View {
-    @Binding var selected: ChartType
-    var body: some View {
-        HStack(spacing: 2) {
-            segment(.cryptoSageAI, label: "CryptoSage AI")
-            segment(.tradingView,  label: "TradingView")
-        }
-        .padding(1)
-        .background(Color.white.opacity(0.08))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Chart source")
-        .accessibilityValue(selected == .cryptoSageAI ? "CryptoSage AI" : "TradingView")
-    }
-    private func segment(_ type: ChartType, label: String) -> some View {
-        return Button {
-            #if os(iOS)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            #endif
-            withAnimation(.easeInOut(duration: 0.18)) { selected = type }
-        } label: {
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.vertical, 5)
-                .padding(.horizontal, 10)
-                .foregroundColor(selected == type ? .black : .white.opacity(0.9))
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(chipGoldGradient)
-                            .opacity(selected == type ? 1 : 0)
-                        // top gloss
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(LinearGradient(colors: [Color.white.opacity(0.18), .clear], startPoint: .top, endPoint: .center))
-                            .opacity(selected == type ? 1 : 0)
-                        // rim stroke
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(ctaRimStrokeGradient, lineWidth: selected == type ? 0.8 : 0)
-                        // bottom shade
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(ctaBottomShade)
-                            .opacity(selected == type ? 1 : 0)
-                    }
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-
-// MARK: - Quick Indicators Gear
-private struct QuickIndicatorsButton: View {
-    @Binding var selected: Set<IndicatorType>
-    var body: some View {
-        Menu {
-            ForEach(IndicatorType.allCases, id: \.self) { ind in
-                let isOn = selected.contains(ind)
-                Button(action: {
-                    #if os(iOS)
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    #endif
-                    if isOn { selected.remove(ind) } else { selected.insert(ind) }
-                }) {
-                    HStack {
-                        Image(systemName: "checkmark")
-                            .opacity(isOn ? 1 : 0)
-                        Text(ind.label)
-                    }
-                }
-            }
-            if !selected.isEmpty {
-                Button("Clear", role: .destructive) {
-                    #if os(iOS)
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    #endif
-                    selected.removeAll()
-                }
-            }
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                HStack(spacing: 6) {
-                    Text("Indicators")
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 16)
-                .background(Color.white.opacity(0.06))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
-                .foregroundColor(.white)
-                .accessibilityLabel("Indicators")
-                .accessibilityValue(selected.isEmpty ? "None" : "\(selected.count) selected")
-
-                if !selected.isEmpty {
-                    Text("\(selected.count)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(4)
-                        .background(
-                            Circle()
-                                .fill(Color.gold)
-                                .overlay(Circle().stroke(Color.black.opacity(0.5), lineWidth: 1))
-                        )
-                        .offset(x: 8, y: -8)
-                }
-            }
-            .frame(height: 32)
-        }
-    }
-}
-
 // MARK: - Extracted Chart Card and Components
 private struct ChartCard: View {
     @Binding var selectedChartType: ChartType
@@ -1659,20 +2479,70 @@ private struct ChartCard: View {
     let tvAltSymbols: [String]
     let isCompact: Bool
     let edgeProvider: (CGRect) -> Edge
+    let livePrice: Double
 
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDark: Bool { colorScheme == .dark }
+    
+    // Premium glass background colors
+    private var cardFillColor: Color {
+        isDark ? DS.Neutral.surface : DS.Adaptive.cardBackground
+    }
+    private var cardStrokeColor: Color {
+        isDark ? DS.Neutral.stroke : Color.black.opacity(0.08)
+    }
+    private var topHighlightOpacity: Double {
+        isDark ? 0.06 : 0.03
+    }
+    private var bottomShadeOpacity: Double {
+        isDark ? 0.25 : 0.08
+    }
+    
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Background card with subtle stroke
+            // Premium glass background with depth gradient (matching TradeView)
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            colorScheme == .dark ? Color.black.opacity(0.20) : Color.black.opacity(0.04),
+                            colorScheme == .dark ? Color.black.opacity(0.10) : Color.black.opacity(0.02)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-                .shadow(color: Color.black.opacity(0.35), radius: 12, x: 0, y: 6)
+                .background(cardFillColor)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            // Subtle grid overlay for depth (4 rows, 6 columns)
+            GeometryReader { geo in
+                let rows = 4
+                let cols = 6
+                Path { path in
+                    // Horizontal grid lines
+                    for i in 1..<rows {
+                        let y = geo.size.height * CGFloat(i) / CGFloat(rows)
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: geo.size.width, y: y))
+                    }
+                    // Vertical grid lines
+                    for i in 1..<cols {
+                        let x = geo.size.width * CGFloat(i) / CGFloat(cols)
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: geo.size.height))
+                    }
+                }
+                // LIGHT MODE FIX: Adaptive grid
+                .stroke(isDark ? Color.white.opacity(0.04) : Color.black.opacity(0.04), lineWidth: 0.5)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
             VStack(spacing: 0) {
                 // Chart content kept alive for both sources
+                // NOTE: No horizontal padding on chart to ensure RSI/indicator alignment
+                // The chart measures its plot area internally and passes insets to oscillators
+                // External padding would cause the crosshair and indicators to be misaligned
                 ChartAreaView(
                     symbol: symbol,
                     selectedInterval: selectedInterval,
@@ -1680,13 +2550,14 @@ private struct ChartCard: View {
                     tvTheme: tvTheme,
                     tvStudies: tvStudies,
                     tvAltSymbols: tvAltSymbols,
-                    selectedChartType: selectedChartType
+                    selectedChartType: selectedChartType,
+                    livePrice: livePrice
                 )
-                .padding(.horizontal, 8)
-                .padding(.top, 6)
-                .padding(.bottom, 10)
+                .padding(.horizontal, 0)  // Match TradeView - no external padding on chart
+                .padding(.top, 2)
+                .padding(.bottom, 6)
 
-                // Controls row
+                // Controls row - tighter layout, padding is handled inside the row
                 ChartControlsRow(
                     selectedChartType: $selectedChartType,
                     selectedInterval: $selectedInterval,
@@ -1699,12 +2570,36 @@ private struct ChartCard: View {
                     edgeProvider: edgeProvider
                 )
                 .padding(.top, 4)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        // Border stroke
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(cardStrokeColor, lineWidth: 0.8)
+                .allowsHitTesting(false)
+        )
+        // Top highlight gradient for premium glass effect
+        .overlay(
+            LinearGradient(
+                colors: [Color.white.opacity(topHighlightOpacity), Color.clear],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .allowsHitTesting(false)
+        )
+        // Subtle bottom shade for depth
+        .overlay(
+            LinearGradient(
+                colors: [Color.clear, Color.black.opacity(bottomShadeOpacity)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .allowsHitTesting(false)
+        )
     }
 }
 
@@ -1716,26 +2611,53 @@ private struct ChartAreaView: View {
     let tvStudies: [String]
     let tvAltSymbols: [String]
     let selectedChartType: ChartType
+    let livePrice: Double
+    
+    // LAZY CREATION + PERSISTENT LIFECYCLE:
+    // - Don't create the TradingView WKWebView until the user first switches to it
+    //   (avoids the 7+ second WebKit process launch delay on initial app load)
+    // - Once created, keep it alive (hidden) so subsequent toggles are instant
+    //   (avoids the 1-2 second reload that happened when destroying/recreating every switch)
+    @State private var tradingViewCreated = false
 
     var body: some View {
         ZStack {
             // CryptoSage AI chart - has built-in crosshair and haptic feedback
-            CryptoChartView(symbol: symbol, interval: selectedInterval, height: 240)
-                .opacity(selectedChartType == .cryptoSageAI ? 1 : 0)
-                .allowsHitTesting(selectedChartType == .cryptoSageAI)
+            // showPercentageBadge: false - the header already shows the price change
+            // livePrice: sync chart tooltip with header when at rightmost position
+            if selectedChartType == .cryptoSageAI {
+                CryptoChartView(symbol: symbol, interval: selectedInterval, height: 240, showPercentageBadge: false, livePrice: livePrice)
+                    // SEAMLESS: Use symbol-only ID so timeframe switches update in-place
+                    // instead of destroying and recreating the entire chart (which causes flicker).
+                    // CryptoChartView handles interval changes internally via .onChange(of: interval)
+                    .id("detail-\(symbol)")
+                    .transaction { $0.animation = nil }
+            }
 
-            // TradingView chart
-            TradingViewChartWebView(
-                symbol: tvSymbol,
-                interval: selectedInterval.tvValue,
-                theme: tvTheme,
-                studies: tvStudies,
-                altSymbols: tvAltSymbols,
-                interactive: selectedChartType == .tradingView
-            )
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 240, maxHeight: 240)
-            .opacity(selectedChartType == .tradingView ? 1 : 0)
-            .allowsHitTesting(selectedChartType == .tradingView)
+            // LAZY PERSISTENT TRADINGVIEW:
+            // Once the user switches to TradingView for the first time, the WebView stays alive
+            // in the view hierarchy. When CryptoSage AI is selected, TradingView is hidden via
+            // opacity(0) + disabled hit testing — this keeps the WKWebView process warm and avoids
+            // the 1-2 second reload on every toggle. The WebView is never created until first use,
+            // so it doesn't impact initial app launch performance.
+            if tradingViewCreated {
+                TradingViewChartWebView(
+                    symbol: tvSymbol,
+                    interval: selectedInterval.tvValue,
+                    theme: tvTheme,
+                    studies: tvStudies,
+                    altSymbols: tvAltSymbols,
+                    interactive: selectedChartType == .tradingView
+                )
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 240, maxHeight: 240)
+                .opacity(selectedChartType == .tradingView ? 1 : 0)
+                .allowsHitTesting(selectedChartType == .tradingView)
+            }
+        }
+        .onChange(of: selectedChartType) { _, newType in
+            if newType == .tradingView && !tradingViewCreated {
+                tradingViewCreated = true
+            }
         }
     }
 }
@@ -1752,95 +2674,45 @@ private struct ChartControlsRow: View {
     let isCompact: Bool
     let edgeProvider: (CGRect) -> Edge
     
-    // Debounce work item to avoid "Modifying state during view update" warning
+    @Environment(\.colorScheme) private var colorScheme
     @State private var timeframeFrameDebounce: DispatchWorkItem? = nil
 
     var body: some View {
-        HStack(spacing: isCompact ? 6 : 10) {
-            // Left: Chart source toggle
-            ChartSourceToggle(selected: $selectedChartType)
-                .frame(height: 32)
-
-            // Middle: Timeframe dropdown (Popover)
-            Button {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                timeframePopoverEdge = edgeProvider(timeframeButtonFrame)
-                showTimeframePopover = true
-            } label: {
-                HStack(spacing: 6) {
-                    Text(selectedInterval.rawValue)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.12), lineWidth: 0.8))
-                .foregroundColor(.white)
-            }
-            .frame(height: 32)
+        // Integrated row: Segmented source toggle + Timeframe dropdown + Indicators
+        // NO ScrollView - fixed width, perfectly fitted to each device
+        HStack(spacing: 6) {
+            // Chart source segmented toggle - expands to fill remaining width
+            // NO fixedSize so it absorbs any extra space → zero dead pixels
+            ChartSourceSegmentedToggle(selected: $selectedChartType)
+            
+            // Timeframe dropdown button - fixed intrinsic size
+            TimeframeDropdownButton(
+                interval: selectedInterval.rawValue,
+                isActive: showTimeframePopover,
+                action: { showTimeframePopover = true }
+            )
+            .fixedSize(horizontal: true, vertical: false)
             .background(
                 GeometryReader { proxy in
                     Color.clear.preference(key: TimeframeButtonFrameKey.self, value: proxy.frame(in: .global))
                 }
             )
             .onPreferenceChange(TimeframeButtonFrameKey.self) { frame in
-                // Defer state update to next runloop to avoid "Modifying state during view update"
                 timeframeFrameDebounce?.cancel()
                 let work = DispatchWorkItem { timeframeButtonFrame = frame }
                 timeframeFrameDebounce = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.032, execute: work)
             }
-            .popover(isPresented: $showTimeframePopover, attachmentAnchor: .rect(.bounds), arrowEdge: timeframePopoverEdge) {
-                ChartTimeframePicker(isPresented: $showTimeframePopover, selection: $selectedInterval)
-                    .presentationCompactAdaptation(.none)
-            }
-            .accessibilityLabel("Timeframe")
-            .accessibilityValue(selectedInterval.rawValue)
-
-            // Right: Indicators button (opens shared ChartIndicatorMenu)
-            let activeCount = indicatorsCount
-            let isActive = activeCount > 0
-            Button {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                showIndicatorMenu = true
-            } label: {
-                ZStack(alignment: .topTrailing) {
-                    HStack(spacing: 6) {
-                        Text("Indicators")
-                            .font(.system(size: 12, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 16)
-                    .background(Color.white.opacity(0.06))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
-                    .foregroundColor(.white)
-
-                    if isActive {
-                        Text("\(activeCount)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.black)
-                            .padding(4)
-                            .background(
-                                Circle()
-                                    .fill(Color.gold)
-                                    .overlay(Circle().stroke(Color.black.opacity(0.5), lineWidth: 1))
-                            )
-                            .offset(x: 8, y: -8)
-                    }
-                }
-            }
-            .frame(height: 32)
+            
+            // Indicators button - fixed intrinsic size
+            IndicatorsButton(
+                count: indicatorsCount,
+                action: { showIndicatorMenu = true }
+            )
+            .fixedSize(horizontal: true, vertical: false)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
     }
 }
 
@@ -1878,6 +2750,10 @@ private struct NavBarCenterView: View {
     let formattedPrice: String
     let priceHighlight: Bool
     let showPrice: Bool
+    var isPriceStale: Bool = false  // PRICE CONSISTENCY: Show indicator when data is old
+    
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDark: Bool { colorScheme == .dark }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -1885,7 +2761,7 @@ private struct NavBarCenterView: View {
                 CoinImageView(symbol: symbol, url: imageURL, size: 24)
                 Text(symbol)
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)  // STYLING FIX: Use adaptive color
                 HStack(spacing: 4) {
                     Image(systemName: change24h >= 0 ? "arrow.up.right" : "arrow.down.right")
                         .foregroundColor(change24h >= 0 ? .green : .red)
@@ -1897,37 +2773,45 @@ private struct NavBarCenterView: View {
                 .fontWeight(.bold)
                 .padding(.vertical, 2)
                 .padding(.horizontal, 6)
-                .neutralCapsulePill(backgroundOpacity: 0.28, strokeOpacity: 0.18)
+                .adaptiveNeutralCapsulePill(isDark: isDark, backgroundOpacity: 0.28, strokeOpacity: 0.18)  // STYLING FIX: Use adaptive pill
                 .accessibilityLabel("24 hour change")
                 .accessibilityValue("\(String(format: "%.2f", abs(change24h)))% \(change24h >= 0 ? "up" : "down")")
             }
             if showPrice {
-                Text(formattedPrice)
-                    .monospacedDigit()
-                    .font(.system(size: 22, weight: .heavy))
-                    .foregroundStyle(chipGoldGradient)
-                    .shadow(color: Color.black.opacity(0.8), radius: 1, x: 0, y: 1)
-                    .shadow(color: Color.gold.opacity(priceHighlight ? 0.35 : 0.18), radius: priceHighlight ? 5 : 3, x: 0, y: 0)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.black.opacity(0.45))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                            )
-                            .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
-                    )
-                    .padding(.vertical, 2)
-                    .padding(.horizontal, 6)
-                    .animation(.easeInOut(duration: 0.2), value: priceHighlight)
-                    .onLongPressGesture(minimumDuration: 0.4) {
-                        #if os(iOS)
-                        if !formattedPrice.isEmpty && formattedPrice != "$0.00" {
-                            UIPasteboard.general.string = formattedPrice
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                        #endif
+                HStack(spacing: 4) {
+                    Text(formattedPrice)
+                        .monospacedDigit()
+                        .font(.system(size: 22, weight: .heavy))
+                        // Dark mode: gold gradient; Light mode: clean dark text
+                        .foregroundStyle(isPriceStale
+                            ? AnyShapeStyle(Color.gray)
+                            : AnyShapeStyle(isDark
+                                ? AdaptiveGradients.chipGold(isDark: true)
+                                : LinearGradient(colors: [Color(white: 0.08), Color(white: 0.08)], startPoint: .top, endPoint: .bottom)))
+                        .scaleEffect(priceHighlight ? 1.015 : 1.0)
+                    
+                    // NOTE: Staleness icon removed - was too alarming for users
+                    // The grayed-out price color already provides a subtle visual cue when data is old
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(DS.Adaptive.cardBackground.opacity(isDark ? 0.45 : 0.85))  // STYLING FIX: Use adaptive background
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(isPriceStale ? Color.orange.opacity(0.3) : DS.Adaptive.stroke, lineWidth: 1)  // STYLING FIX: Use adaptive stroke
+                        )
+                )
+                .padding(.vertical, 2)
+                .padding(.horizontal, 6)
+                .animation(.spring(response: 0.28, dampingFraction: 0.78), value: priceHighlight)
+                .onLongPressGesture(minimumDuration: 0.4) {
+                    #if os(iOS)
+                    if !formattedPrice.isEmpty && formattedPrice != "$0.00" {
+                        UIPasteboard.general.string = formattedPrice
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     }
+                    #endif
+                }
             }
         }
     }
@@ -1942,25 +2826,37 @@ private struct LocalVerdictPill: View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.caption2.weight(.semibold))
-                .foregroundColor(.white.opacity(0.8))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fontWidth(.condensed)
+                .foregroundColor(DS.Adaptive.textSecondary)
             Text(value)
                 .font(.caption2.weight(.bold))
+                .fontWidth(.condensed)
                 .foregroundColor(color)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.vertical, 2)
-                .padding(.horizontal, 7)
-                .background(Color.white.opacity(0.06))
+                .minimumScaleFactor(0.85)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .background(DS.Adaptive.cardBackground)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+                .overlay(Capsule().stroke(DS.Adaptive.stroke, lineWidth: 0.6))
         }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(DS.Adaptive.overlay(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(DS.Adaptive.stroke.opacity(0.8), lineWidth: 1))
     }
 }
 
 private struct LocalQuickSignalsRow: View {
     let summary: TechnicalsSummary
+    
+    // Check if we have real data loaded
+    private var hasRealData: Bool {
+        let totalCounts = summary.sellCount + summary.neutralCount + summary.buyCount
+        return totalCounts > 0
+    }
+    
     private func textColor(for verdict: TechnicalVerdict) -> (String, Color) {
         switch verdict {
         case .strongSell: return ("Strong Sell", .red)
@@ -1983,13 +2879,31 @@ private struct LocalQuickSignalsRow: View {
             switch oscScore { case ..<0.15: return .strongSell; case ..<0.35: return .sell; case ..<0.65: return .neutral; case ..<0.85: return .buy; default: return .strongBuy }
         }()
         let (oscText, oscColor) = textColor(for: oscVerdict)
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+        
+        // Always show computed values - avoid horizontal scrolling for a cleaner card.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
                 LocalVerdictPill(title: "Overall", value: overallText, color: overallColor)
                 LocalVerdictPill(title: "MAs", value: maText, color: maColor)
                 LocalVerdictPill(title: "Osc", value: oscText, color: oscColor)
             }
-            .padding(.horizontal, 2)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    LocalVerdictPill(title: "Overall", value: overallText, color: overallColor)
+                    LocalVerdictPill(title: "MAs", value: maText, color: maColor)
+                }
+                HStack(spacing: 8) {
+                    LocalVerdictPill(title: "Osc", value: oscText, color: oscColor)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        // Use opacity fade-in instead of changing content/id
+        .opacity(hasRealData ? 1 : 0.3)
+        .animation(.easeOut(duration: 0.2), value: hasRealData)
+        // Suppress any animations during initial load
+        .transaction { txn in
+            if !hasRealData { txn.animation = nil }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Quick technical signals")
@@ -2004,20 +2918,23 @@ private struct LocalCountPill: View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.caption2.weight(.semibold))
-                .foregroundColor(.white.opacity(0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .fontWidth(.condensed)
+                .foregroundColor(DS.Adaptive.textSecondary)
             Text("\(value)")
                 .font(.caption2.weight(.bold))
+                .fontWidth(.condensed)
                 .foregroundColor(color)
                 .monospacedDigit()
-                .padding(.vertical, 3)
+                .padding(.vertical, 4)
                 .padding(.horizontal, 8)
-                .background(Color.white.opacity(0.06))
+                .background(DS.Adaptive.cardBackground)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+                .overlay(Capsule().stroke(DS.Adaptive.stroke, lineWidth: 0.6))
         }
-        .frame(minWidth: 60, alignment: .leading)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(DS.Adaptive.overlay(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(DS.Adaptive.stroke.opacity(0.8), lineWidth: 1))
     }
 }
 
@@ -2039,23 +2956,33 @@ private struct LocalSignalChip: View {
     let value: String?
     let color: Color
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Text(label)
                 .font(.caption2.weight(.semibold))
-                .foregroundColor(.white.opacity(0.9))
+                .fontWidth(.condensed)
+                .foregroundColor(DS.Adaptive.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             if let v = value, !v.isEmpty {
                 Text(v)
                     .font(.caption2.monospacedDigit().weight(.bold))
+                    .fontWidth(.condensed)
                     .foregroundColor(color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
-        .background(Color.white.opacity(0.06))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+        .padding(.vertical, 5)
+        .padding(.horizontal, 9)
+        .frame(maxWidth: 118)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(DS.Adaptive.overlay(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(DS.Adaptive.stroke.opacity(0.8), lineWidth: 0.8)
+        )
     }
 }
 
@@ -2079,27 +3006,33 @@ private struct LocalTopSignalsRow: View {
     }
 }
 
-// This is the modified LocalTechSummaryGrid body per instructions
+// Refined LocalTechSummaryGrid with cleaner layout
 private struct LocalTechSummaryGrid: View {
     let summary: TechnicalsSummary
     let indicators: [IndicatorSignal]
     let sourceLabel: String
     let preferred: TechnicalsViewModel.TechnicalsSourcePreference
+    let requestedSource: TechnicalsViewModel.TechnicalsSourcePreference
+    let isSwitchingSource: Bool
     let onSelect: (TechnicalsViewModel.TechnicalsSourcePreference) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Row 1: Quick verdicts
+        VStack(alignment: .leading, spacing: 8) {
+            // Row 1: Quick verdict pills (Overall, MAs, Osc)
             LocalQuickSignalsRow(summary: summary)
-            // Row 2: Counts + top indicator chips (incl. Williams %R) + source pill
+            
+            // Row 2+: Counts + signals + source, optimized for compact widths
             CombinedCountsSignalsSourceRow(
                 summary: summary,
                 indicators: indicators,
                 sourceLabel: sourceLabel,
                 preferred: preferred,
+                requestedSource: requestedSource,
+                isSwitchingSource: isSwitchingSource,
                 onSelect: onSelect
             )
         }
+        .transaction { txn in txn.animation = nil }
     }
 }
 
@@ -2108,6 +3041,8 @@ private struct CombinedCountsSignalsSourceRow: View {
     let indicators: [IndicatorSignal]
     let sourceLabel: String
     let preferred: TechnicalsViewModel.TechnicalsSourcePreference
+    let requestedSource: TechnicalsViewModel.TechnicalsSourcePreference
+    let isSwitchingSource: Bool
     let onSelect: (TechnicalsViewModel.TechnicalsSourcePreference) -> Void
 
     private func color(for s: IndicatorSignalStrength) -> Color {
@@ -2119,80 +3054,66 @@ private struct CombinedCountsSignalsSourceRow: View {
     }
 
     var body: some View {
-        let top = Array(indicators.prefix(3))
-        let isWide = UIScreen.main.bounds.width >= 500
-        if isWide {
+        let top = Array(indicators.prefix(2))
+        let isWide = UIScreen.main.bounds.width >= 430
+        
+        VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 6) {
                 LocalCountPill(title: "Sell", value: summary.sellCount, color: .red)
                 LocalCountPill(title: "Neutral", value: summary.neutralCount, color: .yellow)
                 LocalCountPill(title: "Buy", value: summary.buyCount, color: .green)
-                if !top.isEmpty {
-                    ForEach(top) { sig in
-                        LocalSignalChip(label: sig.label, value: sig.valueText, color: color(for: sig.signal))
-                    }
-                }
-                Spacer(minLength: 0)
+                if isWide { Spacer(minLength: 0) }
             }
-        } else {
-            // On compact widths, keep everything on one horizontally scrollable row
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    LocalCountPill(title: "Sell", value: summary.sellCount, color: .red)
-                    LocalCountPill(title: "Neutral", value: summary.neutralCount, color: .yellow)
-                    LocalCountPill(title: "Buy", value: summary.buyCount, color: .green)
-                    if !top.isEmpty {
+            
+            HStack(alignment: .center, spacing: 6) {
+                if !top.isEmpty {
+                    HStack(spacing: 6) {
                         ForEach(top) { sig in
                             LocalSignalChip(label: sig.label, value: sig.valueText, color: color(for: sig.signal))
                         }
                     }
+                } else {
+                    Text("Signals updating...")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
                 }
-                .padding(.horizontal, 2)
+                
+                Spacer(minLength: 0)
+                
+                TechnicalsSourceMenu(
+                    sourceLabel: sourceLabel,
+                    preferred: preferred,
+                    requestedSource: requestedSource,
+                    isSwitchingSource: isSwitchingSource,
+                    onSelect: onSelect
+                )
             }
         }
+        .animation(.easeInOut(duration: 0.18), value: isSwitchingSource)
     }
 }
 
-// Removed LocalSourceMenu entirely as per instructions
-
 private struct InfoTabs: View {
     @Binding var selected: InfoTab
+    
     var body: some View {
-        HStack(spacing: 12) {
-            ForEach(InfoTab.allCases, id: \.self) { tab in
-                Button {
-                    #if os(iOS)
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    #endif
-                    withAnimation(.easeInOut(duration: 0.18)) { selected = tab }
-                } label: {
-                    VStack(spacing: 4) {
-                        Text(tab.rawValue)
-                            .font(.system(size: 13, weight: selected == tab ? .semibold : .regular))
-                            .foregroundColor(selected == tab ? .white : .white.opacity(0.65))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.9)
-                        Capsule()
-                            .fill(selected == tab ? chipGoldGradient : LinearGradient(colors: [.clear], startPoint: .top, endPoint: .bottom))
-                            .frame(width: 20, height: 2)
-                            .opacity(selected == tab ? 1 : 0)
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer(minLength: 0)
-        }
+        // Use shared underline tab picker component
+        UnderlineTabPicker(selected: $selected)
     }
 }
 
 private struct CoinNewsCategoryChips: View {
     @Binding var selected: CoinNewsCategory
+    @Environment(\.colorScheme) private var colorScheme
+    
     var body: some View {
+        let isDark = colorScheme == .dark
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(CoinNewsCategory.allCases, id: \.self) { cat in
+                    let isSelected = selected == cat
                     Button {
                         #if os(iOS)
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -2201,16 +3122,10 @@ private struct CoinNewsCategoryChips: View {
                     } label: {
                         Text(cat.rawValue)
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(selected == cat ? .black : .white.opacity(0.9))
+                            .foregroundColor(isSelected ? TintedChipStyle.selectedText(isDark: isDark) : DS.Adaptive.textPrimary.opacity(0.9))
                             .padding(.vertical, 6)
                             .padding(.horizontal, 10)
-                            .background(
-                                Group {
-                                    if selected == cat { RoundedRectangle(cornerRadius: 10).fill(chipGoldGradient) }
-                                    else { RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)) }
-                                }
-                            )
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.12), lineWidth: 0.8))
+                            .tintedRoundedChip(isSelected: isSelected, isDark: isDark, cornerRadius: 10)
                     }
                     .buttonStyle(.plain)
                 }
@@ -2226,25 +3141,27 @@ private struct OverviewCard: View {
     let onTap: () -> Void
     let onAddNotes: () -> Void
     let showNotesButton: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let isDark = colorScheme == .dark
         VStack(spacing: 8) {
             Button(action: onTap) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(chipGoldGradient)
+                        .foregroundStyle(AdaptiveGradients.chipGold(isDark: isDark))
                         .padding(6)
                     Text(text)
                         .font(.footnote)
-                        .foregroundColor(.white)
+                        .foregroundColor(DS.Adaptive.textPrimary)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
                         .lineSpacing(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(DS.Adaptive.textTertiary)
                 }
             }
             .buttonStyle(.plain)
@@ -2258,18 +3175,259 @@ private struct OverviewCard: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.footnote.weight(.semibold))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundColor(DS.Adaptive.textTertiary)
                     }
                     .font(.footnote.weight(.semibold))
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundColor(DS.Adaptive.textSecondary)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 12)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 0.6))
+                    .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.overlay(0.04)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(DS.Adaptive.stroke.opacity(0.6), lineWidth: 0.6))
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+// MARK: - AI-Enhanced Overview Card
+private struct AIOverviewCard: View {
+    let insight: CoinAIInsight?
+    let fallbackText: String
+    let symbol: String
+    let isGenerating: Bool
+    let error: String?
+    let onTap: () -> Void
+    
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
+    
+    /// Full insight text for reference
+    private var fullText: String {
+        insight?.insightText ?? fallbackText
+    }
+    
+    /// Extract a proper preview that doesn't truncate mid-word/mid-sentence
+    private var previewText: String {
+        let text = fullText
+        
+        // If text is short enough, show it all
+        if text.count <= 200 {
+            return text
+        }
+        
+        // Try to extract just the first 2-3 sentences for a clean preview
+        // Use regex to split on sentence endings while preserving decimals in numbers
+        // Pattern: period/exclamation/question followed by space and capital letter, or end of string
+        let sentencePattern = #"(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$"#
+        let sentences: [String]
+        if let regex = try? NSRegularExpression(pattern: sentencePattern, options: []) {
+            let range = NSRange(text.startIndex..., in: text)
+            var parts: [String] = []
+            var lastEnd = text.startIndex
+            regex.enumerateMatches(in: text, options: [], range: range) { match, _, _ in
+                if let matchRange = match?.range, let swiftRange = Range(matchRange, in: text) {
+                    let sentence = String(text[lastEnd..<swiftRange.lowerBound])
+                    if !sentence.trimmingCharacters(in: .whitespaces).isEmpty {
+                        parts.append(sentence)
+                    }
+                    lastEnd = swiftRange.upperBound
+                }
+            }
+            // Add remaining text after last match
+            let remaining = String(text[lastEnd...])
+            if !remaining.trimmingCharacters(in: .whitespaces).isEmpty {
+                parts.append(remaining)
+            }
+            sentences = parts
+        } else {
+            // Fallback: simple split but only on ". " followed by uppercase (safer than splitting all periods)
+            sentences = text.components(separatedBy: ". ")
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        }
+        
+        // Build preview from complete sentences, targeting ~180 chars
+        var preview = ""
+        var count = 0
+        for sentence in sentences {
+            let trimmed = sentence.trimmingCharacters(in: .whitespaces)
+            // Skip section headers like "SUMMARY", "TECHNICAL ANALYSIS", etc.
+            if trimmed.uppercased() == trimmed && trimmed.count < 25 {
+                continue
+            }
+            // Preserve original sentence ending if present, otherwise add period
+            let endsWithPunctuation = trimmed.last == "." || trimmed.last == "!" || trimmed.last == "?"
+            let nextPart = endsWithPunctuation ? trimmed + " " : trimmed + ". "
+            if preview.count + nextPart.count > 200 && !preview.isEmpty {
+                break
+            }
+            preview += nextPart
+            count += 1
+            if count >= 3 { break }
+        }
+        
+        // If we got a good preview, use it
+        if !preview.isEmpty {
+            return preview.trimmingCharacters(in: .whitespaces)
+        }
+        
+        // Fallback: truncate at word boundary
+        let maxLength = 180
+        if text.count <= maxLength { return text }
+        
+        let truncated = String(text.prefix(maxLength))
+        if let lastSpace = truncated.lastIndex(of: " ") {
+            return String(truncated[..<lastSpace]) + "..."
+        }
+        return truncated + "..."
+    }
+    
+    /// Whether there's more content to see in Deep Dive
+    private var hasMoreContent: Bool {
+        fullText.count > previewText.count
+    }
+    
+    private var ageText: String? {
+        insight?.ageText
+    }
+    
+    var body: some View {
+        let isDark = colorScheme == .dark
+        
+        // Main insight card - tappable to see full Deep Dive
+        Button(action: onTap) {
+            HStack(alignment: .top, spacing: 10) {
+                // AI sparkle icon with subtle animation when generating
+                ZStack {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AdaptiveGradients.chipGold(isDark: isDark))
+                    
+                    if isGenerating {
+                        Circle()
+                            .stroke(AdaptiveGradients.chipGold(isDark: isDark), lineWidth: 2)
+                            .frame(width: 24, height: 24)
+                            .opacity(0.3)
+                    }
+                }
+                .padding(6)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    if isGenerating {
+                        // Shimmer loading state
+                        CoinDetailShimmerView()
+                            .frame(height: 14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        CoinDetailShimmerView()
+                            .frame(height: 14)
+                            .frame(width: 200, alignment: .leading)
+                        CoinDetailShimmerView()
+                            .frame(height: 14)
+                            .frame(width: 150, alignment: .leading)
+                    } else {
+                        Text(previewText)
+                            .font(.footnote)
+                            .foregroundColor(DS.Adaptive.textPrimary)
+                            .multilineTextAlignment(.leading)
+                            .lineSpacing(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        // "Tap for full analysis" with inline timestamp to save space
+                        HStack(spacing: 0) {
+                            if hasMoreContent {
+                                Text("Tap for full analysis")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(DS.Adaptive.textTertiary)
+                            }
+                            
+                            // Inline timestamp - shows right after "Tap for full analysis" or alone
+                            if let age = ageText {
+                                if hasMoreContent {
+                                    Text("  •  ")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(DS.Adaptive.textTertiary.opacity(0.6))
+                                }
+                                HStack(spacing: 3) {
+                                    Image(systemName: "clock")
+                                        .font(.system(size: 8))
+                                    Text(age)
+                                        .font(.system(size: 10))
+                                }
+                                .foregroundColor(DS.Adaptive.textTertiary)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.top, 4)
+                        
+                        // Error indicator if any (show user-friendly message)
+                        // Don't show errors when insight is successfully displaying
+                        if let error = error, insight == nil {
+                            // Don't show technical/temporary errors to users
+                            let isHiddenError = error.lowercased().contains("api key") || 
+                                               error.lowercased().contains("not configured") ||
+                                               error.lowercased().contains("temporarily unavailable") ||
+                                               error.lowercased().contains("timed out")
+                            if !isHiddenError {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .font(.system(size: 9))
+                                    Text(error)
+                                        .font(.system(size: 10))
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
+                
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(DS.Adaptive.textTertiary)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(10)
+    }
+}
+
+// MARK: - Shimmer Loading View
+private struct CoinDetailShimmerView: View {
+    @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDark: Bool { colorScheme == .dark }
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(
+                LinearGradient(
+                    colors: isDark
+                        ? [Color.white.opacity(0.05), Color.white.opacity(0.1), Color.white.opacity(0.05)]
+                        : [Color.black.opacity(0.04), Color.black.opacity(0.07), Color.black.opacity(0.04)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: isDark
+                                ? [Color.clear, Color.white.opacity(0.1), Color.clear]
+                                : [Color.clear, Color.black.opacity(0.06), Color.clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .offset(x: isAnimating ? 200 : -200)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .onAppear {
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    isAnimating = true
+                }
+            }
     }
 }
 
@@ -2278,15 +3436,15 @@ private struct ComingSoonCard: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "clock.badge.exclamationmark")
-                .foregroundColor(.white.opacity(0.85))
+                .foregroundColor(DS.Adaptive.textSecondary)
             Text("\(title) is coming soon.")
                 .font(.footnote)
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(DS.Adaptive.textSecondary)
             Spacer()
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 0.8))
+        .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(DS.Adaptive.stroke, lineWidth: 0.8))
     }
 }
 
@@ -2340,11 +3498,17 @@ private struct CoinDiagnosticsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button { dismiss() } label: {
+                        Text("Close")
+                            .foregroundStyle(DS.Adaptive.textSecondary)
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Copy") { copyAll() }
-                        .bold()
+                    Button { copyAll() } label: {
+                        Text("Copy")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(BrandColors.goldBase)
+                    }
                 }
             }
         }
@@ -2368,593 +3532,914 @@ private struct CoinDiagnosticsSheet: View {
     }
 }
 
-#if false // Disabled duplicate helper types; using shared versions from CoinDetailSupportViews.swift
+// MARK: - Trading Signal Models
 
-private struct CDVDeepDiveSheetView: View {
+enum TradingSignalType: String {
+    case buy = "BUY"
+    case sell = "SELL"
+    case hold = "HOLD"
+    
+    var color: Color {
+        switch self {
+        case .buy: return .green
+        case .sell: return .red
+        case .hold: return .orange
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .buy: return "arrow.up"
+        case .sell: return "arrow.down"
+        case .hold: return "minus"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .buy: return "AI analysis suggests bullish momentum"
+        case .sell: return "AI analysis suggests bearish pressure"
+        case .hold: return "Mixed signals — wait for a clearer trend"
+        }
+    }
+    
+    // Default sentiment score (overridden by AI when available)
+    var defaultSentimentScore: Double {
+        switch self {
+        case .buy: return 0.7
+        case .sell: return -0.7
+        case .hold: return 0
+        }
+    }
+}
+
+struct TradingSignal {
+    let type: TradingSignalType
+    let confidence: Double          // 0-1 normalized score
+    let confidenceLabel: String     // "High", "Medium", "Low"
+    let reasons: [String]           // Key factors driving the signal
+    let reasoning: String           // AI natural language analysis paragraph
+    let sentimentScore: Double      // -1.0 to 1.0 from AI (or computed)
+    let riskLevel: String           // "Low", "Medium", "High"
+    let timestamp: Date
+    let isAIPowered: Bool           // true = from DeepSeek, false = local fallback
+    
+    var confidenceText: String {
+        confidenceLabel
+    }
+    
+    var confidenceColor: Color {
+        switch confidenceLabel {
+        case "High": return .green
+        case "Medium": return .yellow
+        default: return .orange
+        }
+    }
+    
+    /// Relative time string for when the signal was last updated
+    var timeAgoText: String {
+        let seconds = Int(Date().timeIntervalSince(timestamp))
+        if seconds < 60 { return "Just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m ago" }
+        let hours = minutes / 60
+        return "\(hours)h ago"
+    }
+}
+
+// MARK: - AI Trading Signal Card
+
+struct AITradingSignalCard: View {
     let symbol: String
     let price: Double
-    let change24h: Double
     let sparkline: [Double]
-    @State private var longForm: String = ""
-    @Environment(\.dismiss) private var dismiss
+    let change24h: Double
+    let signal: TradingSignal?
+    let isLoading: Bool
+    
+    @Environment(\.colorScheme) private var colorScheme
+    private var isDark: Bool { colorScheme == .dark }
+    @State private var showFullReasoning = false
+    @State private var displayedSentimentScore: Double = 0
+    @State private var hasMountedGauge = false
+    @State private var gaugeDotScale: CGFloat = 1
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // ── Header row ──
+            HStack(spacing: 0) {
+                HStack(spacing: 7) {
+                    GoldHeaderGlyph(systemName: "waveform.path.ecg.rectangle")
+                    Text("AI Trading Signal")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                }
+                Spacer()
+                
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.65)
+                        .tint(DS.Colors.gold)
+                } else if let signal = signal {
+                    HStack(spacing: 5) {
+                        if signal.isAIPowered {
+                            HStack(spacing: 2) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 8, weight: .bold))
+                                Text("AI")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .foregroundColor(DS.Colors.gold)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(DS.Colors.gold.opacity(0.15)))
+                        }
+                        Text(signal.timeAgoText)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                }
+            }
+            
+            if let signal = signal {
+                VStack(spacing: 10) {
+                    // ── Signal badge row ──
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(signal.type.color.opacity(0.15))
+                                .frame(width: 42, height: 42)
+                            Image(systemName: signal.type.icon)
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(signal.type.color)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 6) {
+                                Text(signal.type.rawValue)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(signal.type.color)
+                                
+                                Text("Conf \(signal.confidenceText)")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(signal.confidenceColor)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(signal.confidenceColor.opacity(0.15)))
+                                
+                                riskBadge(signal.riskLevel)
+                            }
+                            
+                            Text(signalSummaryText(signal))
+                                .font(.system(size: 11))
+                                .foregroundColor(DS.Adaptive.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    
+                    // ── Sentiment gauge ──
+                    VStack(spacing: 4) {
+                        GeometryReader { geo in
+                            let gaugeWidth = geo.size.width
+                            let normalizedPosition = max(0, min(1, (displayedSentimentScore + 1) / 2))
+                            let indicatorX = CGFloat(normalizedPosition) * gaugeWidth
+                            
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.red.opacity(0.65),
+                                                Color.orange.opacity(0.5),
+                                                Color.yellow.opacity(0.45),
+                                                Color.green.opacity(0.5),
+                                                Color.green.opacity(0.65)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(height: 8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.5)
+                                    )
+                                
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 16, height: 16)
+                                    Circle()
+                                        .fill(signal.type.color)
+                                        .frame(width: 10, height: 10)
+                                }
+                                .scaleEffect(gaugeDotScale)
+                                .offset(x: max(0, min(gaugeWidth - 16, indicatorX - 8)))
+                            }
+                        }
+                        .frame(height: 16)
+                        .onAppear {
+                            runInitialGaugeAnimation(to: signal.sentimentScore)
+                        }
+                        .onChange(of: signal.sentimentScore) { _, _ in
+                            withAnimation(GaugeMotionProfile.settle) {
+                                displayedSentimentScore = signal.sentimentScore
+                            }
+                        }
+                        
+                        HStack {
+                            Text("Bearish")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.red.opacity(0.7))
+                            Spacer()
+                            Text("Neutral")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(DS.Adaptive.textTertiary)
+                            Spacer()
+                            Text("Bullish")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.green.opacity(0.7))
+                        }
+                    }
+                    
+                    // ── Key factors (compact horizontal flow) ──
+                    if !signal.reasons.isEmpty {
+                        keyFactorsPills(signal.reasons)
+                    }
+                    
+                    // ── Detailed reasoning (AI only) ──
+                    if signal.isAIPowered && !signal.reasoning.isEmpty {
+                        aiReasoningSection(signal)
+                    }
+                    
+                }
+            } else if isLoading {
+                let shimmerFill = isDark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)
+                VStack(spacing: 10) {
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(shimmerFill)
+                            .frame(width: 42, height: 42)
+                            .shimmer()
+                        VStack(alignment: .leading, spacing: 6) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(shimmerFill)
+                                .frame(width: 90, height: 18)
+                                .shimmer()
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(shimmerFill)
+                                .frame(width: 160, height: 12)
+                                .shimmer()
+                        }
+                    }
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(shimmerFill)
+                        .frame(height: 8)
+                        .shimmer()
+                }
+            }
+            
+            // Disclaimer
+            Text(signal?.isAIPowered == true
+                 ? "AI + technical indicator analysis. Not financial advice."
+                 : "Technical-indicator preview while AI updates. Not financial advice.")
+                .font(.system(size: 9))
+                .foregroundColor(DS.Adaptive.textTertiary)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(DS.Adaptive.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(DS.Adaptive.stroke, lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Sub-components
+    
+    @ViewBuilder
+    private func riskBadge(_ level: String) -> some View {
+        let color: Color = {
+            switch level {
+            case "High": return .red
+            case "Medium": return .orange
+            default: return .green
+            }
+        }()
+        
+        HStack(spacing: 2) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+            Text("Risk \(level)")
+                .font(.system(size: 9, weight: .medium))
+        }
+        .foregroundColor(color.opacity(0.9))
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(Capsule().fill(color.opacity(0.1)))
+    }
+    
+    /// Key factors displayed as compact wrapped horizontal flow
+    @ViewBuilder
+    private func keyFactorsPills(_ factors: [String]) -> some View {
+        let pills = buildFactorPills(from: factors)
+        let columns = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
+            ForEach(pills) { pill in
+                HStack(spacing: 5) {
+                    Image(systemName: pill.icon)
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(pill.color)
+                    Text(pill.text)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary.opacity(0.85))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(pill.color.opacity(isDark ? 0.08 : 0.06))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(pill.color.opacity(isDark ? 0.18 : 0.14), lineWidth: 0.5)
+                )
+            }
+        }
+    }
 
+    private struct FactorPill: Identifiable {
+        let id: String
+        let text: String
+        let icon: String
+        let color: Color
+    }
+
+    private func buildFactorPills(from factors: [String]) -> [FactorPill] {
+        factors.prefix(4).map { factor in
+            FactorPill(
+                id: factor,
+                text: factor,
+                icon: keyFactorIcon(for: factor),
+                color: keyFactorColor(for: factor)
+            )
+        }
+    }
+
+    private func runInitialGaugeAnimation(to sentimentScore: Double) {
+        let clamped = max(-1.0, min(1.0, sentimentScore))
+        if !hasMountedGauge {
+            hasMountedGauge = true
+            // Always show a visible first animation, including neutral.
+            let overshoot = clamped == 0 ? 0.22 : max(-1.0, min(1.0, clamped * 1.04))
+
+            displayedSentimentScore = 0
+            gaugeDotScale = 0.96
+            withAnimation(GaugeMotionProfile.fill) {
+                displayedSentimentScore = overshoot
+                gaugeDotScale = 1.08
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+                withAnimation(GaugeMotionProfile.springEmphasis) {
+                    displayedSentimentScore = clamped
+                    gaugeDotScale = 1
+                }
+            }
+            return
+        }
+        withAnimation(GaugeMotionProfile.settle) {
+            displayedSentimentScore = clamped
+            gaugeDotScale = 1
+        }
+    }
+
+    private func signalSummaryText(_ signal: TradingSignal) -> String {
+        if signal.isAIPowered {
+            return signal.type.description
+        }
+        switch signal.type {
+        case .buy: return "Technical indicators suggest bullish momentum"
+        case .sell: return "Technical indicators suggest bearish pressure"
+        case .hold: return "Technical indicators are mixed; wait for clearer trend"
+        }
+    }
+    
+    /// Context-aware icon for key factor pills
+    private func keyFactorIcon(for factor: String) -> String {
+        let lower = factor.lowercased()
+        if lower.contains("rsi") { return "waveform.path" }
+        if lower.contains("macd") { return "chart.line.uptrend.xyaxis" }
+        if lower.contains("sma") || lower.contains("ema") || lower.contains("moving") { return "line.diagonal" }
+        if lower.contains("volume") { return "chart.bar.fill" }
+        if lower.contains("momentum") { return "arrow.up.right" }
+        if lower.contains("support") { return "arrow.down.to.line" }
+        if lower.contains("resistance") { return "arrow.up.to.line" }
+        if lower.contains("oversold") { return "arrow.down.circle" }
+        if lower.contains("overbought") { return "arrow.up.circle" }
+        if lower.contains("bullish") || lower.contains("buy") { return "arrow.up.right.circle" }
+        if lower.contains("bearish") || lower.contains("sell") { return "arrow.down.right.circle" }
+        if lower.contains("weak") || lower.contains("decline") { return "exclamationmark.triangle" }
+        if lower.contains("strong") || lower.contains("rally") { return "bolt.fill" }
+        if lower.contains("below") { return "chevron.down" }
+        if lower.contains("above") { return "chevron.up" }
+        return "lightbulb.fill"
+    }
+    
+    /// Context-aware color for key factor pills
+    private func keyFactorColor(for factor: String) -> Color {
+        let lower = factor.lowercased()
+        if lower.contains("bearish") || lower.contains("sell") || lower.contains("oversold") || lower.contains("weak") || lower.contains("decline") || lower.contains("below") {
+            return .red
+        }
+        if lower.contains("bullish") || lower.contains("buy") || lower.contains("overbought") || lower.contains("strong") || lower.contains("rally") || lower.contains("above") {
+            return .green
+        }
+        if lower.contains("rsi") || lower.contains("macd") {
+            return Color.orange
+        }
+        if lower.contains("momentum") {
+            let hasNeg = lower.contains("-") || lower.contains("weak")
+            return hasNeg ? .red : .green
+        }
+        return DS.Colors.gold
+    }
+    
+    /// AI reasoning section (expandable)
+    @ViewBuilder
+    private func aiReasoningSection(_ signal: TradingSignal) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showFullReasoning.toggle()
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: signal.isAIPowered ? "brain.head.profile" : "function")
+                        .font(.system(size: 10))
+                        .foregroundColor(DS.Colors.gold)
+                    Text(signal.isAIPowered ? "AI Analysis" : "Analysis")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textSecondary)
+                    Spacer()
+                    Image(systemName: showFullReasoning ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            
+            if showFullReasoning {
+                Text(signal.reasoning)
+                    .font(.system(size: 11))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isDark ? Color.white.opacity(0.03) : Color.black.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isDark ? Color.white.opacity(0.05) : Color.black.opacity(0.04), lineWidth: 0.5)
+        )
+    }
+
+}
+
+// MARK: - Why Is Moving Card (Standalone)
+/// A prominent card that appears when a coin has moved significantly,
+/// explaining the reasons behind the price movement.
+private struct WhyIsMovingCard: View {
+    let coinId: String
+    let symbol: String
+    let coinName: String
+    let change24h: Double
+    
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showingExplanation: Bool = false
+    
+    private var isPositive: Bool { change24h >= 0 }
+    private var changeColor: Color { isPositive ? .green : .red }
+    
+    var body: some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            #endif
+            showingExplanation = true
+        } label: {
+            HStack(spacing: 14) {
+                // Icon with animated pulse for attention
+                ZStack {
+                    Circle()
+                        .fill(changeColor.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    
+                    Image(systemName: isPositive ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(changeColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Why is \(symbol)")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(DS.Adaptive.textPrimary)
+                        
+                        Text("\(isPositive ? "+" : "")\(String(format: "%.1f", change24h))%")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(changeColor)
+                        
+                        Text("?")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(DS.Adaptive.textPrimary)
+                    }
+                    
+                    Text("Tap to see what's driving this move")
+                        .font(.system(size: 12))
+                        .foregroundColor(DS.Adaptive.textSecondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textTertiary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(changeColor.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(changeColor.opacity(0.25), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingExplanation) {
+            PriceMovementExplanationSheet(
+                symbol: symbol,
+                coinName: coinName,
+                coinId: coinId
+            )
+        }
+    }
+}
+
+// MARK: - Quick Action Button
+
+private struct QuickActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            action()
+        }) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(color.opacity(0.3), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// Compact inline action button for quick actions row
+private struct CompactActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+    
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        let isDark = colorScheme == .dark
+        
+        Button(action: {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            action()
+        }) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundColor(color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(color.opacity(isDark ? 0.15 : 0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        LinearGradient(
+                            colors: [color.opacity(0.4), color.opacity(0.2)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Price Ladder View (Vertical Key Levels)
+
+private struct PriceLadderView: View {
+    let currentPrice: Double
+    let support: Double?
+    let resistance: Double?
+    
+    @Environment(\.colorScheme) private var colorScheme
+    
+    // PERFORMANCE FIX v25: Cached formatter to avoid allocation per formatPrice call
+    private static let _currencyFmt: NumberFormatter = {
+        let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = CurrencyManager.currencyCode; return f
+    }()
+    
+    private func distancePercent(from: Double, to: Double) -> Double {
+        guard from > 0 else { return 0 }
+        return ((to - from) / from) * 100
+    }
+    
+    private func formatPrice(_ value: Double) -> String {
+        let formatter = Self._currencyFmt
+        formatter.currencyCode = CurrencyManager.currencyCode
+        if value >= 1 {
+            formatter.maximumFractionDigits = 2
+            formatter.minimumFractionDigits = 2
+        } else if value >= 0.01 {
+            formatter.maximumFractionDigits = 4
+            formatter.minimumFractionDigits = 2
+        } else {
+            formatter.maximumFractionDigits = 6
+            formatter.minimumFractionDigits = 4
+        }
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%@%.2f", CurrencyManager.symbol, value)
+    }
+    
+    var body: some View {
+        let isDark = colorScheme == .dark
+        
+        VStack(spacing: 0) {
+            // Resistance (top)
+            if let resistance = resistance {
+                let distPct = distancePercent(from: currentPrice, to: resistance)
+                
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(formatPrice(resistance))
+                            .font(.system(size: 14, weight: .bold).monospacedDigit())
+                            .foregroundColor(.red)
+                        Text("Resistance")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 1) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("+\(String(format: "%.1f", distPct))%")
+                                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        }
+                        .foregroundColor(.red)
+                        Text("Target if rising")
+                            .font(.system(size: 9))
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.red.opacity(isDark ? 0.08 : 0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red.opacity(0.15), lineWidth: 0.5)
+                )
+            }
+            
+            // Connector + Current price
+            if resistance != nil || support != nil {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 2) {
+                        if resistance != nil {
+                            Rectangle()
+                                .fill(isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08))
+                                .frame(width: 1.5, height: 12)
+                        }
+                        
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(DS.Colors.gold)
+                                .frame(width: 8, height: 8)
+                            Text(formatPrice(currentPrice))
+                                .font(.system(size: 12, weight: .bold).monospacedDigit())
+                                .foregroundStyle(AdaptiveGradients.chipGold(isDark: isDark))
+                            Text("Current")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(DS.Adaptive.textTertiary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(DS.Colors.gold.opacity(0.08)))
+                        .overlay(Capsule().stroke(DS.Colors.gold.opacity(0.2), lineWidth: 0.5))
+                        
+                        if support != nil {
+                            Rectangle()
+                                .fill(isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08))
+                                .frame(width: 1.5, height: 12)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            }
+            
+            // Support (bottom)
+            if let support = support {
+                let distPct = distancePercent(from: currentPrice, to: support)
+                
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(formatPrice(support))
+                            .font(.system(size: 14, weight: .bold).monospacedDigit())
+                            .foregroundColor(.green)
+                        Text("Support")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 1) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("\(String(format: "%.1f", distPct))%")
+                                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        }
+                        .foregroundColor(.green)
+                        Text("Watch if falling")
+                            .font(.system(size: 9))
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.green.opacity(isDark ? 0.08 : 0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.green.opacity(0.15), lineWidth: 0.5)
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Why Is It Moving Sheet
+
+private struct WhyIsItMovingSheet: View {
+    let symbol: String
+    let change24h: Double
+    let explanation: String
+    let isLoading: Bool
+    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var isPositive: Bool { change24h >= 0 }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(longForm)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                    .padding()
-            }
-            .navigationTitle("AI Deep Dive")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Copy") {
-                        #if os(iOS)
-                        UIPasteboard.general.string = longForm
-                        #endif
-                    }
-                }
-            }
-        }
-        .onAppear {
-            // Defer to avoid "Modifying state during view update"
-            DispatchQueue.main.async { regenerate() }
-        }
-    }
-
-    private func regenerate() {
-        longForm = buildDeepDive()
-    }
-
-    private func buildDeepDive() -> String {
-        let p = price
-        let dir = change24h >= 0 ? "up" : "down"
-        let c = String(format: "%.2f%%", abs(change24h))
-        let (s1, r1) = swingLevels(series: sparkline)
-        let hi7 = sparkline.max() ?? p
-        let lo7 = sparkline.min() ?? p
-        let range7 = hi7 - lo7
-        let pos = range7 > 0 ? (p - lo7) / range7 : 0.5
-        let posText = String(format: "%.0f%%", pos * 100)
-        let mom7 = percentChange(from: sparkline.first, to: sparkline.last)
-        let momText = String(format: "%.1f%%", mom7)
-        let vol = volatility(of: sparkline)
-        let volText = String(format: "%.2f%%", vol)
-
-        var lines: [String] = []
-        lines.append("\(symbol) is \(dir) \(c) over the last 24h, trading near \(currency(p)).")
-        lines.append("7D range: \(currency(lo7)) – \(currency(hi7)) (position ~\(posText)). 7D momentum: \(momText).")
-        if let s1 = s1 { lines.append("Nearest support: \(currency(s1)).") }
-        if let r1 = r1 { lines.append("Nearest resistance: \(currency(r1)).") }
-        lines.append("Realized intraday volatility (approx.): \(volText).")
-        lines.append("Note: Levels are heuristic from recent swing points; confirm with your own analysis.")
-        return lines.joined(separator: "\n\n")
-    }
-
-    private func percentChange(from: Double?, to: Double?) -> Double {
-        guard let f = from, let t = to, f > 0 else { return 0 }
-        return (t - f) / f * 100
-    }
-
-    private func volatility(of series: [Double]) -> Double {
-        guard series.count > 2 else { return 0 }
-        var returns: [Double] = []
-        for i in 1..<series.count {
-            let a = series[i - 1]
-            let b = series[i]
-            if a > 0 && b > 0 { returns.append((b - a) / a) }
-        }
-        let mean = returns.reduce(0, +) / Double(max(1, returns.count))
-        let varSum = returns.reduce(0) { $0 + pow($1 - mean, 2) }
-        let std = sqrt(varSum / Double(max(1, returns.count - 1)))
-        return std * 100
-    }
-
-    private func swingLevels(series: [Double]) -> (Double?, Double?) {
-        guard series.count >= 10 else { return (nil, nil) }
-        let window = Array(series.suffix(96))
-        var lows: [Double] = []
-        var highs: [Double] = []
-        if window.count >= 3 {
-            for i in 1..<(window.count - 1) {
-                let a = window[i - 1]
-                let b = window[i]
-                let c = window[i + 1]
-                if b < a && b < c { lows.append(b) }
-                if b > a && b > c { highs.append(b) }
-            }
-        }
-        let s = lows.max()
-        let r = highs.min()
-        return (s, r)
-    }
-
-    private func currency(_ v: Double) -> String { "$" + (NumberFormatter.currencyFormatter.string(from: NSNumber(value: v)) ?? String(format: "%.2f", v)) }
-}
-
-private extension NumberFormatter {
-    static let currencyFormatter: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        return f
-    }()
-}
-
-private struct CDVNotesEditorSheet: View {
-    let symbol: String
-    @State var text: String
-    let onSave: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    init(symbol: String, initialText: String, onSave: @escaping (String) -> Void) {
-        self.symbol = symbol
-        self._text = State(initialValue: initialText)
-        self.onSave = onSave
-    }
-
-    var body: some View {
-        NavigationStack {
-            TextEditor(text: $text)
-                .padding()
-                .navigationTitle("Notes · \(symbol)")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Save") { onSave(text); dismiss() }
-                            .bold()
-                    }
-                }
-        }
-    }
-}
-
-private struct CDVIdeasCard: View {
-    let symbol: String // coin symbol, e.g., BTC
-    @Environment(\.openURL) private var openURL
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("TradingView Ideas")
-                .font(.headline)
-                .foregroundColor(.white)
-            CDVTradingViewIdeasWebView(symbol: symbol)
-                .frame(height: 420)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-            HStack {
-                Spacer()
-                Button {
-                    let url = URL(string: "https://www.tradingview.com/symbols/\(symbol)USD/ideas/")!
-                    openURL(url)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "link")
-                        Text("Open in TradingView")
-                    }
-                    .font(.footnote.weight(.semibold))
-                }
-            }
-        }
-    }
-}
-
-// Enhanced to hide banners and force dark mode
-private struct CDVTradingViewIdeasWebView: UIViewRepresentable {
-    let symbol: String
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        
-        // Inject script at document START to block Smart App Banner before it renders
-        let bannerBlockScript = WKUserScript(
-            source: """
-            (function(){
-                // Remove Smart App Banner meta tag immediately and continuously
-                function removeAppBanner() {
-                    document.querySelectorAll('meta[name="apple-itunes-app"]').forEach(m => m.remove());
-                    document.querySelectorAll('meta[name="smartbanner"]').forEach(m => m.remove());
-                }
-                removeAppBanner();
-                var observer = new MutationObserver(function(mutations) {
-                    removeAppBanner();
-                });
-                if(document.documentElement) {
-                    observer.observe(document.documentElement, {childList: true, subtree: true});
-                }
-            })();
-            """,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: true
-        )
-        config.userContentController.addUserScript(bannerBlockScript)
-        
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-        webView.scrollView.backgroundColor = .clear
-        webView.scrollView.bounces = true
-        webView.navigationDelegate = context.coordinator
-        #if os(iOS)
-        webView.overrideUserInterfaceStyle = .dark
-        webView.scrollView.indicatorStyle = .white
-        #endif
-        webView.load(URLRequest(url: ideasURL()))
-        return webView
-    }
-
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        // reload only if symbol changed path
-        uiView.evaluateJavaScript("document.readyState") { _, _ in
-            uiView.load(URLRequest(url: ideasURL()))
-        }
-    }
-
-    private func ideasURL() -> URL {
-        let base = "https://www.tradingview.com/symbols/\(symbol)USD/ideas/"
-        // Append a best-effort theme hint; the site may ignore it, but it is harmless
-        let path = base + "?theme=dark"
-        return URL(string: path) ?? URL(string: "https://www.tradingview.com/ideas/crypto/")!
-    }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // Hide app-store banner and sticky headers for a cleaner embed and enforce dark theme
-            let js = """
-            (function(){
-              function applyDark(){
-                try{ localStorage.setItem('theme','dark'); }catch(e){}
-                try{ document.documentElement.setAttribute('data-theme','dark'); }catch(e){}
-                try{ document.body && document.body.classList.add('theme-dark'); }catch(e){}
-                try{
-                  var meta = document.querySelector('meta[name=\\"color-scheme\\"]');
-                  if(!meta){ meta = document.createElement('meta'); meta.name='color-scheme'; document.head.appendChild(meta); }
-                  meta.content='dark';
-                }catch(e){}
-                var css = `
-                  :root, html, body { background:#000 !important; color:#ddd !important; }
-                  header, .header, .tv-header, .tv-header__link, [data-widget-type=\\"promo\\"], .js-header { display:none !important; }
-                  .layout__area--header, .apply-dark-bg { background:#000 !important; }
-                `;
-                var style = document.getElementById('cs-dark-style');
-                if(!style){ style = document.createElement('style'); style.id='cs-dark-style'; style.type='text/css'; style.appendChild(document.createTextNode(css)); document.head.appendChild(style); }
-              }
-              function hideBanners(){
-                try{
-                  // Remove obvious App Store install banners and sticky promos
-                  document.querySelectorAll('a[href*="apps.apple.com"]').forEach(a=>{
-                    let n=a; let steps=0;
-                    while(n && n.parentElement && steps++<4){
-                      n=n.parentElement;
-                      if(n.offsetHeight>60){ n.style.display='none'; break; }
-                    }
-                  });
-                  const sels = [
-                    '[data-name=\\"banner\\"]','[data-widget-name=\\"banner\\"]','[class*=\\"banner\\"]',
-                    '.tv-floating-toolbar','.js-idea-page__app-promo','.sticky','.stickyHeader'
-                  ];
-                  sels.forEach(s=>document.querySelectorAll(s).forEach(e=>e.style.display='none'));
-                }catch(e){}
-              }
-              applyDark(); hideBanners();
-              const mo = new MutationObserver(()=>{ applyDark(); hideBanners(); });
-              mo.observe(document.documentElement,{childList:true,subtree:true});
-            })();
-            """
-            webView.evaluateJavaScript(js, completionHandler: nil)
-        }
-    }
-}
-
-private struct CDVNewsLinksList: View {
-    let symbol: String
-    @Environment(\.openURL) private var openURL
-    var body: some View {
-        VStack(spacing: 8) {
-            linkRow(title: "Google News", url: "https://news.google.com/search?q=\(symbol)%20crypto")
-            linkRow(title: "Bing News", url: "https://www.bing.com/news/search?q=\(symbol)%20crypto")
-            linkRow(title: "CoinDesk", url: "https://www.coindesk.com/search/?q=\(symbol)")
-            linkRow(title: "CoinTelegraph", url: "https://cointelegraph.com/tags/\(symbol.lowercased())")
-            linkRow(title: "X (Twitter) Search", url: "https://x.com/search?q=\(symbol)%20crypto&src=typed_query")
-        }
-    }
-    private func linkRow(title: String, url: String) -> some View {
-        Button {
-            if let u = URL(string: url) { openURL(u) }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.up.right.square")
-                Text(title)
-                Spacer()
-            }
-            .font(.footnote.weight(.semibold))
-            .foregroundColor(.white.opacity(0.9))
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 0.8))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - In-app News Tab (lightweight headlines via Google News RSS)
-private struct CDVNewsTab: View {
-    let symbol: String
-    @State private var selected: CoinNewsCategory = .top
-    @StateObject private var vm = CDVCoinNewsViewModel()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            CoinNewsCategoryChips(selected: $selected)
-            if vm.isLoading {
-                ProgressView().tint(.white)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 12)
-            }
-            if vm.articles.isEmpty && !vm.isLoading {
-                VStack(spacing: 10) {
-                    Text("No headlines right now.")
-                        .font(.footnote)
-                        .foregroundColor(.white.opacity(0.8))
-                    CDVNewsLinksList(symbol: symbol)
-                }
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(vm.articles.prefix(6)) { a in
-                        CDVArticleRow(article: a)
-                    }
-                }
-            }
-            HStack {
-                Spacer()
-                Link(destination: vm.moreURL(for: symbol, category: selected)) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "safari")
-                        Text("More on Google News")
-                    }
-                    .font(.footnote.weight(.semibold))
-                }
-            }
-        }
-        .onAppear {
-            // Defer to avoid "Modifying state during view update"
-            DispatchQueue.main.async { vm.fetch(symbol: symbol, category: selected) }
-        }
-        .onChange(of: selected) { cat in vm.fetch(symbol: symbol, category: cat) }
-    }
-}
-
-private struct CDVArticleRow: View {
-    let article: CDVNewsArticle
-    @Environment(\.openURL) private var openURL
-    var body: some View {
-        Button {
-            if let url = URL(string: article.link) { openURL(url) }
-        } label: {
-            HStack(alignment: .top, spacing: 10) {
-                if let url = article.imageURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08))
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        case .failure:
-                            RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08))
-                        @unknown default:
-                            RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08))
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    HStack(spacing: 12) {
+                        Image(systemName: isPositive ? "arrow.up.right.circle.fill" : "arrow.down.right.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(isPositive ? .green : .red)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(symbol)
+                                .font(.title2.bold())
+                            Text("\(isPositive ? "+" : "")\(String(format: "%.1f", change24h))% today")
+                                .font(.headline)
+                                .foregroundColor(isPositive ? .green : .red)
                         }
-                    }
-                    .frame(width: 54, height: 54)
-                    .clipped()
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.10), lineWidth: 0.6))
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(article.title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(3)
-                    HStack(spacing: 8) {
-                        if let src = article.source, !src.isEmpty {
-                            Text(src)
-                                .font(.caption2.weight(.semibold))
-                                .foregroundColor(.white.opacity(0.7))
-                                .lineLimit(1)
-                        }
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.6))
-                        Text(article.relativeTime)
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
+                        
                         Spacer()
                     }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill((isPositive ? Color.green : Color.red).opacity(0.1))
+                    )
+                    
+                    // Explanation
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(DS.Adaptive.gold)
+                            Text("CryptoSage AI Analysis")
+                                .font(.headline)
+                                .foregroundColor(DS.Adaptive.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .allowsTightening(true)
+                        }
+                        
+                        if isLoading {
+                            VStack(spacing: 8) {
+                                ForEach(0..<4, id: \.self) { _ in
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(DS.Adaptive.chipBackground)
+                                        .frame(height: 16)
+                                }
+                            }
+                        } else {
+                            Text(explanation)
+                                .font(.body)
+                                .foregroundColor(DS.Adaptive.textPrimary)
+                                .lineSpacing(4)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(DS.Adaptive.cardBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(DS.Adaptive.stroke, lineWidth: 0.5)
+                    )
+                    
+                    // Disclaimer
+                    Text("AI analysis is generated based on available market data and news. This is not financial advice.")
+                        .font(.caption)
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                        .padding(.horizontal)
+                }
+                .padding()
+            }
+            .navigationTitle("Why is \(symbol) moving?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Text("Done")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(DS.Adaptive.gold)
+                    }
                 }
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 0.8))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct CDVNewsArticle: Identifiable {
-    let id = UUID()
-    let title: String
-    let link: String
-    let pubDate: Date
-    let source: String?
-    let imageURL: URL?
-    var relativeTime: String {
-        let interval = Date().timeIntervalSince(pubDate)
-        let minutes = Int(interval / 60)
-        if minutes < 1 { return "now" }
-        if minutes < 60 { return "\(minutes)m" }
-        let hours = minutes / 60
-        if hours < 24 { return "\(hours)h" }
-        return "\(hours/24)d"
-    }
-}
-
-private final class CDVCoinNewsViewModel: ObservableObject {
-    @Published var articles: [CDVNewsArticle] = []
-    @Published var isLoading: Bool = false
-    
-    private static var cache: [String: (Date, [CDVNewsArticle])] = [:]
-    private let cacheTTL: TimeInterval = 10 * 60
-
-    func fetch(symbol: String, category: CoinNewsCategory) {
-        let key = symbol.uppercased() + "|" + category.rawValue
-        if let (ts, items) = Self.cache[key], Date().timeIntervalSince(ts) < cacheTTL {
-            self.articles = items
-            self.isLoading = false
-            return
-        }
-        
-        isLoading = true
-        let url = feedURL(for: symbol, category: category)
-        Task { @MainActor in
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                let items = CDVGoogleNewsRSSParser.parse(data: data)
-                self.articles = items
-                self.isLoading = false
-                Self.cache[key] = (Date(), items)
-            } catch {
-                self.articles = []
-                self.isLoading = false
-            }
-        }
-    }
-
-    func moreURL(for symbol: String, category: CoinNewsCategory) -> URL {
-        let q = query(for: symbol, category: category).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? symbol
-        return URL(string: "https://news.google.com/search?q=\(q)")!
-    }
-
-    private func feedURL(for symbol: String, category: CoinNewsCategory) -> URL {
-        let q = query(for: symbol, category: category).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? symbol
-        // Google News RSS endpoint
-        let path = "https://news.google.com/rss/search?q=\(q)&hl=en-US&gl=US&ceid=US:en"
-        return URL(string: path)!
-    }
-
-    private func query(for symbol: String, category: CoinNewsCategory) -> String {
-        return "\(symbol) \(category.queryKeywords)"
-    }
-}
-
-private enum CDVGoogleNewsRSSParser {
-    static func parse(data: Data) -> [CDVNewsArticle] {
-        let parser = _Parser()
-        return parser.parse(data: data)
-    }
-
-    private final class _Parser: NSObject, XMLParserDelegate {
-        private var items: [CDVNewsArticle] = []
-        private var currentTitle: String = ""
-        private var currentLink: String = ""
-        private var currentPubDate: Date = Date()
-        private var currentElement: String = ""
-        private var currentSource: String = ""
-        private var currentImageLink: String = ""
-
-        func parse(data: Data) -> [CDVNewsArticle] {
-            let xml = XMLParser(data: data)
-            xml.delegate = self
-            xml.parse()
-            return items
-        }
-
-        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
-            currentElement = elementName
-            if elementName == "item" {
-                currentTitle = ""; currentLink = ""; currentPubDate = Date()
-                currentSource = ""; currentImageLink = ""
-            }
-            let name = elementName.lowercased()
-            if name == "media:content" || name == "enclosure" || (qName?.lowercased() == "media:content") {
-                if let url = attributeDict["url"], !url.isEmpty { currentImageLink = url }
-            }
-        }
-
-        func parser(_ parser: XMLParser, foundCharacters string: String) {
-            switch currentElement {
-            case "title": currentTitle += string
-            case "link": currentLink += string
-            case "pubDate":
-                // accumulate then parse in endElement
-                currentPubDate = parseDate(string) ?? currentPubDate
-            case "source":
-                currentSource += string
-            default: break
-            }
-        }
-
-        func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-            if elementName == "item" {
-                let title = currentTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                let link = currentLink.trimmingCharacters(in: .whitespacesAndNewlines)
-                let src = currentSource.trimmingCharacters(in: .whitespacesAndNewlines)
-                let img = URL(string: currentImageLink.trimmingCharacters(in: .whitespacesAndNewlines))
-                let article = CDVNewsArticle(title: title, link: link, pubDate: currentPubDate, source: src.isEmpty ? nil : src, imageURL: (img?.scheme?.lowercased() == "https") ? img : nil)
-                items.append(article)
-            }
-            currentElement = ""
-        }
-
-        private func parseDate(_ str: String) -> Date? {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-            return f.date(from: str.trimmingCharacters(in: .whitespacesAndNewlines))
+            .toolbarBackground(DS.Adaptive.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(colorScheme == .dark ? .dark : .light, for: .navigationBar)
         }
     }
 }
-
-// New view: CoinNewsEmbed that wraps the Home news section UI with scoped view model
-private struct CoinNewsEmbed: View {
-    let symbol: String
-    @ObservedObject private var vm = CryptoNewsFeedViewModel.shared
-    @State private var lastSeenArticleID: String? = nil
-    @State private var previousQuery: String? = nil
-
-    var body: some View {
-        PremiumNewsSection(viewModel: vm, lastSeenArticleID: $lastSeenArticleID)
-            .onAppear {
-                // Defer to avoid "Modifying state during view update"
-                DispatchQueue.main.async {
-                    // Save previous query and focus on this coin
-                    previousQuery = vm.queryOverride
-                    vm.queryOverride = "\(symbol) crypto"
-                    vm.selectedSources = []
-                    vm.loadAllNews(force: true)
-                }
-            }
-            .onDisappear {
-                // Restore previous query
-                vm.queryOverride = previousQuery
-            }
-    }
-}
-
-#endif
-
-
-
-
-
-
-
-
 

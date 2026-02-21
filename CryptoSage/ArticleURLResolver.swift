@@ -77,7 +77,12 @@ final class ArticleURLResolver {
                 ResolverDebug.log("Resolved via HTML parse to: \(u.absoluteString)")
                 return u
             }
-        } catch { }
+        } catch {
+            // ERROR HANDLING FIX: Log errors for debugging
+            #if DEBUG
+            print("[ArticleURLResolver] URL resolution error: \(error.localizedDescription)")
+            #endif
+        }
         return nil
     }
 
@@ -177,7 +182,7 @@ final class ArticleURLResolver {
 
 struct ResolverDebug {
     static func log(_ message: String) {
-        os_log("%{public}@", log: newsLog, type: .info, message)
+        os_log("%{public}@", log: newsLog, type: .debug, message)
     }
     static func warn(_ message: String) {
         os_log("%{public}@", log: newsLog, type: .error, message)

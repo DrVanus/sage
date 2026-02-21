@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import SwiftUI
 
 /// Defines which portfolio data source(s) to include
 public enum PortfolioMode {
@@ -16,17 +17,46 @@ public enum PortfolioMode {
 }
 
 extension PortfolioRepository {
+    /// Shared instance for app-wide use. Prefer using this over creating new instances.
+    static let shared = PortfolioRepository()
+    
     /// Default initializer that wires up the manual, live, and price services.
     convenience init() {
         self.init(
             manualService: ManualPortfolioDataService(),
             liveService: LivePortfolioDataService(),
-            priceService: CoinGeckoPriceService()
+            // PERFORMANCE FIX: Use shared singleton to reduce API request storms
+            priceService: CoinGeckoPriceService.shared
         )
     }
 }
 
-/// Repository that unifies manual entries, live-sync data, and market prices into a single holdings stream.
+// MARK: - Stock Holdings Integration
+
+extension PortfolioRepository {
+    
+    /// Publisher for brokerage (stock) holdings
+    var brokerageHoldingsPublisher: AnyPublisher<[Holding], Never> {
+        BrokeragePortfolioDataService.shared.holdingsPublisher
+    }
+    
+    /// Sync brokerage accounts (stocks/ETFs from Plaid)
+    func syncBrokerageAccounts() async {
+        await BrokeragePortfolioDataService.shared.syncAllAccounts()
+    }
+    
+    /// Add a manually-entered stock holding
+    func addStockHolding(_ holding: Holding) {
+        BrokeragePortfolioDataService.shared.addManualHolding(holding)
+    }
+    
+    /// Remove a stock holding
+    func removeStockHolding(_ holding: Holding) {
+        BrokeragePortfolioDataService.shared.removeHolding(holding)
+    }
+}
+
+/// Repository that unifies manual entries, live-sync data, brokerage data, and market prices into a single holdings stream.
 final class PortfolioRepository {
     // MARK: - Public publishers
 
@@ -62,6 +92,9 @@ final class PortfolioRepository {
     private let liveService: PortfolioDataService
     private let priceService: PriceService
     private var cancellables = Set<AnyCancellable>()
+    
+    // User preference for showing stocks
+    @AppStorage("showStocksInPortfolio") private var showStocksEnabled: Bool = false
 
     // MARK: - Initialization
     
@@ -93,12 +126,22 @@ final class PortfolioRepository {
                     aggregates[tx.coinSymbol, default: 0] += tx.quantity
                 }
                 return aggregates.map { (symbol: String, qty: Double) -> Holding in
+                    // STARTUP FIX: Look up the best available price immediately instead of 0.
+                    // Previously currentPrice was always 0, causing the portfolio to show $0
+                    // for non-stablecoin holdings until the price service responded (~2-3s).
+                    // bestPrice(forSymbol:) checks LivePriceManager, allCoins cache, and Firestore.
+                    let initialPrice: Double = {
+                        if Thread.isMainThread {
+                            return MainActor.assumeIsolated { MarketViewModel.shared.bestPrice(forSymbol: symbol) ?? 0 }
+                        }
+                        return 0
+                    }()
                     return Holding(
                         id: UUID(),
                         coinName: symbol,
                         coinSymbol: symbol,
                         quantity: qty,
-                        currentPrice: 0,
+                        currentPrice: initialPrice,
                         costBasis: 0,
                         imageUrl: "",
                         isFavorite: false,
@@ -109,7 +152,8 @@ final class PortfolioRepository {
             }
             .eraseToAnyPublisher()
 
-        let baseHoldings = Publishers.CombineLatest(
+        // Combine crypto holdings (manual + exchange-synced)
+        let cryptoHoldings = Publishers.CombineLatest(
             manualHoldingsPublisher,
             liveService.holdingsPublisher
         )
@@ -125,22 +169,73 @@ final class PortfolioRepository {
             return combined
         })
         .eraseToAnyPublisher()
+        
+        // Combine crypto holdings with brokerage (stock) holdings
+        let allHoldings = Publishers.CombineLatest(
+            cryptoHoldings,
+            BrokeragePortfolioDataService.shared.holdingsPublisher
+        )
+        .map { [weak self] (pair: ([Holding], [Holding])) -> [Holding] in
+            let crypto = pair.0
+            let brokerageHoldings = pair.1
+            
+            // Commodities (gold, silver, etc.) should always appear in the portfolio
+            let commodities = brokerageHoldings.filter { $0.assetType == .commodity }
+            let stocksAndETFs = brokerageHoldings.filter { $0.assetType == .stock || $0.assetType == .etf }
+            
+            // Only include stocks/ETFs if user has enabled the feature
+            if self?.showStocksEnabled == true {
+                return crypto + stocksAndETFs + commodities
+            } else {
+                return crypto + commodities
+            }
+        }
+        .eraseToAnyPublisher()
 
-        // Reactive pipeline: whenever baseHoldings change, fetch prices and update currentPrice
-        baseHoldings
+        // Reactive pipeline: whenever holdings change, fetch prices and update currentPrice
+        // Note: Stock prices are managed separately by LiveStockPriceManager
+        allHoldings
             .receive(on: DispatchQueue.main)
-            .flatMap { holdingsList -> AnyPublisher<[Holding], Never> in
-                let symbols = holdingsList.map { $0.coinSymbol }
+            .flatMap { [weak self] holdingsList -> AnyPublisher<[Holding], Never> in
+                guard let self = self else {
+                    return Just(holdingsList).eraseToAnyPublisher()
+                }
+                
+                // Separate crypto and stock/commodity holdings
+                let cryptoHoldings = holdingsList.filter { $0.assetType == .crypto }
+                let stockHoldings = holdingsList.filter { $0.assetType == .stock || $0.assetType == .etf || $0.assetType == .commodity }
+                
+                // Only fetch prices for crypto symbols (stocks handled by LiveStockPriceManager)
+                let cryptoSymbols = cryptoHoldings.map { $0.coinSymbol }
+                
+                // If no crypto symbols, just return all holdings as-is
+                if cryptoSymbols.isEmpty {
+                    return Just(holdingsList).eraseToAnyPublisher()
+                }
+                
                 return self.priceService
-                    .pricePublisher(for: symbols, interval: 60)
+                    .pricePublisher(for: cryptoSymbols, interval: 60)
                     .map { pricesMap in
-                        holdingsList.map { h in
+                        // Update crypto holdings with live prices
+                        var updatedHoldings = cryptoHoldings.map { h -> Holding in
                             var updated = h
-                            if let price = pricesMap[h.coinSymbol] {
+                            if let price = pricesMap[h.coinSymbol], price > 0 {
                                 updated.currentPrice = price
+                            } else if updated.currentPrice <= 0 {
+                                // STARTUP FIX: If price service returned nothing and holding has no price,
+                                // try bestPrice as a last resort. This prevents showing $0 in the portfolio.
+                                if Thread.isMainThread {
+                                    let fallback = MainActor.assumeIsolated { MarketViewModel.shared.bestPrice(forSymbol: h.coinSymbol) }
+                                    if let price = fallback, price > 0 {
+                                        updated.currentPrice = price
+                                    }
+                                }
                             }
                             return updated
                         }
+                        // Add stock holdings back (already have prices from LiveStockPriceManager)
+                        updatedHoldings.append(contentsOf: stockHoldings)
+                        return updatedHoldings
                     }
                     .replaceError(with: holdingsList)
                     .eraseToAnyPublisher()
@@ -148,3 +243,4 @@ final class PortfolioRepository {
             .assign(to: &$holdings)
     }
 }
+

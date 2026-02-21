@@ -6,6 +6,25 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		93551D222F3796F9007170EE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 93FA00012F29B00000000001 /* FirebaseAuth */; };
+		93552C172F37B410007170EE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 93GS00022F30000000000002 /* GoogleSignIn */; };
+		93552C182F37B410007170EE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 93GS00032F30000000000003 /* GoogleSignInSwift */; };
+		9363F30B2EAA75FD00DBC274 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9363F30A2EAA75FD00DBC274 /* LaunchScreen.storyboard */; };
+		936ABB052E9ACBAD003A92A1 /* ExchangeHostPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936ABB042E9ACBAD003A92A1 /* ExchangeHostPolicy.swift */; };
+		9388A57B2F28F79800E2D354 /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A57A2F28F79800E2D354 /* FirebaseAI */; };
+		9388A57D2F28F79800E2D354 /* FirebaseAILogic in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A57C2F28F79800E2D354 /* FirebaseAILogic */; };
+		9388A57F2F28F79800E2D354 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A57E2F28F79800E2D354 /* FirebaseAnalytics */; };
+		9388A5812F28F79800E2D354 /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A5802F28F79800E2D354 /* FirebaseAnalyticsCore */; };
+		9388A5832F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A5822F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport */; };
+		9388A5852F28F79800E2D354 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A5842F28F79800E2D354 /* FirebaseFirestore */; };
+		9388AFB62F2940E900E2D354 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 93AD0002F29A00000000AD02 /* GoogleMobileAds */; };
+		93E56D012E8E0C40000D56F0 /* CryptoNewsRSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */; };
+		93E56D032E8E12B4000D56F0 /* StaticNewsSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */; };
+		93E56D052E8E1BD1000D56F0 /* ThumbnailResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */; };
+		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		826ACF932DC47BFF0054954D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,11 +46,29 @@
 		826ACF852DC47BFE0054954D /* CryptoSage.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CryptoSage.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		826ACF922DC47BFF0054954D /* CryptoSageTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CryptoSageTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		826ACF9C2DC47BFF0054954D /* CryptoSageUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CryptoSageUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9363F30A2EAA75FD00DBC274 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		936ABB042E9ACBAD003A92A1 /* ExchangeHostPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeHostPolicy.swift; sourceTree = "<group>"; };
+		93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoNewsRSS.swift; sourceTree = "<group>"; };
+		93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticNewsSeed.swift; sourceTree = "<group>"; };
+		93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailResolver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		938994C32EA13837002A0ED9 /* Exceptions for "CryptoSage" folder in "CryptoSage" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"CryptoSage-Info.plist",
+			);
+			target = 826ACF842DC47BFE0054954D /* CryptoSage */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		826ACF872DC47BFE0054954D /* CryptoSage */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				938994C32EA13837002A0ED9 /* Exceptions for "CryptoSage" folder in "CryptoSage" target */,
+			);
 			path = CryptoSage;
 			sourceTree = "<group>";
 		};
@@ -52,6 +89,17 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93552C182F37B410007170EE /* GoogleSignInSwift in Frameworks */,
+				93552C172F37B410007170EE /* GoogleSignIn in Frameworks */,
+				93551D222F3796F9007170EE /* FirebaseAuth in Frameworks */,
+				9388AFB62F2940E900E2D354 /* GoogleMobileAds in Frameworks */,
+				9388A57D2F28F79800E2D354 /* FirebaseAILogic in Frameworks */,
+				9388A5832F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport in Frameworks */,
+				9388A57B2F28F79800E2D354 /* FirebaseAI in Frameworks */,
+				9388A57F2F28F79800E2D354 /* FirebaseAnalytics in Frameworks */,
+				9388A5812F28F79800E2D354 /* FirebaseAnalyticsCore in Frameworks */,
+				9388A5852F28F79800E2D354 /* FirebaseFirestore in Frameworks */,
+				93FS00012F40000000000001 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,10 +123,15 @@
 		826ACF7C2DC47BFE0054954D = {
 			isa = PBXGroup;
 			children = (
+				9363F30A2EAA75FD00DBC274 /* LaunchScreen.storyboard */,
 				826ACF872DC47BFE0054954D /* CryptoSage */,
 				826ACF952DC47BFF0054954D /* CryptoSageTests */,
 				826ACF9F2DC47BFF0054954D /* CryptoSageUITests */,
 				826ACF862DC47BFE0054954D /* Products */,
+				93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */,
+				93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */,
+				93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */,
+				936ABB042E9ACBAD003A92A1 /* ExchangeHostPolicy.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -112,6 +165,17 @@
 			);
 			name = CryptoSage;
 			packageProductDependencies = (
+				9388A57A2F28F79800E2D354 /* FirebaseAI */,
+				9388A57C2F28F79800E2D354 /* FirebaseAILogic */,
+				9388A57E2F28F79800E2D354 /* FirebaseAnalytics */,
+				9388A5802F28F79800E2D354 /* FirebaseAnalyticsCore */,
+				9388A5822F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport */,
+				9388A5842F28F79800E2D354 /* FirebaseFirestore */,
+				93FS00022F40000000000002 /* FirebaseStorage */,
+				93AD0002F29A00000000AD02 /* GoogleMobileAds */,
+				93FA00012F29B00000000001 /* FirebaseAuth */,
+				93GS00022F30000000000002 /* GoogleSignIn */,
+				93GS00032F30000000000003 /* GoogleSignInSwift */,
 			);
 			productName = CryptoSage;
 			productReference = 826ACF852DC47BFE0054954D /* CryptoSage.app */;
@@ -171,7 +235,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1630;
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					826ACF842DC47BFE0054954D = {
 						CreatedOnToolsVersion = 16.3;
@@ -196,6 +260,11 @@
 			);
 			mainGroup = 826ACF7C2DC47BFE0054954D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				93AD0001F29A00000000AD01 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 826ACF862DC47BFE0054954D /* Products */;
 			projectDirPath = "";
@@ -213,6 +282,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9363F30B2EAA75FD00DBC274 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +307,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				936ABB052E9ACBAD003A92A1 /* ExchangeHostPolicy.swift in Sources */,
+				93E56D012E8E0C40000D56F0 /* CryptoNewsRSS.swift in Sources */,
+				93E56D052E8E1BD1000D56F0 /* ThumbnailResolver.swift in Sources */,
+				93E56D032E8E12B4000D56F0 /* StaticNewsSeed.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -323,14 +397,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/CryptoSage/CryptoSage-Info.plist";
+				INFOPLIST_OUTPUT_FORMAT = binary;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_SERIALIZE_DEBUGGING_OPTIONS = NO;
 			};
 			name = Debug;
 		};
@@ -381,11 +459,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/CryptoSage/CryptoSage-Info.plist";
+				INFOPLIST_OUTPUT_FORMAT = binary;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -395,25 +476,33 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS = NO;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_FILE = "CryptoSage/CryptoSage-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CryptoSage;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow CryptoSage to access your photos to attach images in chat.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSage";
+				PRODUCT_BUNDLE_IDENTIFIER = com.dee.CryptoSage;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -429,25 +518,33 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS = NO;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_FILE = "CryptoSage/CryptoSage-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CryptoSage;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow CryptoSage to access your photos to attach images in chat.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSage";
+				PRODUCT_BUNDLE_IDENTIFIER = com.dee.CryptoSage;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -466,7 +563,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSageTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -485,7 +582,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSageTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -503,6 +600,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSageUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -520,6 +618,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AC94HX753;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "-7364847878.CryptoSageUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -570,6 +669,91 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
+		93AD0001F29A00000000AD01 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+		93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9388A57A2F28F79800E2D354 /* FirebaseAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAI;
+		};
+		9388A57C2F28F79800E2D354 /* FirebaseAILogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAILogic;
+		};
+		9388A57E2F28F79800E2D354 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		9388A5802F28F79800E2D354 /* FirebaseAnalyticsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsCore;
+		};
+		9388A5822F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsIdentitySupport;
+		};
+		9388A5842F28F79800E2D354 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		93AD0002F29A00000000AD02 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93AD0001F29A00000000AD01 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		93FA00012F29B00000000001 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		93FS00022F40000000000002 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+		93GS00022F30000000000002 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		93GS00032F30000000000003 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 826ACF7D2DC47BFE0054954D /* Project object */;
 }

@@ -32,7 +32,7 @@ public struct PremiumGoldTagStyle: ButtonStyle {
                 Capsule(style: .continuous).fill(
                     selected
                     ? LinearGradient(colors: [PremiumGoldTokens.highlight, PremiumGoldTokens.base, PremiumGoldTokens.deep], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    : Color.black.opacity(0.50)
+                    : LinearGradient(colors: [Color.black.opacity(0.50), Color.black.opacity(0.50)], startPoint: .top, endPoint: .bottom)
                 )
             )
             .overlay(
@@ -49,7 +49,6 @@ public struct PremiumGoldTagStyle: ButtonStyle {
                     }
                 }
             )
-            .shadow(color: Color.black.opacity(selected ? 0.30 : 0.18), radius: selected ? 4 : 2, x: 0, y: selected ? 2 : 1)
             .opacity(pressed ? 0.92 : 1.0)
             .animation(.easeOut(duration: 0.12), value: pressed)
     }

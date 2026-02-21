@@ -22,8 +22,18 @@ struct PriceView: View {
             Text("$\(viewModel.price, specifier: "%.2f")")
                 .font(.largeTitle)
                 .bold()
-                // Optional: animate changes
-                .animation(.easeInOut(duration: 0.2), value: viewModel.price)
+                .monospacedDigit()
+                // PERFORMANCE FIX: Use contentTransition for efficient numeric text updates
+                // This is GPU-accelerated and more efficient than full view animations
+                .contentTransition(.numericText(countsDown: false))
+                // Only animate if not scrolling to preserve 60fps during scroll
+                .transaction { txn in
+                    if ScrollStateManager.shared.isScrolling {
+                        txn.animation = nil
+                    } else {
+                        txn.animation = .easeInOut(duration: 0.2)
+                    }
+                }
 
             // …any other UI…
         }
