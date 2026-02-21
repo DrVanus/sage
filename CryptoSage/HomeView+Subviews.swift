@@ -728,7 +728,6 @@ extension HomeView {
             CardContainer {
                 cardContent
             }
-            .padding(.horizontal, 16)
             .onAppear(perform: handleOnAppear)
             .onChange(of: filter) { _, new in
                 DispatchQueue.main.async { persistedFilterRaw = new.rawValue }
@@ -1465,7 +1464,6 @@ extension HomeView {
             .padding(.vertical, 8)
             .padding(.horizontal, 10)
         }
-        .padding(.horizontal, 16)
     }
 
     var footer: some View {
@@ -1607,9 +1605,8 @@ struct SocialTradingPreviewSection: View {
                 )
             }
         }
-        .padding(.horizontal, 16)
     }
-    
+
     @State private var localLeaderboardMode: LeaderboardTradingMode = {
         // Smart default: Portfolio for free users, Paper for Pro+ with paper trading
         let hasPaperAccess = SubscriptionManager.shared.hasAccess(to: .paperTrading)
@@ -1943,7 +1940,6 @@ struct WhaleActivityPreviewSection: View {
             refreshSnapshots()
         }
         .onReceive(AppState.shared.$dismissHomeSubviews) { _ in }
-        .padding(.horizontal, 16)
     }
     
     // MARK: - Section Header (matching other home sections)

@@ -423,11 +423,10 @@ struct StocksOverviewSection: View {
                     .monospacedDigit()
             }
         }
-        .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, 6)
     }
-    
+
     // MARK: - Market Status Badge
     
     private var marketStatusBadge: some View {
@@ -505,9 +504,8 @@ struct StocksOverviewSection: View {
                     )
             )
         }
-        .padding(.horizontal, 16)
     }
-    
+
     // MARK: - Market Stock Row (for CachedStock)
     
     private func marketStockRow(_ stock: CachedStock) -> some View {

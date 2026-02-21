@@ -39,8 +39,7 @@ struct PremiumNewsSection: View {
         VStack(alignment: .leading, spacing: 10) {
             // Section header (matches Exchange Prices, Whale Activity, etc.)
             sectionHeader
-                .padding(.horizontal, 16)
-            
+
             CardContainer {
                 VStack(alignment: .leading, spacing: 8) {
                     // News content (hero no longer has integrated header)
@@ -53,7 +52,6 @@ struct PremiumNewsSection: View {
                 .padding(.horizontal, 10)
             }
             // No card-level gold bar - individual article rows already have gold accents
-            .padding(.horizontal, 16)
         }
         .navigationDestination(isPresented: $openAllNews) {
             AllCryptoNewsView()

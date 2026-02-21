@@ -1809,7 +1809,6 @@ struct ExchangePriceSection: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
         }
-        .padding(.horizontal, 16)
         .overlay {
             if showExchangePopover {
                 exchangeFilterPopover

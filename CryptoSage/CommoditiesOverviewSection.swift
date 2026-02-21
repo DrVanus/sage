@@ -398,11 +398,10 @@ struct CommoditiesOverviewSection: View {
                     .monospacedDigit()
             }
         }
-        .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, 6)
     }
-    
+
     // MARK: - Data Source Badge (only shown for non-live states)
     
     @ViewBuilder
@@ -550,9 +549,8 @@ struct CommoditiesOverviewSection: View {
                     )
             )
         }
-        .padding(.horizontal, 16)
     }
-    
+
     // MARK: - Loading Shimmer Row
     
     private var commodityShimmerRow: some View {

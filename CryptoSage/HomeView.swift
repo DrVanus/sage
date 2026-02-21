@@ -1180,7 +1180,6 @@ struct HomeView: View {
                             }
                         )
                         .environmentObject(vm)
-                        .padding(.horizontal, 16)
                         .id("portfolio")
 
                     case .aiInsights:
@@ -1244,7 +1243,6 @@ struct HomeView: View {
                             timeframeButtonFrame: $predictionPicker.buttonFrame,
                             selectedTimeframe: $predictionPicker.selectedTimeframe
                         )
-                        .padding(.horizontal, 16)
                         .onPreferenceChange(WatchlistColumnsKey.self) { (m: WatchlistColumnMetrics) in
                             // Defer state modification to avoid "Modifying state during view update"
                             // PERFORMANCE FIX: Single struct assignment instead of 6 individual property updates
@@ -1258,8 +1256,7 @@ struct HomeView: View {
 
                     case .marketStats:
                         marketStatsSection
-                            .padding(.horizontal, 16)  // Standardized to match other sections
-                            .padding(.top, 4)  // Extra spacing: visual break before discovery sections (12pt base + 4pt = 16pt total)
+                            .padding(.top, 8)  // Visual break before discovery sections (consistent with other section breaks)
                             .id("marketStats")
 
                     case .sentiment:
@@ -1331,6 +1328,7 @@ struct HomeView: View {
                             .id("footer")
                     }
                 }
+                .padding(.horizontal, 16)  // Standardized: ALL sections get uniform horizontal padding
                 // PERFORMANCE FIX v21: Rasterize section layers during scroll.
                 // This is THE key UIKit technique: tells Core Animation to cache each section
                 // as a pre-rendered bitmap. During scroll, the GPU only MOVES these bitmaps
@@ -1357,7 +1355,6 @@ struct HomeView: View {
     // PERFORMANCE FIX v22: Moved from HomeView+Subviews.swift to access @State cachedTrendingCoins
     var trendingSection: some View {
         TrendingSectionView(coins: cachedTrendingCoins, maxItemsPerList: 6, selectedCoin: $selectedTrendingCoin)
-            .padding(.horizontal, 16)
     }
     
     private var marketStatsSection: some View {
@@ -1366,7 +1363,6 @@ struct HomeView: View {
 
     private var sentimentSection: some View {
         MarketSentimentView()
-            .padding(.horizontal, 16)
     }
 
     private var heatmapSection: some View {
@@ -1376,7 +1372,6 @@ struct HomeView: View {
         // transient array/layout allocations per SwiftUI render cycle.
         VisibilityGatedView(placeholderHeight: 260) {
             MarketHeatMapSection()
-                .padding(.horizontal, 16)
         }
     }
 

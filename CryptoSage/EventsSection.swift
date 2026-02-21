@@ -465,8 +465,7 @@ public struct EventsSectionView: View {
         VStack(alignment: .leading, spacing: 10) {
             // Section header (outside card - matches other home sections)
             eventsHeader
-                .padding(.horizontal, 16)
-            
+
             // Card content
             CardContainer {
                 VStack(alignment: .leading, spacing: 10) {
@@ -482,7 +481,6 @@ public struct EventsSectionView: View {
                 .padding(.vertical, 8)
                 .padding(.horizontal, 10)
             }
-            .padding(.horizontal, 16)
         }
         .sheet(item: $selectedForDetail) { item in
             EventDetailSheet(item: item)

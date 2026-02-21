@@ -164,11 +164,10 @@ struct StockWatchlistSection: View {
             }
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, 6)
     }
-    
+
     // MARK: - Market Status Badge
     
     private var marketStatusBadge: some View {
@@ -234,9 +233,8 @@ struct StockWatchlistSection: View {
                     )
             )
         }
-        .padding(.horizontal, 16)
     }
-    
+
     // MARK: - Stock Row
     
     private func stockRow(_ stock: CachedStock) -> some View {
@@ -315,9 +313,8 @@ struct StockWatchlistSection: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(DS.Adaptive.divider.opacity(0.3), lineWidth: 1)
         )
-        .padding(.horizontal, 16)
     }
-    
+
     // MARK: - Formatters
     
     private func formatCurrency(_ value: Double) -> String {
