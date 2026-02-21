@@ -1103,7 +1103,7 @@ struct MarketSentimentView: View {
         // 65/35 split - gauge prominent, right panel has room for full text
         let rightRatio: CGFloat = 0.35
         let cappedRightWidth = min(rightColumnWidth, geo.size.width * rightRatio)
-        let leftWidth = max(0, geo.size.width - cappedRightWidth - 4)
+        let leftWidth = max(0, geo.size.width - cappedRightWidth - 8)
         
         // Right panel matches gauge height
         let rowCount = isCryptoSageAI ? 4 : timeframeRows.count

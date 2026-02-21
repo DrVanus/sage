@@ -823,8 +823,8 @@ struct TrendingSectionView: View {
                 #endif
                 onTap()
             }) {
-                HStack(spacing: 6) {
-                    CoinImageView(symbol: coin.symbol, url: coin.imageUrl, size: 28)
+                HStack(spacing: 5) {
+                    CoinImageView(symbol: coin.symbol, url: coin.imageUrl, size: 24)
                         .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -853,11 +853,11 @@ struct TrendingSectionView: View {
 
                     // Percentage change badge - clean and compact
                     Text(percentString(change24h))
-                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
                         .lineLimit(1)
                         .foregroundColor(dayChangeColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
                         .background(
                             Capsule()
                                 .fill(abs(change24h) < 0.005 ? DS.Adaptive.chipBackground : dayChangeColor.opacity(0.15))
