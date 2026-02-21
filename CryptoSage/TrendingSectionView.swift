@@ -686,7 +686,8 @@ struct TrendingSectionView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.leading, 8)
+                .padding(.trailing, 16)
                 // PERFORMANCE FIX: Stabilized .id() to only change on tab switch, not data count.
                 // Including currentList.count was forcing entire view recreation on every data update,
                 // causing scroll jank and unnecessary re-renders.
@@ -848,14 +849,14 @@ struct TrendingSectionView: View {
                         }
                     }
 
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 4)
 
                     // Percentage change badge - clean and compact
                     Text(percentString(change24h))
                         .font(.system(size: 12, weight: .semibold).monospacedDigit())
                         .lineLimit(1)
                         .foregroundColor(dayChangeColor)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
@@ -863,8 +864,8 @@ struct TrendingSectionView: View {
                         )
                         .fixedSize()
                 }
-                .padding(.leading, 12)  // Extra left padding for gold bar
-                .padding(.trailing, 10)
+                .padding(.leading, 10)  // Extra left padding for gold bar
+                .padding(.trailing, 8)
                 .padding(.vertical, 8)
                 .frame(height: 60)
                 .background(

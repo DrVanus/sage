@@ -390,7 +390,7 @@ struct PortfolioSectionView: View {
     private var paperTradingManager: PaperTradingManager { PaperTradingManager.shared }
 
     // Pie chart size — large enough to show slices clearly with abbreviated total in center
-    private let pieChartSize: CGFloat = 80
+    private let pieChartSize: CGFloat = 68
     private let cardCornerRadius: CGFloat = 14  // Matches Portfolio tab for consistency
     
     private var isDark: Bool { colorScheme == .dark }
