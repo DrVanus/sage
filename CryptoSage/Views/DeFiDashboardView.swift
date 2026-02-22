@@ -22,15 +22,15 @@ struct DeFiDashboardView: View {
     
     private let cardCornerRadius: CGFloat = 16
     
-    /// Theme-consistent accent color (green to match app-wide accent)
+    /// Theme-consistent accent color (gold in dark mode, blue in light mode)
     private var themedAccent: Color {
-        Color(red: 0.0, green: 0.85, blue: 0.45)
+        colorScheme == .dark ? Color(red: 1.0, green: 0.84, blue: 0.0) : .blue
     }
     
-    /// Green gradient for buttons (matches app-wide green accent theme)
+    /// Gold gradient for back button (matches other views)
     private var chipGoldGradient: LinearGradient {
         LinearGradient(
-            colors: [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)],
+            colors: [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -199,11 +199,11 @@ struct DeFiDashboardView: View {
                             .background(
                                 Group {
                                     if selectedTab == tab {
-                                        // Green gradient for selected (matches app accent)
+                                        // Gold/silver gradient for selected
                                         LinearGradient(
                                             colors: colorScheme == .dark
-                                                ? [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)]
-                                                : [Color(red: 0.0, green: 0.75, blue: 0.4), Color(red: 0.0, green: 0.6, blue: 0.3)],
+                                                ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
+                                                : [BrandColors.silverLight, BrandColors.silverBase],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -332,7 +332,7 @@ struct DeFiDashboardView: View {
                             .background(
                                 LinearGradient(
                                     colors: colorScheme == .dark
-                                        ? [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)]
+                                        ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
                                         : [.blue, .blue.opacity(0.8)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -678,7 +678,7 @@ struct DeFiDashboardView: View {
                     .fill(
                         LinearGradient(
                             colors: colorScheme == .dark
-                                ? [Color(red: 0.0, green: 0.85, blue: 0.45).opacity(0.25), Color(red: 0.0, green: 0.7, blue: 0.35).opacity(0.1)]
+                                ? [Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.25), Color.orange.opacity(0.1)]
                                 : [.blue.opacity(0.15), .blue.opacity(0.05)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -691,7 +691,7 @@ struct DeFiDashboardView: View {
                     .foregroundStyle(
                         LinearGradient(
                             colors: colorScheme == .dark
-                                ? [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)]
+                                ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
                                 : [.blue, .blue.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -723,7 +723,7 @@ struct DeFiDashboardView: View {
                     .background(
                         LinearGradient(
                             colors: colorScheme == .dark
-                                ? [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)]
+                                ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
                                 : [.blue, .blue.opacity(0.8)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -743,7 +743,7 @@ struct DeFiDashboardView: View {
         HStack(spacing: 8) {
             Image(systemName: "sparkles")
                 .font(.caption2)
-                .foregroundColor(colorScheme == .dark ? Color(red: 0.0, green: 0.85, blue: 0.45) : .blue)
+                .foregroundColor(colorScheme == .dark ? Color(red: 1.0, green: 0.84, blue: 0.0) : .blue)
             
             Text("Demo Mode – Sample data shown")
                 .font(.caption2)
@@ -765,7 +765,7 @@ struct DeFiDashboardView: View {
                     .background(
                         LinearGradient(
                             colors: colorScheme == .dark
-                                ? [Color(red: 0.0, green: 0.85, blue: 0.45), Color(red: 0.0, green: 0.7, blue: 0.35)]
+                                ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
                                 : [.blue, .blue.opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
@@ -779,7 +779,7 @@ struct DeFiDashboardView: View {
         .background(
             LinearGradient(
                 colors: colorScheme == .dark
-                    ? [Color(red: 0.0, green: 0.85, blue: 0.45).opacity(0.1), Color(red: 0.0, green: 0.7, blue: 0.35).opacity(0.05)]
+                    ? [Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.1), Color.orange.opacity(0.05)]
                     : [.blue.opacity(0.08), .blue.opacity(0.03)],
                 startPoint: .leading,
                 endPoint: .trailing
@@ -926,7 +926,7 @@ struct DeFiDashboardView: View {
                                 endPoint: .bottomTrailing
                             )
                             ProgressView()
-                                .tint(colorScheme == .dark ? Color(red: 0.0, green: 0.85, blue: 0.45) : .blue)
+                                .tint(colorScheme == .dark ? Color(red: 1.0, green: 0.84, blue: 0.0) : .blue)
                         }
                     } else {
                         nftPlaceholder(for: nft)
@@ -1034,7 +1034,7 @@ struct DeFiDashboardView: View {
                             DS.Adaptive.cardBackgroundElevated
                             ProgressView()
                                 .scaleEffect(0.7)
-                                .tint(colorScheme == .dark ? Color(red: 0.0, green: 0.85, blue: 0.45) : .blue)
+                                .tint(colorScheme == .dark ? Color(red: 1.0, green: 0.84, blue: 0.0) : .blue)
                         }
                     } else {
                         nftThumbnailPlaceholder(for: nft)
