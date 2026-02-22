@@ -223,7 +223,7 @@ struct PeriodicUpgradePromptView: View {
             }
             
             // Title
-            Text("Unlock Your Trading Potential")
+            Text("Get CryptoSage Pro")
                 .font(.title2.weight(.bold))
                 .foregroundColor(DS.Adaptive.textPrimary)
                 .multilineTextAlignment(.center)
@@ -302,7 +302,7 @@ struct PeriodicUpgradePromptView: View {
                             .cornerRadius(4)
                     }
                     
-                    Text("Unlimited AI chat, paper trading bots & priority access")
+                    Text("Unlimited AI chat, paper trading bots & real-time alerts")
                         .font(.caption)
                         .foregroundColor(DS.Adaptive.textSecondary)
                 }

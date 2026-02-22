@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash(git *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(ls *)",
+      "Bash(diff *)",
+      "Bash(sed *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(xcodebuild *)"
+    ]
+  }
+}
