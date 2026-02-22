@@ -129,11 +129,15 @@ struct DeFiDashboardView: View {
     
     private var customHeader: some View {
         HStack(spacing: 0) {
-            // Back button
-            CSNavButton(
-                icon: "chevron.left",
-                action: { dismiss() }
-            )
+            // Close button — plain Button to ensure sheet dismiss works
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textPrimary)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+                    .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.8))
+            }
             
             Spacer()
             
@@ -193,23 +197,17 @@ struct DeFiDashboardView: View {
                         Text(tab.rawValue)
                             .font(.subheadline)
                             .fontWeight(selectedTab == tab ? .semibold : .regular)
-                            .foregroundColor(selectedTab == tab ? (colorScheme == .dark ? .black : .white) : DS.Adaptive.textPrimary)
+                            .foregroundColor(selectedTab == tab ? .white : DS.Adaptive.textSecondary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
                             .background(
                                 Group {
                                     if selectedTab == tab {
-                                        // Gold/silver gradient for selected
-                                        LinearGradient(
-                                            colors: colorScheme == .dark
-                                                ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color.orange]
-                                                : [BrandColors.silverLight, BrandColors.silverBase],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
+                                        // Subtle white fill for selected (matches Market Movers style)
+                                        Color.white.opacity(colorScheme == .dark ? 0.15 : 0.9)
                                     } else {
-                                        // Glass background for unselected
-                                        DS.Adaptive.cardBackground
+                                        // Transparent for unselected
+                                        Color.clear
                                     }
                                 }
                             )
