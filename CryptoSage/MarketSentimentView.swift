@@ -166,9 +166,9 @@ struct MarketSentimentView: View {
     private let minFetchInterval: TimeInterval = 60
 
     // Layout constants for gauge and right panel alignment
-    private let gaugeHeight: CGFloat = 160
+    private let gaugeHeight: CGFloat = 140
     private let rightColumnWidth: CGFloat = 110
-    private let labelRowHeight: CGFloat = 14
+    private let labelRowHeight: CGFloat = 12
 
     private let standardBadgeSize: CGFloat = 19
     private let alignedBadgeSize: CGFloat = 18
