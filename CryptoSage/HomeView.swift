@@ -460,7 +460,7 @@ struct HomeView: View {
     // instead of 6 separate @State properties. Default values approximate actual row metrics.
     @State private var wlMetrics = WatchlistColumnMetrics(
         leadingWidth: 125,   // 3+4+24+6+88 (gold bar + spacing + icon + spacing + text)
-        sparkWidth: 140,     // Matches sparkWidth constant in WatchlistSection
+        sparkWidth: 105,     // Reduced from 140 to fit iPhone 17 Pro screens (393pt width)
         percentWidth: 48,    // Matches changeWidth1h/changeWidth24h
         percentSpacing: 6,   // Matches row HStack spacing
         innerDividerW: 1.0,  // Matches innerDivider in rows

@@ -507,7 +507,7 @@ struct WatchlistSection: View {
     }
 
     // Layout constants to stabilize row sizing
-    private let sparkWidth: CGFloat = 140  // minimum sparkline width - wider for better visibility
+    private let sparkWidth: CGFloat = 105  // minimum sparkline width - reduced to fit iPhone 17 Pro screens
     private let coinIconSize: CGFloat = 24  // coin logo size
     private var currentViewportWidth: CGFloat {
         #if os(iOS)
