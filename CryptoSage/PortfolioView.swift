@@ -1320,10 +1320,10 @@ extension PortfolioView {
             Spacer(minLength: 4)
             
             chartSection
-                .frame(width: 130) // Fixed width prevents layout shifts when switching modes
+                .frame(width: 110) // Slightly smaller to give metrics more room on iPhone 17 Pro
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 12) // Horizontal padding to prevent edge clipping
+        .padding(.vertical, 14)
+        .padding(.horizontal, 14)
     }
 
     /// Check if live trading mode is active (developer only)
