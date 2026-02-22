@@ -1256,7 +1256,6 @@ struct HomeView: View {
 
                     case .marketStats:
                         marketStatsSection
-                            .padding(.top, 8)  // Visual break before discovery sections (consistent with other section breaks)
                             .id("marketStats")
 
                     case .sentiment:
@@ -1283,27 +1282,22 @@ struct HomeView: View {
 
                     case .trending:
                         trendingSection
-                            .padding(.top, 8)  // Visual break before market discovery
                             .id("trending")
 
                     case .arbitrage:
                         arbitrageSection
-                            .padding(.top, 8)  // Consistent spacing
                             .id("arbitrage")
 
                     case .whaleActivity:
                         whaleActivitySection
-                            .padding(.top, 8)  // Consistent spacing
                             .id("whaleActivity")
 
                     case .events:
                         eventsSection
-                            .padding(.top, 8)  // Consistent spacing
                             .id("events")
 
                     case .news:
                         newsPreviewSection
-                            .padding(.top, 8)  // Visual break before news content
                             // PERFORMANCE FIX v22: Use cached isLoading instead of singleton access
                             // CryptoNewsFeedViewModel.shared.isLoading is @Published - accessing it in body
                             // creates a hidden observation dependency that re-evaluates all 16+ sections on every news fetch.
@@ -1311,12 +1305,10 @@ struct HomeView: View {
 
                     case .transactions:
                         transactionsSection
-                            .padding(.top, 8)  // Visual break before personal section
                             .id("transactions")
 
                     case .community:
                         communitySection
-                            .padding(.top, 8)  // Visual break before community section
                             .id("community")
                     
                     case .communityLinks:
