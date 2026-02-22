@@ -824,7 +824,7 @@ struct MarketSentimentView: View {
                         classification: vm.data.first?.valueClassification,
                         lineWidth: 10,
                         disableBadgeAnimation: false,
-                        showLiveBadge: false,
+                        showLiveBadge: true,
                         tickLabelOpacityFactor: 1.0,
                         gentleMode: isSwitchingSource
                     )
@@ -1100,8 +1100,8 @@ struct MarketSentimentView: View {
     }
     
     private func mainColumns(geo: GeometryProxy) -> AnyView {
-        // 65/35 split - gauge prominent, right panel has room for full text
-        let rightRatio: CGFloat = 0.35
+        // 70/30 split - gauge prominent, right panel has room for full text
+        let rightRatio: CGFloat = 0.30
         let cappedRightWidth = min(rightColumnWidth, geo.size.width * rightRatio)
         let leftWidth = max(0, geo.size.width - cappedRightWidth - 8)
         
