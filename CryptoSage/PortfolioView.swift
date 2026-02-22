@@ -1253,7 +1253,7 @@ extension PortfolioView {
             headerBackground
             headerContent
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .contextMenu {
@@ -1270,30 +1270,40 @@ extension PortfolioView {
         let isDark = colorScheme == .dark
         let plColor = portfolioVM.unrealizedPL >= 0 ? Color.green : Color.red
         
-        return RoundedRectangle(cornerRadius: 14)
+        let goldColor = Color(red: 0.85, green: 0.65, blue: 0.13)
+        return RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(
                 LinearGradient(
                     gradient: Gradient(colors: isDark ? [
-                        Color.gray.opacity(0.2),
-                        Color.black.opacity(0.4)
+                        Color.white.opacity(0.08),
+                        Color.black.opacity(0.3)
                     ] : [
-                        // Light mode: warm cream/white with subtle depth
                         Color(red: 1.0, green: 0.995, blue: 0.98),
                         Color(red: 0.96, green: 0.97, blue: 0.98)
                     ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
+            )
+            .overlay(
+                // Top highlight for glass effect (matches chart card)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.8), Color.clear],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
             )
             .animation(.easeInOut(duration: 0.3), value: portfolioVM.unrealizedPL)
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
                         LinearGradient(
-                            gradient: Gradient(colors: [
-                                plColor.opacity(isDark ? 0.35 : 0.25),
-                                isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)
-                            ]),
+                            gradient: Gradient(colors: isDark
+                                ? [goldColor.opacity(0.25), goldColor.opacity(0.08)]
+                                : [goldColor.opacity(0.3), goldColor.opacity(0.12)]),
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
