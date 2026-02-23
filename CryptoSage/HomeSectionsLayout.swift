@@ -395,7 +395,8 @@ public struct HomeSectionsLayout {
         case .portfolio:
             return HomeSectionPreferences.showPortfolio
         case .aiInsights:
-            return HomeSectionPreferences.showAIInsights
+            // AI Insights now integrated into Portfolio section - never show as standalone
+            return false
         case .aiPredictions:
             // AI Predictions now integrated into Watchlist section - never show as standalone
             return false
