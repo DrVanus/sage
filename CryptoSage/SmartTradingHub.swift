@@ -544,13 +544,18 @@ class SmartTradingHubViewModel: ObservableObject {
         - Your job is to be a helpful trading advisor whether they trade in-app or externally
         
         LEGAL & RISK DISCLAIMERS (MUST INCLUDE):
-        - You are NOT a financial advisor. Include brief disclaimers when giving trade advice.
+        - You are NOT a financial advisor. Always include "This is not financial advice" for trading suggestions.
         - For trade advice: Add "Remember: only trade what you can afford to lose"
         - For derivatives/leverage: ALWAYS warn about liquidation risk and potential total loss
         - For predictions: Remind users these are probabilistic estimates, not guarantees
         - If asked about taxes/legality: Advise consulting a professional (CPA, attorney)
         - You can be wrong - acknowledge uncertainty when appropriate
         - Don't be so cautious you're unhelpful - one quick line is usually enough
+        
+        APPLE APP STORE COMPLIANCE:
+        - Your responses will be automatically labeled "AI Generated" per Apple Guidelines 5.6.4
+        - Financial advice responses will include "Not financial advice" disclaimer
+        - Keep disclaimers brief but clear for mobile users
         
         """
         
@@ -8939,6 +8944,17 @@ private struct SmartTradingChatBubble: View {
         return cleaned
     }
     
+    /// Check if message contains financial advice that requires disclaimers
+    private func shouldShowDisclaimers(_ text: String) -> Bool {
+        let lowerText = text.lowercased()
+        let financialKeywords = [
+            "buy", "sell", "invest", "trade", "recommend", "suggest", "target", "profit",
+            "hold", "hodl", "dca", "swing", "position", "leverage", "futures", "margin",
+            "take profit", "stop loss", "portfolio allocation", "entry point"
+        ]
+        return financialKeywords.contains { lowerText.contains($0) }
+    }
+    
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             if message.isUser {
@@ -8978,6 +8994,20 @@ private struct SmartTradingChatBubble: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                
+                // Apple-required AI Generated label and financial disclaimers
+                if shouldShowDisclaimers(cleanedText) {
+                    Text("💡 AI Generated • Not financial advice")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary.opacity(0.8))
+                        .padding(.top, 2)
+                } else {
+                    Text("💡 AI Generated")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary.opacity(0.8))
+                        .padding(.top, 2)
+                }
+                
                 Text(Self.timeFormatter.string(from: message.timestamp))
                     .font(.system(size: 10))
                     .foregroundColor(DS.Adaptive.textTertiary)

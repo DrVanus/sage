@@ -23,16 +23,16 @@ extension PortfolioViewModel {
             priceService: priceService
         )
         let vm = PortfolioViewModel(repository: repository)
-        // Override holdings to match demo values
+        // Override holdings to match realistic demo values for App Store submission
         vm.holdings = [
-            // 50 BTC at $100,000 = $5,000,000
-            Holding(coinName: "Bitcoin", coinSymbol: "BTC", quantity: 50, currentPrice: 100_000, costBasis: 50_000, imageUrl: nil, isFavorite: true, dailyChange: 1.2, purchaseDate: Date()),
-            // 200 ETH at $2,500 = $500,000
-            Holding(coinName: "Ethereum", coinSymbol: "ETH", quantity: 200, currentPrice: 2_500, costBasis: 1_800, imageUrl: nil, isFavorite: false, dailyChange: -0.8, purchaseDate: Date()),
-            // 10,000 SOL at $400 = $4,000,000
-            Holding(coinName: "Solana", coinSymbol: "SOL", quantity: 10_000, currentPrice: 400, costBasis: 100, imageUrl: nil, isFavorite: false, dailyChange: 2.5, purchaseDate: Date()),
-            // 1,000,000 XRP at $1 = $1,000,000
-            Holding(coinName: "XRP", coinSymbol: "XRP", quantity: 1_000_000, currentPrice: 1, costBasis: 0.5, imageUrl: nil, isFavorite: false, dailyChange: 0.3, purchaseDate: Date())
+            // 0.5 BTC at $65,000 = $32,500
+            Holding(coinName: "Bitcoin", coinSymbol: "BTC", quantity: 0.5, currentPrice: 65_000, costBasis: 50_000, imageUrl: nil, isFavorite: true, dailyChange: 1.2, purchaseDate: Date()),
+            // 8 ETH at $2,400 = $19,200
+            Holding(coinName: "Ethereum", coinSymbol: "ETH", quantity: 8, currentPrice: 2_400, costBasis: 1_800, imageUrl: nil, isFavorite: false, dailyChange: -0.8, purchaseDate: Date()),
+            // 50 SOL at $80 = $4,000
+            Holding(coinName: "Solana", coinSymbol: "SOL", quantity: 50, currentPrice: 80, costBasis: 60, imageUrl: nil, isFavorite: false, dailyChange: 2.5, purchaseDate: Date()),
+            // 2,500 XRP at $1.35 = $3,375
+            Holding(coinName: "XRP", coinSymbol: "XRP", quantity: 2_500, currentPrice: 1.35, costBasis: 0.5, imageUrl: nil, isFavorite: false, dailyChange: 0.3, purchaseDate: Date())
         ]
         // Optionally clear or set demo transactions
         vm.transactions = []
