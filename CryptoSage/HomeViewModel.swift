@@ -295,6 +295,39 @@ class HomeViewModel: ObservableObject {
             await marketVM.loadAllData()
         }
     }
+    
+    /// PERFORMANCE FIX: Progressive data loading to prevent homepage sections from loading simultaneously.
+    /// This batches related API calls with timing gaps to reduce network congestion and main thread blocking.
+    func loadDataProgressively(phase: Int) async {
+        switch phase {
+        case 1:
+            // Phase 1: Critical data only (portfolio, watchlist prices)
+            async let portfolio = portfolioVM.refreshIfNeeded()
+            async let watchlistPrices = marketVM.loadWatchlistPrices()
+            await [portfolio, watchlistPrices]
+            
+        case 2:
+            // Phase 2: Context data (news, sentiment, market stats)
+            // Small delay to prevent network congestion from Phase 1
+            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+            
+            async let news = newsVM.loadArticlesIfNeeded()
+            async let stats = statsVM.refreshIfNeeded()
+            await [news, stats]
+            
+        case 3:
+            // Phase 3: Heavy/optional data (heatmap, whale activity, detailed analytics)
+            // Longer delay to ensure core UI is responsive first
+            try? await Task.sleep(nanoseconds: 400_000_000) // 400ms
+            
+            async let heatmap = heatMapVM.loadDataIfNeeded()
+            // Additional heavy operations can be added here as needed
+            await heatmap
+            
+        default:
+            break
+        }
+    }
 
     // Note: computeTopSectionsThrottled was removed - throttling is now done inline in the Task.detached block
     // to allow background thread execution

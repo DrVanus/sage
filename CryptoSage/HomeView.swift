@@ -862,6 +862,9 @@ struct HomeView: View {
                         print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
                     }
                 }
+                
+                // PERFORMANCE FIX: Load Phase 1 data progressively
+                await vm.loadDataProgressively(phase: 1)
 
                 #if targetEnvironment(simulator)
                 let isLimitedSimulator = AppSettings.isSimulatorLimitedDataMode
@@ -881,6 +884,12 @@ struct HomeView: View {
                             print("📐 [HomeView] Phase 2 (simulator limited): +news +commodities +movers +sentiment — \(currentMemoryMB()) MB")
                         }
                     }
+                    // Load Phase 2 data
+                    await vm.loadDataProgressively(phase: 2)
+                    
+                    try? await Task.sleep(nanoseconds: 120_000_000)
+                    await MainActor.run {
+                    }
                     try? await Task.sleep(nanoseconds: 120_000_000)
                     await MainActor.run {
                         if sectionLoadingPhase < 3 {
@@ -893,18 +902,44 @@ struct HomeView: View {
                             print("🧪 [HomeView] Simulator Phase 3-lite sections (\(cachedHomeSections.count)): \(visible)")
                         }
                     }
+                    
+                    // Load Phase 3 data for simulator
+                    await vm.loadDataProgressively(phase: 3)
                     print("🧪 [HomeView] Simulator limited profile: Phase 3-lite enabled")
                 } else {
-                    // Real device (and simulator full mode): render full layout immediately.
+                    // Real device (and simulator full mode): progressive loading to prevent UI blocking
+                    // PERFORMANCE FIX: Don't jump to Phase 3 immediately - this causes all 16+ sections
+                    // to load data simultaneously, creating network congestion and main thread blocking
+                    
+                    // Phase 2: Add core content sections
+                    try? await Task.sleep(nanoseconds: 450_000_000) // 450ms
+                    await MainActor.run {
+                        if sectionLoadingPhase < 2 {
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                sectionLoadingPhase = 2
+                                cachedHomeSections = computeHomeSections()
+                            }
+                            print("📐 [HomeView] Phase 2: +news +commodities +trending +sentiment — \(currentMemoryMB()) MB")
+                        }
+                    }
+                    
+                    // PERFORMANCE FIX: Load Phase 2 data progressively
+                    await vm.loadDataProgressively(phase: 2)
+                    
+                    // Phase 3: Add remaining heavy sections with proper spacing
+                    try? await Task.sleep(nanoseconds: 1_200_000_000) // +1.2s more (1.65s total)
                     await MainActor.run {
                         if sectionLoadingPhase < 3 {
                             withAnimation(.easeOut(duration: 0.18)) {
                                 sectionLoadingPhase = 3
                                 cachedHomeSections = computeHomeSections()
                             }
-                            print("📐 [HomeView] Instant full layout enabled — \(currentMemoryMB()) MB")
+                            print("📐 [HomeView] Phase 3: Full layout complete — \(currentMemoryMB()) MB")
                         }
                     }
+                    
+                    // PERFORMANCE FIX: Load Phase 3 data progressively  
+                    await vm.loadDataProgressively(phase: 3)
                 }
             }
             
