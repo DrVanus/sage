@@ -302,8 +302,8 @@ class HomeViewModel: ObservableObject {
         switch phase {
         case 1:
             // Phase 1: Critical data only (portfolio, watchlist prices)
-            async let portfolio = portfolioVM.refreshIfNeeded()
-            async let watchlistPrices = marketVM.loadWatchlistPrices()
+            async let portfolio = portfolioVM.refreshAllPortfolioData()
+            async let watchlistPrices = marketVM.loadWatchlistData()
             await [portfolio, watchlistPrices]
             
         case 2:
@@ -311,18 +311,19 @@ class HomeViewModel: ObservableObject {
             // Small delay to prevent network congestion from Phase 1
             try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
             
-            async let news = newsVM.loadArticlesIfNeeded()
-            async let stats = statsVM.refreshIfNeeded()
-            await [news, stats]
+            // Load news data on main actor since CryptoNewsFeedViewModel methods aren't async
+            await MainActor.run {
+                newsVM.loadAllNews(force: false)
+            }
             
         case 3:
-            // Phase 3: Heavy/optional data (heatmap, whale activity, detailed analytics)
+            // Phase 3: Heavy/optional data (heatmap, whale activity, detailed analytics)  
             // Longer delay to ensure core UI is responsive first
             try? await Task.sleep(nanoseconds: 400_000_000) // 400ms
             
-            async let heatmap = heatMapVM.loadDataIfNeeded()
-            // Additional heavy operations can be added here as needed
-            await heatmap
+            // HeatMapViewModel doesn't have async methods, so this is lightweight
+            // The actual heavy work happens when the view appears
+            break
             
         default:
             break
