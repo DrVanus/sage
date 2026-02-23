@@ -389,8 +389,8 @@ struct PortfolioSectionView: View {
     private var demoModeManager: DemoModeManager { DemoModeManager.shared }
     private var paperTradingManager: PaperTradingManager { PaperTradingManager.shared }
 
-    // Pie chart size — significantly reduced to prevent clipping with 14pt horizontal padding + 4pt offset
-    private let pieChartSize: CGFloat = 52
+    // Pie chart size — increased from 52 to 80 for better visibility and daily/hourly numbers
+    private let pieChartSize: CGFloat = 80
     private let cardCornerRadius: CGFloat = 14  // Matches Portfolio tab for consistency
     
     private var isDark: Bool { colorScheme == .dark }
@@ -1588,10 +1588,10 @@ extension PortfolioSectionView {
                 metricsLeft
                 
                 // Full-width chips with trailing padding to prevent overlap with pie chart
-                // Reserve space for pie chart + buffer (52pt chart + 16pt buffer = 68pt)
+                // Reserve space for pie chart + buffer (80pt chart + 16pt buffer = 96pt)
                 chipsRow
                     .padding(.top, 2)
-                    .padding(.trailing, 68)
+                    .padding(.trailing, 96)
             }
             
             // Pie chart positioned with larger margin from edge to prevent clipping  
