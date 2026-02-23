@@ -389,8 +389,8 @@ struct PortfolioSectionView: View {
     private var demoModeManager: DemoModeManager { DemoModeManager.shared }
     private var paperTradingManager: PaperTradingManager { PaperTradingManager.shared }
 
-    // Pie chart size — large enough to show slices clearly with abbreviated total in center
-    private let pieChartSize: CGFloat = 74
+    // Pie chart size — reduced to prevent clipping on right edge with 14pt horizontal padding
+    private let pieChartSize: CGFloat = 64
     private let cardCornerRadius: CGFloat = 14  // Matches Portfolio tab for consistency
     
     private var isDark: Bool { colorScheme == .dark }
@@ -1587,15 +1587,16 @@ extension PortfolioSectionView {
             VStack(alignment: .leading, spacing: 0) {
                 metricsLeft
                 
-                // Full-width chips — scroll horizontally so they pass under the pie chart
-                // without being clipped or constrained
+                // Full-width chips with trailing padding to prevent overlap with pie chart
+                // Reserve space for pie chart + small buffer (64pt chart + 8pt buffer = 72pt)
                 chipsRow
                     .padding(.top, 2)
+                    .padding(.trailing, 72)
             }
             
-            // Pie chart nudged up 2pt so it visually centers with the value text
+            // Pie chart positioned with small margin from edge to prevent clipping
             actionsRight
-                .offset(y: -2)
+                .offset(x: -4, y: -2) // 4pt margin from right edge, 2pt up for alignment
         }
     }
 
