@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Disambiguate OrderType - use the public one from TradingTypes.swift
+typealias TradingOrderType = OrderType
+
 // MARK: - AI Bot Configuration Model
 /// Structured model for AI-generated bot configurations that can be parsed and applied to forms
 struct AIBotConfig: Codable, Equatable {
@@ -70,7 +73,7 @@ struct AIBotConfig: Codable, Equatable {
 // MARK: - TradingBotView
 struct TradingBotView: View {
     let side: TradeSide
-    let orderType: TradingTypes.OrderType
+    let orderType: TradingOrderType
     let quantity: Double
     let slippage: Double
     
@@ -86,7 +89,7 @@ struct TradingBotView: View {
     
     init(
         side: TradeSide = .buy,
-        orderType: TradingTypes.OrderType = .market,
+        orderType: TradingOrderType = .market,
         quantity: Double = 0,
         slippage: Double = 0.5,
         initialMode: BotCreationMode? = nil
@@ -2721,7 +2724,7 @@ struct TradingBotView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             TradingBotView(side: .buy,
-                           orderType: TradingTypes.OrderType.market,
+                           orderType: .market,
                            quantity: 0.0,
                            slippage: 0.0)
         }
