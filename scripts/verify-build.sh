@@ -158,6 +158,25 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────
+# CHECK 5: Firebase Functions Build
+# ─────────────────────────────────────────────
+FUNCTIONS_DIR="$PROJECT_DIR/firebase/functions"
+if [ -d "$FUNCTIONS_DIR" ]; then
+    echo "🔥 Check 5: Building Firebase Cloud Functions..."
+    FIREBASE_OUTPUT=$(cd "$FUNCTIONS_DIR" && npm run build 2>&1)
+    if echo "$FIREBASE_OUTPUT" | grep -qE "error TS|Error:|Cannot find"; then
+        echo -e "  ${RED}❌ FIREBASE BUILD FAILED${NC}"
+        echo "$FIREBASE_OUTPUT" | grep -E "error TS|Error:" | head -5 | while read -r line; do
+            echo -e "  ${RED}  $line${NC}"
+        done
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "  ${GREEN}✅ Firebase functions compiled successfully${NC}"
+    fi
+    echo ""
+fi
+
+# ─────────────────────────────────────────────
 # FULL MODE: Additional Checks
 # ─────────────────────────────────────────────
 if [ "$MODE" = "--full" ]; then
@@ -165,7 +184,7 @@ if [ "$MODE" = "--full" ]; then
     echo ""
 
     # Check for files with > 500 lines of changes (potential scope creep)
-    echo "📏 Check 5: Large file changes..."
+    echo "📏 Check 6: Large file changes..."
     git diff --stat HEAD~1 2>/dev/null | grep -E "\+.*-" | while read -r line; do
         ADDITIONS=$(echo "$line" | grep -oE "[0-9]+ insertion" | grep -oE "[0-9]+")
         if [ -n "$ADDITIONS" ] && [ "$ADDITIONS" -gt 500 ]; then
@@ -177,7 +196,7 @@ if [ "$MODE" = "--full" ]; then
     echo ""
 
     # Check for hardcoded API keys or secrets
-    echo "🔐 Check 6: Scanning for exposed secrets..."
+    echo "🔐 Check 7: Scanning for exposed secrets..."
     SECRETS=$(grep -rn "sk-\|AKIA\|AIza\|ghp_\|gho_\|password.*=.*[\"']" "$SOURCE_DIR" --include="*.swift" 2>/dev/null | \
         grep -v "\.example\|\.sample\|placeholder\|YOUR_\|REPLACE_\|TODO" | head -5)
     if [ -n "$SECRETS" ]; then
