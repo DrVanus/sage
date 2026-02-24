@@ -239,9 +239,9 @@ struct PeriodicUpgradePromptView: View {
     
     private var subtitleText: String {
         if paywallManager.totalFeatureAttempts > 0 {
-            return "You've been using free features — imagine what Pro can do. Unlock the full experience."
+            return "Track your portfolio with AI insights and advanced market analysis. Unlock the full Pro experience."
         } else {
-            return "AI-powered analysis, price predictions, unlimited alerts & more — everything you need in one app."
+            return "Real-time market data, AI portfolio analysis, price predictions & alerts — everything you need to manage your crypto."
         }
     }
     
