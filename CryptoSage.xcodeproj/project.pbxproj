@@ -24,6 +24,8 @@
 		93E56D052E8E1BD1000D56F0 /* ThumbnailResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */; };
 		93FC00012F50000000000001 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93FC00022F50000000000002 /* FirebaseCrashlytics */; };
 		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
+		93AC00012F60000000000001 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 93AC00022F60000000000002 /* FirebaseAppCheck */; };
+		93FM00012F70000000000001 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 93FM00022F70000000000002 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -102,6 +104,8 @@
 				9388A5852F28F79800E2D354 /* FirebaseFirestore in Frameworks */,
 				93FS00012F40000000000001 /* FirebaseStorage in Frameworks */,
 				93FC00012F50000000000001 /* FirebaseCrashlytics in Frameworks */,
+				93AC00012F60000000000001 /* FirebaseAppCheck in Frameworks */,
+				93FM00012F70000000000001 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -179,6 +183,8 @@
 				93FA00012F29B00000000001 /* FirebaseAuth */,
 				93GS00022F30000000000002 /* GoogleSignIn */,
 				93GS00032F30000000000003 /* GoogleSignInSwift */,
+				93AC00022F60000000000002 /* FirebaseAppCheck */,
+				93FM00022F70000000000002 /* FirebaseMessaging */,
 			);
 			productName = CryptoSage;
 			productReference = 826ACF852DC47BFE0054954D /* CryptoSage.app */;
@@ -762,6 +768,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		93AC00022F60000000000002 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		93FM00022F70000000000002 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

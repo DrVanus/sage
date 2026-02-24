@@ -5,8 +5,11 @@ import UIKit
 import Combine
 import FirebaseCore
 import FirebaseFirestore
+import FirebaseAppCheck
+import FirebaseMessaging
 import GoogleSignIn
 import BackgroundTasks
+import UserNotifications
 
 // MARK: - Memory Emergency Notification
 extension Notification.Name {
@@ -51,16 +54,71 @@ private let __IdlePrewarmHeavyTabs__ = false
 // FIX: Provide a minimal UIApplicationDelegate so Firebase/Google Analytics
 // no longer warns "App Delegate does not conform to UIApplicationDelegate protocol".
 // Also handles Google Sign-In URL callback properly.
+// FCM: Handles Firebase Cloud Messaging for push notifications.
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Configure Firebase Cloud Messaging
+        Messaging.messaging().delegate = PushNotificationManager.shared
+
+        // Set UNUserNotificationCenter delegate for handling notifications
+        UNUserNotificationCenter.current().delegate = self
+
+        // Register for push notifications
+        Task {
+            await PushNotificationManager.shared.registerForPushNotifications()
+        }
+
         return true
     }
-    
+
     func application(_ app: UIApplication,
                      open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         return GIDSignIn.sharedInstance.handle(url)
+    }
+
+    // MARK: - Remote Notifications
+
+    /// Called when APNs successfully registers the device token
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushNotificationManager.shared.didRegisterForRemoteNotifications(deviceToken: deviceToken)
+    }
+
+    /// Called when device token registration fails
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        PushNotificationManager.shared.didFailToRegisterForRemoteNotifications(error: error)
+    }
+
+    /// Called when a remote notification arrives while app is in foreground or background
+    func application(_ application: UIApplication,
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        PushNotificationManager.shared.handleRemoteNotification(userInfo)
+        completionHandler(.newData)
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Called when a notification is delivered while app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Show banner, badge, and play sound even when app is in foreground
+        completionHandler([.banner, .badge, .sound])
+    }
+
+    /// Called when user taps on a notification
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        PushNotificationManager.shared.handleRemoteNotification(userInfo)
+        completionHandler()
     }
 }
 
@@ -251,7 +309,12 @@ struct CryptoSageAIApp: App {
         // Firebase, Binance, Coinbase). This is cleared on every memory warning.
         URLCache.shared = URLCache(memoryCapacity: 4 * 1024 * 1024,
                                     diskCapacity: 20 * 1024 * 1024)
-        
+
+        // SECURITY: Configure Firebase App Check BEFORE Firebase initialization
+        // This ensures all Cloud Functions requests include App Check tokens
+        AppCheckManager.shared.configure()
+        logMemory("After App Check config")
+
         // PERFORMANCE FIX: Firebase must be configured early, but we yield immediately after
         // to let the main run loop process pending UI work. This prevents a long blocking chain.
         FirebaseApp.configure()
@@ -278,6 +341,19 @@ struct CryptoSageAIApp: App {
                 CrashReportingService.shared.setup()
             }
         }
+
+        // SECURITY: Verify App Check is working (in DEBUG builds only)
+        #if DEBUG
+        Task.detached(priority: .utility) {
+            AppCheckManager.shared.verifySetup { success in
+                if success {
+                    print("✅ [App Check] Verification passed - Cloud Functions are protected")
+                } else {
+                    print("⚠️ [App Check] Verification failed - check debug token registration")
+                }
+            }
+        }
+        #endif
         
         // PERFORMANCE FIX: Defer cache clearing to background to avoid blocking main thread at launch
         // Check flags synchronously (fast) but clear caches asynchronously (file I/O)
