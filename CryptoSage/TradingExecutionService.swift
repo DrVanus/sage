@@ -3325,30 +3325,3 @@ public actor TradingExecutionService {
     }
 }
 
-// MARK: - Trading Errors
-
-public enum TradingError: LocalizedError {
-    case noCredentials(exchange: String)
-    case apiError(message: String)
-    case parseError
-    case insufficientBalance
-    case invalidSymbol
-    case orderRejected(reason: String)
-    
-    public var errorDescription: String? {
-        switch self {
-        case .noCredentials(let exchange):
-            return "No trading credentials found for \(exchange). Please add your API keys in Settings."
-        case .apiError(let message):
-            return "API Error: \(message)"
-        case .parseError:
-            return "Failed to parse exchange response"
-        case .insufficientBalance:
-            return "Insufficient balance for this order"
-        case .invalidSymbol:
-            return "Invalid trading symbol"
-        case .orderRejected(let reason):
-            return "Order rejected: \(reason)"
-        }
-    }
-}

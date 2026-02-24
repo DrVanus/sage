@@ -53,8 +53,8 @@ public actor CoinbaseWebSocketService {
     private let maxReconnectAttempts = 5
 
     // Publishers
-    private let tickerSubject = PassthroughSubject<WSTicker, Never>()
-    public var tickerPublisher: AnyPublisher<WSTicker, Never> {
+    nonisolated(unsafe) private let tickerSubject = PassthroughSubject<WSTicker, Never>()
+    nonisolated public var tickerPublisher: AnyPublisher<WSTicker, Never> {
         tickerSubject.eraseToAnyPublisher()
     }
 

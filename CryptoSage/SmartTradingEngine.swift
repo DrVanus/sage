@@ -716,7 +716,7 @@ public final class SmartTradingEngine: ObservableObject {
     private func generateRiskWarnings(
         action: SmartAction,
         portfolioSnapshot: PortfolioRiskSnapshot,
-        sizing: PositionSizing,
+        sizing: PositionSizingResult,
         regime: String,
         fearGreedValue: Int
     ) -> [String] {

@@ -187,12 +187,12 @@ public final class EnhancedTradingEngine: ObservableObject {
         side: TradeSide,
         size: Double,
         isSizeInQuote: Bool = false
-    ) async throws -> CoinbaseOrderResponse {
+    ) async throws {
         guard isConnected || isPaperTrading else {
             throw TradingError.notConnected
         }
 
-        let response = try await tradingVM.placeMarketOrder(
+        try await tradingVM.placeMarketOrder(
             productId: productId,
             side: side,
             size: size,
@@ -210,8 +210,6 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
-
-        return response
     }
 
     /// Place a limit order
@@ -221,12 +219,12 @@ public final class EnhancedTradingEngine: ObservableObject {
         size: Double,
         price: Double,
         postOnly: Bool = false
-    ) async throws -> CoinbaseOrderResponse {
+    ) async throws {
         guard isConnected || isPaperTrading else {
             throw TradingError.notConnected
         }
 
-        let response = try await tradingVM.placeLimitOrder(
+        try await tradingVM.placeLimitOrder(
             productId: productId,
             side: side,
             size: size,
@@ -245,8 +243,6 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
-
-        return response
     }
 
     /// Place a stop-loss order
@@ -460,13 +456,6 @@ public struct TradeRecord: Identifiable, Codable {
     }
 }
 
-public enum OrderType: String, Codable {
-    case market = "Market"
-    case limit = "Limit"
-    case stopLoss = "Stop Loss"
-    case stopLimit = "Stop Limit"
-}
-
 public struct TradingStats {
     public let totalTrades: Int
     public let paperTrades: Int
@@ -478,62 +467,3 @@ public struct TradingStats {
     public let connectedExchanges: Int
 }
 
-public enum TradingError: LocalizedError {
-    case notConnected
-    case connectionFailed
-    case orderFailed(String)
-    case invalidAmount
-    case insufficientBalance
-    case riskNotAcknowledged
-
-    public var errorDescription: String? {
-        switch self {
-        case .notConnected:
-            return "Not connected to Coinbase. Please connect first."
-        case .connectionFailed:
-            return "Failed to connect to Coinbase. Check your API keys and internet connection."
-        case .orderFailed(let message):
-            return "Order failed: \(message)"
-        case .invalidAmount:
-            return "Invalid order amount"
-        case .insufficientBalance:
-            return "Insufficient balance for this order"
-        case .riskNotAcknowledged:
-            return "Trading risk acknowledgment required"
-        }
-    }
-}
-
-// MARK: - Extension for CoinbaseOrderResponse Wrapper
-
-extension EnhancedTradingEngine {
-    public func placeMarketOrder(
-        productId: String,
-        side: TradeSide,
-        size: Double,
-        isSizeInQuote: Bool = false
-    ) async throws {
-        let _ = try await placeMarketOrder(
-            productId: productId,
-            side: side,
-            size: size,
-            isSizeInQuote: isSizeInQuote
-        ) as CoinbaseOrderResponse
-    }
-
-    public func placeLimitOrder(
-        productId: String,
-        side: TradeSide,
-        size: Double,
-        price: Double,
-        postOnly: Bool = false
-    ) async throws {
-        let _ = try await placeLimitOrder(
-            productId: productId,
-            side: side,
-            size: size,
-            price: price,
-            postOnly: postOnly
-        ) as CoinbaseOrderResponse
-    }
-}

@@ -311,6 +311,8 @@ extension PortfolioViewModel {
 
 @MainActor
 class PortfolioViewModel: ObservableObject {
+    static let shared = PortfolioViewModel(repository: PortfolioRepository.shared)
+
     // Demo/Mock controls - now uses unified DemoModeManager
     private static let mockDailyChangeKey = "portfolio_mock_daily_change"
     
@@ -336,8 +338,14 @@ class PortfolioViewModel: ObservableObject {
     // Repository providing unified holdings (manual, synced, live-priced)
     private let repository: PortfolioRepository
 
-    // Combine cancellables
-    private var cancellables = Set<AnyCancellable>()
+    // Combine cancellables (internal for extension access)
+    var cancellables = Set<AnyCancellable>()
+    @Published var isRefreshing: Bool = false
+
+    /// Reload holdings from the repository
+    func refreshHoldings() async {
+        await repository.syncBrokerageAccounts()
+    }
     // Mock price ticker to keep demo portfolios feeling live
     private var mockTickerTimer: Timer?
     // Commodity price refresh timer for precious metals

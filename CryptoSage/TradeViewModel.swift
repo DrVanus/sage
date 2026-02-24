@@ -833,7 +833,7 @@ class TradeViewModel: ObservableObject {
                 orderErrorMessage = "Please enter a valid limit price"
                 return
             }
-        case .stop:
+        case .stop, .stopLoss:
             guard parsedStopPrice > 0 else {
                 orderErrorMessage = "Please enter a valid stop price"
                 return
@@ -952,7 +952,7 @@ class TradeViewModel: ObservableObject {
                         price: parsedLimitPrice
                     )
                     
-                case .stop:
+                case .stop, .stopLoss:
                     // Stop price already validated above
                     result = try await TradingExecutionService.shared.submitStopOrder(
                         exchange: exchange,
@@ -961,7 +961,7 @@ class TradeViewModel: ObservableObject {
                         quantity: qty,
                         stopPrice: parsedStopPrice
                     )
-                    
+
                 case .stopLimit:
                     // Stop and limit prices already validated above
                     result = try await TradingExecutionService.shared.submitStopLimitOrder(

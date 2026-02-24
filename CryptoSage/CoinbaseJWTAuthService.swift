@@ -112,8 +112,8 @@ public actor CoinbaseJWTAuthService {
         do {
             return try P256.Signing.PrivateKey(derRepresentation: keyData)
         } catch {
-            // If DER fails, try PEM representation
-            return try P256.Signing.PrivateKey(pemRepresentation: keyData)
+            // If DER fails, try PEM representation (expects the original PEM string)
+            return try P256.Signing.PrivateKey(pemRepresentation: pem)
         }
     }
 

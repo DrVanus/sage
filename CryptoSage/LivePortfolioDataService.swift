@@ -12,20 +12,20 @@ final class LivePortfolioDataService: PortfolioDataService {
     
     // MARK: - Publishers
     
-    private let holdingsSubject = CurrentValueSubject<[Holding], Never>([])
+    let holdingsSubject = CurrentValueSubject<[Holding], Never>([])
     private let transactionsSubject = CurrentValueSubject<[Transaction], Never>([])
-    
+
     var holdingsPublisher: AnyPublisher<[Holding], Never> {
         holdingsSubject.eraseToAnyPublisher()
     }
-    
+
     var transactionsPublisher: AnyPublisher<[Transaction], Never> {
         transactionsSubject.eraseToAnyPublisher()
     }
-    
+
     // MARK: - State
-    
-    private var cancellables = Set<AnyCancellable>()
+
+    var cancellables = Set<AnyCancellable>()
     private let accountsManager = ConnectedAccountsManager.shared
     private var isRefreshing = false
     private var lastRefreshTime: Date?

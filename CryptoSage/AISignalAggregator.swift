@@ -272,10 +272,11 @@ public final class AISignalAggregator: ObservableObject {
         // Bollinger Bands
         if let bb = TechnicalsEngine.bollingerBands(closes) {
             let bbWidth = bb.upper - bb.lower
-            guard bbWidth > 0 else { /* skip */ }
-            let position = (currentPrice - bb.lower) / bbWidth // 0 = at lower, 1 = at upper
-            let bbScore = ((0.5 - position) * 200).clamped(to: -100...100)  // Below middle = bullish
-            signals.append(("Bollinger", bbScore, 0.15))
+            if bbWidth > 0 {
+                let position = (currentPrice - bb.lower) / bbWidth // 0 = at lower, 1 = at upper
+                let bbScore = ((0.5 - position) * 200).clamped(to: -100...100)  // Below middle = bullish
+                signals.append(("Bollinger", bbScore, 0.15))
+            }
         }
 
         // Momentum (24h change)

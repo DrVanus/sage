@@ -1121,48 +1121,48 @@ struct TradeFormView: View {
         case .limit:
             effectivePrice = Double(limitPrice) ?? price
             priceLabel = "Limit Price"
-        case .stop:
+        case .stop, .stopLoss:
             effectivePrice = Double(stopPrice) ?? price
             priceLabel = "Stop Price"
         case .stopLimit:
             effectivePrice = Double(limitPrice) ?? price
             priceLabel = "Stop-Limit Price"
         }
-        
+
         let subtotal = qty * effectivePrice
         let feeRate = vm.currentFeeRate
         let fee = subtotal * feeRate
         let feePercent = String(format: "%.2f", feeRate * 100)
         let total = selectedSide == .buy ? subtotal + fee : subtotal - fee
-        
+
         let orderTypeName: String = {
             switch orderType {
             case .market:    return "Market Order"
             case .limit:     return "Limit Order"
-            case .stop:      return "Stop Order"
+            case .stop, .stopLoss: return "Stop Order"
             case .stopLimit: return "Stop-Limit Order"
             }
         }()
-        
+
         var lines: [String] = []
         lines.append("\(side) \(quantity) \(sym)")
         lines.append("Order Type: \(orderTypeName)")
         lines.append("\(priceLabel): \(formatUSD(effectivePrice))")
-        
+
         if orderType == .stopLimit, let sp = Double(stopPrice), sp > 0 {
             lines.append("Stop Trigger: \(formatUSD(sp))")
         }
-        
+
         lines.append("")
         lines.append("Subtotal: \(formatUSD(subtotal))")
         lines.append("Fee (\(feePercent)%): \(formatUSD(fee))")
-        
+
         if selectedSide == .buy {
             lines.append("Total Cost: \(formatUSD(total))")
         } else {
             lines.append("You Receive: \(formatUSD(total))")
         }
-        
+
         if isPaper {
             lines.append("")
             lines.append("This is a simulated trade using virtual funds. No real money is involved.")
@@ -1170,10 +1170,10 @@ struct TradeFormView: View {
             lines.append("")
             lines.append("⚠️ This will execute a REAL trade on your connected exchange. This action cannot be undone. You may lose money.")
         }
-        
+
         return lines.joined(separator: "\n")
     }
-    
+
     /// Format the confirm button label to include the dollar amount.
     private func confirmButtonLabel(isPaper: Bool) -> String {
         let side = selectedSide == .buy ? "Buy" : "Sell"
@@ -1183,7 +1183,7 @@ struct TradeFormView: View {
         let effectivePrice: Double = {
             switch orderType {
             case .limit, .stopLimit: return Double(limitPrice) ?? price
-            case .stop: return Double(stopPrice) ?? price
+            case .stop, .stopLoss: return Double(stopPrice) ?? price
             case .market: return price
             }
         }()
@@ -2764,50 +2764,50 @@ struct TradeView: View {
         case .limit:
             effectivePrice = Double(limitPrice) ?? price
             priceLabel = "Limit Price"
-        case .stop:
+        case .stop, .stopLoss:
             effectivePrice = Double(stopPrice) ?? price
             priceLabel = "Stop Price"
         case .stopLimit:
             effectivePrice = Double(limitPrice) ?? price
             priceLabel = "Stop-Limit Price"
         }
-        
+
         let subtotal = qty * effectivePrice
         let feeRate = vm.currentFeeRate
         let fee = subtotal * feeRate
         let feePercent = String(format: "%.2f", feeRate * 100)
         let total = selectedSide == .buy ? subtotal + fee : subtotal - fee
-        
+
         // Order type display name
         let orderTypeName: String = {
             switch orderType {
             case .market:    return "Market Order"
             case .limit:     return "Limit Order"
-            case .stop:      return "Stop Order"
+            case .stop, .stopLoss: return "Stop Order"
             case .stopLimit: return "Stop-Limit Order"
             }
         }()
-        
+
         var lines: [String] = []
         lines.append("\(side) \(quantity) \(sym)")
         lines.append("Order Type: \(orderTypeName)")
         lines.append("\(priceLabel): \(formatUSD(effectivePrice))")
-        
+
         // Show stop price separately for stop-limit orders
         if orderType == .stopLimit, let sp = Double(stopPrice), sp > 0 {
             lines.append("Stop Trigger: \(formatUSD(sp))")
         }
-        
+
         lines.append("")
         lines.append("Subtotal: \(formatUSD(subtotal))")
         lines.append("Fee (\(feePercent)%): \(formatUSD(fee))")
-        
+
         if selectedSide == .buy {
             lines.append("Total Cost: \(formatUSD(total))")
         } else {
             lines.append("You Receive: \(formatUSD(total))")
         }
-        
+
         if isPaper {
             lines.append("")
             lines.append("This is a simulated trade using virtual funds. No real money is involved.")
@@ -2815,10 +2815,10 @@ struct TradeView: View {
             lines.append("")
             lines.append("⚠️ This will execute a REAL trade on your connected exchange. This action cannot be undone. You may lose money.")
         }
-        
+
         return lines.joined(separator: "\n")
     }
-    
+
     /// Format the confirm button label to include the dollar amount (Coinbase-style).
     /// e.g. "Buy $34,658.50 BTC" or "Sell 0.5 BTC ($34,623.88)"
     private func confirmButtonLabel(isPaper: Bool) -> String {
@@ -2829,7 +2829,7 @@ struct TradeView: View {
         let effectivePrice: Double = {
             switch orderType {
             case .limit, .stopLimit: return Double(limitPrice) ?? price
-            case .stop: return Double(stopPrice) ?? price
+            case .stop, .stopLoss: return Double(stopPrice) ?? price
             case .market: return price
             }
         }()

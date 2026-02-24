@@ -131,11 +131,12 @@ final class CoinbaseTradingViewModel: ObservableObject {
     ) async throws {
         // Paper trading mode
         if isPaperTrading {
-            paperTradingManager.placePaperLimitOrder(
+            _ = paperTradingManager.executePaperTrade(
                 symbol: productId,
                 side: side,
                 quantity: size,
-                limitPrice: price
+                price: price,
+                orderType: "LIMIT"
             )
             return
         }
@@ -159,9 +160,7 @@ final class CoinbaseTradingViewModel: ObservableObject {
     func cancelOrder(orderId: String) async throws {
         // Paper trading mode
         if isPaperTrading {
-            if let uuid = UUID(uuidString: orderId) {
-                paperTradingManager.cancelPaperOrder(id: uuid)
-            }
+            _ = paperTradingManager.cancelPendingOrder(orderId: orderId)
             return
         }
 

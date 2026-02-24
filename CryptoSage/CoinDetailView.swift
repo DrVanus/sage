@@ -227,8 +227,8 @@ struct CoinDetailView: View {
                     orderResponse = try await CoinbaseAdvancedTradeService.shared.placeLimitOrder(
                         productId: productId,
                         side: side.rawValue,
-                        baseSize: amount,
-                        limitPrice: limitPriceValue,
+                        size: amount,
+                        price: limitPriceValue,
                         postOnly: false
                     )
                 }
@@ -253,7 +253,7 @@ struct CoinDetailView: View {
                             "symbol": coin.symbol.uppercased(),
                             "side": side.rawValue,
                             "orderType": selectedOrderType.rawValue,
-                            "amount": amount
+                            "amount": String(amount)
                         ])
                     } else if let errorResponse = orderResponse.errorResponse {
                         // Show error from API
