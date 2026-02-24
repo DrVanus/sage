@@ -94,6 +94,15 @@ struct CoinDetailView: View {
     // Quick actions state
     @State private var showSetAlert: Bool = false
 
+    // Trading controls state
+    @State private var tradeAmount: String = ""
+    @State private var selectedOrderType: OrderType = .market
+    @State private var limitPrice: String = ""
+    @State private var isPlacingOrder: Bool = false
+    @State private var orderError: String? = nil
+    @State private var showOrderSuccess: Bool = false
+    @State private var lastOrderId: String? = nil
+
     // Fast backfill to avoid endless shimmers
     @State private var fallbackCap: Double? = nil
     @State private var fallbackFDV: Double? = nil
@@ -165,6 +174,116 @@ struct CoinDetailView: View {
         }
         let sharedSet = parseIndicatorSet(from: tvIndicatorsRaw)
         if !sharedSet.isEmpty { indicators = sharedSet }
+    }
+
+    // MARK: - Trading Functions
+
+    /// Execute a trade (buy or sell) via Coinbase Advanced Trade API
+    @MainActor
+    private func executeTrade(side: TradeSide) {
+        // Clear previous errors
+        orderError = nil
+
+        // Validate amount
+        guard let amount = Double(tradeAmount), amount > 0 else {
+            orderError = "Please enter a valid amount"
+            return
+        }
+
+        // Validate limit price if limit order
+        if selectedOrderType == .limit {
+            guard let price = Double(limitPrice), price > 0 else {
+                orderError = "Please enter a valid limit price"
+                return
+            }
+        }
+
+        // Haptic feedback
+        #if os(iOS)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
+
+        isPlacingOrder = true
+
+        Task {
+            do {
+                let productId = "\(coin.symbol.uppercased())-USD"
+                let orderResponse: CoinbaseOrderResponse
+
+                if selectedOrderType == .market {
+                    // Place market order
+                    orderResponse = try await CoinbaseAdvancedTradeService.shared.placeMarketOrder(
+                        productId: productId,
+                        side: side.rawValue,
+                        size: amount,
+                        isSizeInQuote: false
+                    )
+                } else {
+                    // Place limit order
+                    guard let limitPriceValue = Double(limitPrice) else {
+                        throw NSError(domain: "CoinDetailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid limit price"])
+                    }
+
+                    orderResponse = try await CoinbaseAdvancedTradeService.shared.placeLimitOrder(
+                        productId: productId,
+                        side: side.rawValue,
+                        baseSize: amount,
+                        limitPrice: limitPriceValue,
+                        postOnly: false
+                    )
+                }
+
+                await MainActor.run {
+                    isPlacingOrder = false
+
+                    if orderResponse.success, let successResponse = orderResponse.successResponse {
+                        // Success!
+                        lastOrderId = successResponse.orderId
+                        showOrderSuccess = true
+                        tradeAmount = ""
+                        limitPrice = ""
+
+                        // Success haptic
+                        #if os(iOS)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        #endif
+
+                        // Track analytics
+                        AnalyticsService.shared.track(.tradeExecuted, parameters: [
+                            "symbol": coin.symbol.uppercased(),
+                            "side": side.rawValue,
+                            "orderType": selectedOrderType.rawValue,
+                            "amount": amount
+                        ])
+                    } else if let errorResponse = orderResponse.errorResponse {
+                        // Show error from API
+                        orderError = errorResponse.message
+                        #if os(iOS)
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                        #endif
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isPlacingOrder = false
+                    orderError = error.localizedDescription
+
+                    // Error haptic
+                    #if os(iOS)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    #endif
+                }
+            }
+        }
+    }
+
+    /// Format currency with appropriate decimal places
+    private func currencyFormat(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = value < 1 ? 4 : 2
+        return formatter.string(from: NSNumber(value: value)) ?? "$0.00"
     }
 
     private func startDeferredStartupRefreshes() {
@@ -490,6 +609,17 @@ struct CoinDetailView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .alert("Order Placed Successfully", isPresented: $showOrderSuccess) {
+            Button("OK", role: .cancel) {
+                showOrderSuccess = false
+            }
+        } message: {
+            if let orderId = lastOrderId {
+                Text("Your order has been placed.\nOrder ID: \(orderId)")
+            } else {
+                Text("Your order has been placed successfully.")
+            }
+        }
         .navigationBarBackButtonHidden(true)
         .onAppear {
             // PERFORMANCE FIX: Initialize cached fresh coin immediately
@@ -652,7 +782,10 @@ struct CoinDetailView: View {
                 
                 // Chart with streamlined controls
                 chartSection
-                
+
+                // Trading Controls - Quick Buy/Sell interface
+                tradingControlsSection
+
                 // Prominent "Why is it moving?" card for significant moves
                 if showWhyMovingCard {
                     WhyIsMovingCard(
@@ -720,6 +853,254 @@ struct CoinDetailView: View {
             livePrice: displayedPrice
         )
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Trading Controls Section
+    private var tradingControlsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Premium header
+            HStack(spacing: 8) {
+                GoldHeaderGlyph(systemName: "arrow.left.arrow.right")
+
+                Text("Quick Trade")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textPrimary)
+
+                Spacer()
+
+                // Current price indicator
+                Text(currencyFormat(displayedPrice))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+            }
+
+            // Order type selector
+            HStack(spacing: 8) {
+                Text("Order Type")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    ForEach([OrderType.market, OrderType.limit], id: \.self) { type in
+                        orderTypeButton(type)
+                    }
+                }
+            }
+
+            // Amount input
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Amount (\(coin.symbol.uppercased()))")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+
+                HStack(spacing: 8) {
+                    TextField("0.00", text: $tradeAmount)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(DS.Adaptive.chipBackground)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(DS.Adaptive.stroke, lineWidth: 1)
+                        )
+
+                    // Quick amount buttons
+                    quickAmountButton("25%")
+                    quickAmountButton("50%")
+                    quickAmountButton("Max")
+                }
+            }
+
+            // Limit price input (only for limit orders)
+            if selectedOrderType == .limit {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Limit Price (USD)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textSecondary)
+
+                    TextField(currencyFormat(displayedPrice), text: $limitPrice)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(DS.Adaptive.chipBackground)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(DS.Adaptive.stroke, lineWidth: 1)
+                        )
+                }
+            }
+
+            // Order impact preview
+            if let amount = Double(tradeAmount), amount > 0 {
+                VStack(spacing: 6) {
+                    orderImpactRow(title: "Est. Total", value: currencyFormat(amount * displayedPrice))
+
+                    if selectedOrderType == .limit, let price = Double(limitPrice), price > 0 {
+                        orderImpactRow(title: "Limit Total", value: currencyFormat(amount * price))
+                    }
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(DS.Adaptive.chipBackground.opacity(0.5))
+                )
+            }
+
+            // Error message
+            if let error = orderError {
+                Text(error)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.red)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.red.opacity(0.1))
+                    )
+            }
+
+            // Buy/Sell buttons
+            HStack(spacing: 12) {
+                // Buy button
+                Button {
+                    executeTrade(side: .buy)
+                } label: {
+                    HStack(spacing: 6) {
+                        if isPlacingOrder {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Buy")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PremiumAccentCTAStyle(accent: .green, height: 44))
+                .disabled(isPlacingOrder || tradeAmount.isEmpty)
+                .opacity((isPlacingOrder || tradeAmount.isEmpty) ? 0.5 : 1.0)
+
+                // Sell button
+                Button {
+                    executeTrade(side: .sell)
+                } label: {
+                    HStack(spacing: 6) {
+                        if isPlacingOrder {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Sell")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PremiumAccentCTAStyle(accent: .red, height: 44))
+                .disabled(isPlacingOrder || tradeAmount.isEmpty)
+                .opacity((isPlacingOrder || tradeAmount.isEmpty) ? 0.5 : 1.0)
+            }
+
+            // Disclaimer
+            Text("Live trading on Coinbase Advanced Trade. Ensure sufficient funds.")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(DS.Adaptive.textTertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(DS.Adaptive.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(DS.Adaptive.stroke, lineWidth: 1)
+        )
+    }
+
+    // Helper view for order type buttons
+    private func orderTypeButton(_ type: OrderType) -> some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedOrderType = type
+            }
+        } label: {
+            Text(type.rawValue.capitalized)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(selectedOrderType == type ? (isDark ? .black : .white) : DS.Adaptive.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(selectedOrderType == type
+                              ? (isDark ? DS.Colors.gold : Color.black)
+                              : DS.Adaptive.chipBackground)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(selectedOrderType == type
+                                ? (isDark ? DS.Colors.gold : Color.black)
+                                : DS.Adaptive.stroke, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // Helper view for quick amount buttons
+    private func quickAmountButton(_ label: String) -> some View {
+        Button {
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            // TODO: Implement quick amount calculation based on portfolio balance
+        } label: {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(DS.Adaptive.textPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(DS.Adaptive.chipBackground)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(DS.Adaptive.stroke, lineWidth: 0.8)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // Helper view for order impact rows
+    private func orderImpactRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(DS.Adaptive.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(DS.Adaptive.textPrimary)
+        }
     }
 
     // MARK: - Stats Card View

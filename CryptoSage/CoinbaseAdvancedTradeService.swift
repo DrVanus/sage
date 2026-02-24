@@ -325,7 +325,108 @@ public actor CoinbaseAdvancedTradeService {
         if let productId = productId {
             path += "&product_id=\(productId)"
         }
-        
+
+        let response: OrdersResponse = try await signedRequest(
+            method: "GET",
+            path: path,
+            body: nil
+        )
+        return response.orders
+    }
+
+    /// Place a stop-loss order (market order triggered at stop price)
+    public func placeStopLossOrder(
+        productId: String,
+        side: String,
+        size: Double,
+        stopPrice: Double
+    ) async throws -> CoinbaseOrderResponse {
+        // SAFETY: Block live trading when disabled at app config level
+        guard AppConfig.liveTradingEnabled else {
+            throw CoinbaseError.apiError(message: AppConfig.liveTradingDisabledMessage)
+        }
+        guard TradingRiskAcknowledgmentManager.shared.canTrade else {
+            throw CoinbaseError.orderRejected(reason: "Trading risk acknowledgment is required before live orders.")
+        }
+        try await validateProductForOrder(productId: productId, baseSize: size)
+
+        let clientOrderId = UUID().uuidString
+
+        let orderConfig: [String: Any] = [
+            "stop_limit_stop_limit_gtc": [
+                "base_size": formatSize(size),
+                "limit_price": formatPrice(stopPrice),
+                "stop_price": formatPrice(stopPrice),
+                "stop_direction": side.uppercased() == "BUY" ? "STOP_DIRECTION_STOP_UP" : "STOP_DIRECTION_STOP_DOWN"
+            ]
+        ]
+
+        let body: [String: Any] = [
+            "client_order_id": clientOrderId,
+            "product_id": productId.uppercased(),
+            "side": side.uppercased(),
+            "order_configuration": orderConfig
+        ]
+
+        return try await signedRequest(
+            method: "POST",
+            path: "/api/v3/brokerage/orders",
+            body: body
+        )
+    }
+
+    /// Place a stop-limit order (limit order triggered at stop price)
+    public func placeStopLimitOrder(
+        productId: String,
+        side: String,
+        size: Double,
+        stopPrice: Double,
+        limitPrice: Double
+    ) async throws -> CoinbaseOrderResponse {
+        // SAFETY: Block live trading when disabled at app config level
+        guard AppConfig.liveTradingEnabled else {
+            throw CoinbaseError.apiError(message: AppConfig.liveTradingDisabledMessage)
+        }
+        guard TradingRiskAcknowledgmentManager.shared.canTrade else {
+            throw CoinbaseError.orderRejected(reason: "Trading risk acknowledgment is required before live orders.")
+        }
+        try await validateProductForOrder(productId: productId, baseSize: size)
+
+        let clientOrderId = UUID().uuidString
+
+        let orderConfig: [String: Any] = [
+            "stop_limit_stop_limit_gtc": [
+                "base_size": formatSize(size),
+                "limit_price": formatPrice(limitPrice),
+                "stop_price": formatPrice(stopPrice),
+                "stop_direction": side.uppercased() == "BUY" ? "STOP_DIRECTION_STOP_UP" : "STOP_DIRECTION_STOP_DOWN"
+            ]
+        ]
+
+        let body: [String: Any] = [
+            "client_order_id": clientOrderId,
+            "product_id": productId.uppercased(),
+            "side": side.uppercased(),
+            "order_configuration": orderConfig
+        ]
+
+        return try await signedRequest(
+            method: "POST",
+            path: "/api/v3/brokerage/orders",
+            body: body
+        )
+    }
+
+    /// Get order history (all orders, not just open)
+    public func getOrderHistory(
+        productId: String? = nil,
+        limit: Int = 100
+    ) async throws -> [CoinbaseOrder] {
+        var path = "/api/v3/brokerage/orders/historical/batch?limit=\(limit)"
+        if let productId = productId {
+            path += "&product_id=\(productId)"
+        }
+
         let response: OrdersResponse = try await signedRequest(
             method: "GET",
             path: path,
