@@ -70,7 +70,7 @@ struct AIBotConfig: Codable, Equatable {
 // MARK: - TradingBotView
 struct TradingBotView: View {
     let side: TradeSide
-    let orderType: OrderType
+    let orderType: TradingTypes.OrderType
     let quantity: Double
     let slippage: Double
     
@@ -86,7 +86,7 @@ struct TradingBotView: View {
     
     init(
         side: TradeSide = .buy,
-        orderType: OrderType = .market,
+        orderType: TradingTypes.OrderType = .market,
         quantity: Double = 0,
         slippage: Double = 0.5,
         initialMode: BotCreationMode? = nil
@@ -2721,7 +2721,7 @@ struct TradingBotView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             TradingBotView(side: .buy,
-                           orderType: .market,
+                           orderType: TradingTypes.OrderType.market,
                            quantity: 0.0,
                            slippage: 0.0)
         }
