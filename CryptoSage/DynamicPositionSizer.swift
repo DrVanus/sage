@@ -10,7 +10,7 @@ import Foundation
 
 // MARK: - Position Sizing Result
 
-public struct PositionSizing {
+public struct PositionSizingResult {
     public let symbol: String?
     public let positionPct: Double       // recommended % of portfolio
     public let amountUSD: Double         // dollar amount based on portfolio value
@@ -58,7 +58,7 @@ public final class DynamicPositionSizer: ObservableObject {
         volatility: Double,
         portfolioSnapshot: PortfolioRiskSnapshot,
         config: SmartEngineConfig
-    ) -> PositionSizing {
+    ) -> PositionSizingResult {
 
         var reasoning: [String] = []
 
@@ -116,7 +116,7 @@ public final class DynamicPositionSizer: ObservableObject {
         // Dollar amount
         let amountUSD = portfolioSnapshot.totalValueUSD * (positionPct / 100.0)
 
-        return PositionSizing(
+        return PositionSizingResult(
             symbol: nil,
             positionPct: positionPct,
             amountUSD: amountUSD,
