@@ -19,13 +19,13 @@
 		9388A5832F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A5822F28F79800E2D354 /* FirebaseAnalyticsIdentitySupport */; };
 		9388A5852F28F79800E2D354 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 9388A5842F28F79800E2D354 /* FirebaseFirestore */; };
 		9388AFB62F2940E900E2D354 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 93AD0002F29A00000000AD02 /* GoogleMobileAds */; };
+		93AC00012F60000000000001 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 93AC00022F60000000000002 /* FirebaseAppCheck */; };
 		93E56D012E8E0C40000D56F0 /* CryptoNewsRSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */; };
 		93E56D032E8E12B4000D56F0 /* StaticNewsSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */; };
 		93E56D052E8E1BD1000D56F0 /* ThumbnailResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E56D042E8E1BD1000D56F0 /* ThumbnailResolver.swift */; };
 		93FC00012F50000000000001 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93FC00022F50000000000002 /* FirebaseCrashlytics */; };
-		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
-		93AC00012F60000000000001 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 93AC00022F60000000000002 /* FirebaseAppCheck */; };
 		93FM00012F70000000000001 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 93FM00022F70000000000002 /* FirebaseMessaging */; };
+		93FS00012F40000000000001 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 93FS00022F40000000000002 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -739,6 +739,11 @@
 			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
 		};
+		93AC00022F60000000000002 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
 		93AD0002F29A00000000AD02 /* GoogleMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 93AD0001F29A00000000AD01 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
@@ -754,6 +759,11 @@
 			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
 		};
+		93FM00022F70000000000002 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
 		93FS00022F40000000000002 /* FirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -768,16 +778,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 93GS00012F30000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
-		};
-		93AC00022F60000000000002 /* FirebaseAppCheck */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAppCheck;
-		};
-		93FM00022F70000000000002 /* FirebaseMessaging */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9388A5792F28F79800E2D354 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
