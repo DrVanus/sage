@@ -65,32 +65,34 @@ struct TaxReportView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Premium background
-            FuturisticBackground()
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Custom Header
-                customHeader
-                
-                // Demo Mode Banner
-                if isDemoMode {
-                    demoModeBanner
-                }
-                
-                // Check if user has access or is in demo mode
-                if hasTaxReportAccess || isDemoMode {
-                    taxReportContent
-                } else {
-                    // Paywall for non-Pro users
-                    taxReportPaywall
+        NavigationStack {
+            ZStack {
+                // Premium background
+                FuturisticBackground()
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    // Custom Header
+                    customHeader
+
+                    // Demo Mode Banner
+                    if isDemoMode {
+                        demoModeBanner
+                    }
+
+                    // Check if user has access or is in demo mode
+                    if hasTaxReportAccess || isDemoMode {
+                        taxReportContent
+                    } else {
+                        // Paywall for non-Pro users
+                        taxReportPaywall
+                    }
                 }
             }
+            .navigationBarHidden(true)
+            .enableInteractivePopGesture()
+            .edgeSwipeToDismiss(onDismiss: { dismiss() })
         }
-        .navigationBarHidden(true)
-        .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { dismiss() })
         .sheet(isPresented: $showingExportSheet) {
             if let report = displayedReport {
                 TaxExportSheet(report: report)
@@ -122,19 +124,23 @@ struct TaxReportView: View {
     
     private var customHeader: some View {
         HStack(spacing: 0) {
-            // Back button
-            CSNavButton(
-                icon: "chevron.left",
-                action: { dismiss() }
-            )
-            
+            // Close button - using xmark for sheet presentation (matches DeFi dashboard)
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DS.Adaptive.textPrimary)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+                    .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.8))
+            }
+
             Spacer()
-            
+
             // Title
             Text("Tax Report")
                 .font(.headline)
                 .foregroundColor(DS.Adaptive.textPrimary)
-            
+
             Spacer()
             
             // Export button (only show when report exists)
