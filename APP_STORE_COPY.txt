@@ -1,0 +1,163 @@
+========================================
+CRYPTOSAGE AI - APP STORE LISTING COPY
+========================================
+
+=== APP NAME ===
+CryptoSage AI - Smart Crypto Trading
+
+=== SUBTITLE (30 characters) ===
+AI-Powered Portfolio & Trading
+
+=== PROMOTIONAL TEXT (170 characters - updatable without app review) ===
+Trade smarter with AI predictions, real-time market data, and automated strategies. Paper trade risk-free or connect your Coinbase account. Start with $100K virtual funds!
+
+=== PRIMARY KEYWORDS (100 characters for search optimization) ===
+crypto trading, ai predictions, bitcoin, cryptocurrency, portfolio tracker, crypto ai, trading app
+
+=== FULL DESCRIPTION (4000 characters) ===
+
+Master Cryptocurrency Trading with AI Intelligence
+
+CryptoSage AI transforms how you trade and manage crypto investments. Whether you're a beginner learning the ropes or an experienced trader seeking an edge, our AI-powered platform delivers institutional-grade tools with consumer-friendly simplicity.
+
+🤖 AI TRADING ASSISTANT
+
+• GPT-4 powered chat that understands YOUR portfolio
+• Real-time price predictions with confidence scoring
+• Personalized buy/sell recommendations based on risk tolerance
+• Smart position sizing and risk management suggestions
+• AI analyzes charts, news, and market sentiment for you
+
+📊 PROFESSIONAL TRADING TOOLS
+
+• Track 5,000+ cryptocurrencies, stocks, and commodities
+• Real-time price feeds from Binance and Coinbase
+• TradingView professional charting with 100+ indicators
+• Technical analysis: RSI, MACD, Bollinger Bands, and more
+• Market heat maps and live order book visualization
+• Multi-timeframe analysis (1H to 30D)
+
+💰 TRADE WITH CONFIDENCE
+
+• Start with $100,000 in virtual paper trading funds
+• Practice strategies risk-free before going live
+• Connect Coinbase for real trading when ready
+• Market, limit, stop-loss, and advanced order types
+• Automated Dollar-Cost Averaging (DCA) strategies
+• Real-time profit/loss tracking across all positions
+
+📈 INTELLIGENT PORTFOLIO MANAGEMENT
+
+• Automatic portfolio sync from Coinbase and Binance
+• Multi-asset tracking: crypto, stocks, DeFi positions
+• Beautiful visualizations and performance charts
+• Transaction history with profit/loss attribution
+• Portfolio rebalancing recommendations
+• Tax-ready transaction exports
+
+🎯 MARKET INSIGHTS & PREDICTIONS
+
+• AI price forecasts: 1-hour to 30-day timeframes
+• Bullish/Bearish/Neutral sentiment analysis
+• Fear & Greed Index with extended sentiment metrics
+• Whale transaction alerts (track large wallet movements)
+• Trending coins and arbitrage opportunities
+• Real-time news from multiple premium sources
+
+🚀 ADVANCED FEATURES
+
+• DeFi portfolio tracking across 100+ blockchains
+• Social trading: copy strategies from top performers
+• Trading bot integration with 3Commas
+• Custom watchlists with drag-to-reorder
+• Push notifications for price alerts and opportunities
+• Dark mode design optimized for traders
+
+🔒 SECURE & PRIVATE
+
+• Industry-standard encryption and security
+• Biometric authentication (Face ID/Touch ID)
+• API keys stored securely in Keychain
+• No selling of your data to third parties
+• Optional cloud sync with full privacy controls
+
+💡 PERFECT FOR:
+
+• Beginners wanting to learn crypto trading safely
+• Active traders needing real-time data and AI insights
+• DeFi investors tracking complex multi-chain portfolios
+• Long-term investors automating DCA strategies
+• Anyone seeking an edge with AI-powered predictions
+
+START TRADING SMARTER TODAY
+
+Download CryptoSage AI and get instant access to $100,000 in paper trading funds. Master your strategies, then graduate to live trading when you're ready. No credit card required to start.
+
+Premium Features (Optional Subscription):
+• Unlimited AI predictions and chat queries
+• Advanced technical indicators and signals
+• Whale tracking and smart money alerts
+• Priority data feeds and faster updates
+• Ad-free experience
+
+RISK DISCLOSURE
+Cryptocurrency trading involves substantial risk. Paper trading mode is enabled by default. Live trading requires explicit opt-in and risk acknowledgment. Past performance does not guarantee future results.
+
+=== WHAT'S NEW (Update notes) ===
+
+Version 1.0 - Initial Release
+
+Welcome to CryptoSage AI! 🚀
+
+• AI-powered price predictions with confidence scoring
+• GPT-4 chat assistant that understands your portfolio
+• $100,000 virtual paper trading funds
+• Real-time data on 5,000+ cryptocurrencies
+• Professional TradingView charts
+• Automated DCA strategies
+• Portfolio tracking with beautiful visualizations
+• Push notifications for price alerts
+• Dark mode optimized for traders
+
+Start trading smarter with AI today!
+
+=== KEYWORDS (Invisible, for App Store indexing) ===
+
+cryptocurrency, bitcoin, ethereum, crypto portfolio, trading, ai trading, price prediction, coinbase, binance, crypto tracker, blockchain, altcoins, defi, trading bot, paper trading, crypto news, market analysis, technical analysis, crypto charts, investment, digital currency, crypto wallet, dca, dollar cost averaging, crypto alerts, price alerts, crypto ai, btc, eth, trading signals, crypto forecast, market data, real-time prices, crypto exchange, crypto analysis, smart trading, automated trading, crypto strategy, portfolio management, crypto dashboard, whale tracking, sentiment analysis, fear and greed, tradingview, stock trading, commodities, multi-asset, risk management, stop loss, limit order, order book, candlestick, indicators, rsi, macd, bollinger bands, moving average
+
+=== CATEGORY ===
+Primary: Finance
+Secondary: Productivity
+
+=== AGE RATING ===
+17+ (Unrestricted Web Access, Simulated Gambling)
+
+=== IN-APP PURCHASE TITLES ===
+
+1. Premium Monthly - $9.99/month
+   Title: "Premium Monthly Subscription"
+   Description: "Unlimited AI predictions, advanced alerts, whale tracking, priority support, and ad-free experience"
+
+2. Premium Yearly - $79.99/year (33% savings)
+   Title: "Premium Annual Subscription"
+   Description: "All Premium features for 12 months at best value - save 33% vs monthly"
+
+3. Premium Lifetime - $199.99 one-time
+   Title: "Lifetime Premium Access"
+   Description: "All Premium features forever - never pay again, locked-in price"
+
+=== SUPPORT URL ===
+https://cryptosage.ai/support
+
+=== MARKETING URL ===
+https://cryptosage.ai
+
+=== PRIVACY POLICY URL ===
+https://cryptosage.ai/privacy
+
+=== COPYRIGHT ===
+© 2026 CryptoSage AI. All rights reserved.
+
+========================================
+END APP STORE LISTING
+========================================

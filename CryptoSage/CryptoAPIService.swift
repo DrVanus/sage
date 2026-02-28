@@ -149,15 +149,39 @@ enum CryptoAPIError: LocalizedError {
     case rateLimited
     case badServerResponse(statusCode: Int)
     case firebaseNotConfigured
+    case networkUnavailable
+    case invalidResponse
+    case decodingFailed
 
     var errorDescription: String? {
         switch self {
         case .rateLimited:
-            return "Rate limit exceeded. Please try again later."
+            return "Rate limit exceeded. Please try again in a few moments."
         case .badServerResponse(let statusCode):
-            return "Unexpected server response (code \(statusCode))."
+            return "Server error (code \(statusCode)). Please try again later."
         case .firebaseNotConfigured:
             return "Firebase is not configured. Using direct API."
+        case .networkUnavailable:
+            return "No internet connection. Please check your network and try again."
+        case .invalidResponse:
+            return "Received invalid data from server. Please try again."
+        case .decodingFailed:
+            return "Failed to process server response. Please try again."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .rateLimited:
+            return "The app has made too many requests. Wait a moment and try again."
+        case .badServerResponse:
+            return "The server encountered an issue. This is usually temporary."
+        case .networkUnavailable:
+            return "Make sure you're connected to the internet via WiFi or cellular data."
+        case .invalidResponse, .decodingFailed:
+            return "This may be a temporary issue. Please try refreshing the data."
+        case .firebaseNotConfigured:
+            return nil
         }
     }
 }

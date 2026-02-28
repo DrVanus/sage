@@ -255,6 +255,28 @@ struct SettingsView: View {
                             .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
                         }
                         
+                        // MARK: - AI Agent
+                        SettingsSection(title: "AI AGENT") {
+                            NavigationLink(destination: AgentSettingsView()) {
+                                SettingsRow(icon: "brain.head.profile", title: "AI Agent")
+                            }
+                            .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
+
+                            if AgentConnectionService.shared.isConnected {
+                                SettingsDivider()
+                                NavigationLink(destination: AgentPortfolioView()) {
+                                    SettingsRow(icon: "chart.pie", title: "Agent Portfolio")
+                                }
+                                .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
+
+                                SettingsDivider()
+                                NavigationLink(destination: AgentSignalFeedView()) {
+                                    SettingsRow(icon: "waveform.path.ecg", title: "Agent Signals")
+                                }
+                                .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
+                            }
+                        }
+
                         // MARK: - Paper Trading (prominent — visible to all users including free)
                         PaperTradingSettingsSection(
                             selectionFeedback: selectionFeedback,

@@ -854,17 +854,26 @@ struct HomeView: View {
             // Phase 2 (+0.45s): +news +commodities
             // Phase 3 (+1.65s total): all remaining sections
             Task {
-                // Phase 1: immediate — show watchlist right away
-                await MainActor.run {
-                    if sectionLoadingPhase < 1 {
-                        sectionLoadingPhase = 1
-                        cachedHomeSections = computeHomeSections()
-                        print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
+                // SAFETY: Wrap in do-catch to handle task cancellation gracefully
+                do {
+                    // Phase 1: immediate — show watchlist right away
+                    await MainActor.run {
+                        if sectionLoadingPhase < 1 {
+                            sectionLoadingPhase = 1
+                            cachedHomeSections = computeHomeSections()
+                            print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
+                        }
                     }
+
+                    // PERFORMANCE FIX: Load Phase 1 data progressively
+                    await vm.loadDataProgressively(phase: 1)
+                } catch {
+                    // Task was cancelled (user navigated away) - this is normal, don't log as error
+                    if !(error is CancellationError) {
+                        print("⚠️ [HomeView] Phase 1 loading error: \(error.localizedDescription)")
+                    }
+                    return
                 }
-                
-                // PERFORMANCE FIX: Load Phase 1 data progressively
-                await vm.loadDataProgressively(phase: 1)
 
                 #if targetEnvironment(simulator)
                 let isLimitedSimulator = AppSettings.isSimulatorLimitedDataMode
@@ -1216,6 +1225,16 @@ struct HomeView: View {
                         )
                         .environmentObject(vm)
                         .id("portfolio")
+
+                        // Agent signal card — only shows when agent is connected
+                        if AgentConnectionService.shared.isConnected,
+                           let signal = AgentConnectionService.shared.latestSignals.first {
+                            NavigationLink(destination: AgentSignalFeedView()) {
+                                AgentSignalCompactCard(signal: signal)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+                        }
 
                     case .aiInsights:
                         // AI Insights now integrated into Portfolio card above

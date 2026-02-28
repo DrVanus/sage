@@ -169,6 +169,15 @@ public enum SubscriptionTierType: String, CaseIterable, Codable {
         }
     }
     
+    /// Maximum AI agent connections allowed
+    public var maxAgentConnections: Int {
+        switch self {
+        case .free: return 0      // Agent feature requires Pro+
+        case .pro: return 1       // 1 agent connection
+        case .premium: return 3   // Up to 3 agents
+        }
+    }
+
     /// Whether this tier gets the premium CryptoSage AI model for chat
     /// Only Premium gets the advanced model, and only for direct chat interactions
     /// All automated features (insights, predictions) use the standard model for cost efficiency
