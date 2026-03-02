@@ -162,7 +162,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
                     try? KeychainHelper.shared.saveData(userData, service: keychainService, account: keychainAccount)
                 }
 
-                Task {
+                Task { @MainActor in
                     if let token = try? await firebaseUser.getIDToken() {
                         FirebaseService.shared.setAuthToken(token, userId: user.id)
                         self.startTokenRefreshLoop()
@@ -316,7 +316,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
                 return
             }
             
-            Task {
+            Task { @MainActor in
                 do {
                     try await self.exchangeAppleCredentialForFirebase(
                         idToken: idTokenString,
@@ -524,8 +524,8 @@ final class AuthenticationManager: NSObject, ObservableObject {
     /// Call this whenever the user edits their display name in the profile view.
     func updateDisplayName(_ newName: String) {
         guard !newName.isEmpty else { return }
-        
-        Task {
+
+        Task { @MainActor in
             do {
                 let changeRequest = Auth.auth().currentUser?.createProfileChangeRequest()
                 changeRequest?.displayName = newName
@@ -735,7 +735,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
                 guard let firebaseUser = Auth.auth().currentUser,
                       let self = self else { break }
                 do {
-                    let newToken = try await firebaseUser.getIDTokenForcingRefresh(true)
+                    let newToken = try await firebaseUser.getIDTokenResult(forcingRefresh: true).token
                     await MainActor.run {
                         FirebaseService.shared.setAuthToken(newToken, userId: firebaseUser.uid)
                     }

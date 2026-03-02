@@ -258,57 +258,10 @@ class SecureURLSessionDelegate: NSObject, URLSessionDelegate {
 // MARK: - KeychainHelper Extensions
 
 extension KeychainHelper {
-    
-    /// Read raw data from Keychain
-    func readData(service: String, account: String) throws -> Data {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
-        guard status == errSecSuccess,
-              let data = result as? Data else {
-            throw KeychainError.unexpectedStatus(status)
-        }
-        
-        return data
-    }
-    
-    /// Save raw data to Keychain
-    func saveData(_ data: Data, service: String, account: String) throws {
-        // Try to update existing item
-        let updateQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        
-        let updateAttributes: [String: Any] = [
-            kSecValueData as String: data,
-        ]
-        
-        var status = SecItemUpdate(updateQuery as CFDictionary, updateAttributes as CFDictionary)
-        
-        if status == errSecItemNotFound {
-            // Item doesn't exist, create it
-            var addQuery = updateQuery
-            addQuery[kSecValueData as String] = data
-            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            
-            status = SecItemAdd(addQuery as CFDictionary, nil)
-        }
-        
-        guard status == errSecSuccess else {
-            throw KeychainError.unexpectedStatus(status)
-        }
-    }
-    
+
+    // NOTE: readData(service:account:) and saveData(_:service:account:) are defined
+    // in KeychainError.swift (canonical implementations). Do NOT duplicate them here.
+
     /// Delete all items for a service
     func deleteAll(service: String) throws {
         let query: [String: Any] = [
