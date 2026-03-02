@@ -36,12 +36,12 @@ struct AIInsightBlock: View {
             if showTitle {
                 Text("CryptoSage AI Insights")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
             }
 
             Text(aiInsightText)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(DS.Adaptive.textSecondary)
 
             // Example: Display some quick AI-based tips or warnings
             if aiInsightText.contains("drop") {

@@ -507,9 +507,9 @@ public struct VerdictPill: View {
         }
         .padding(.vertical, 3)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.06))
+        .background(DS.Adaptive.chipBackground)
         .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+        .overlay(Capsule().stroke(DS.Adaptive.stroke, lineWidth: 0.6))
     }
 }
 
@@ -518,9 +518,9 @@ public struct IndicatorChip: View {
     let title: String
     let valueText: String
     let valueColor: Color
-    var borderColor: Color = Color.white.opacity(0.12)
+    var borderColor: Color = DS.Adaptive.stroke
 
-    public init(title: String, valueText: String, valueColor: Color, borderColor: Color = Color.white.opacity(0.12)) {
+    init(title: String, valueText: String, valueColor: Color, borderColor: Color = DS.Adaptive.stroke) {
         self.title = title
         self.valueText = valueText
         self.valueColor = valueColor
@@ -531,7 +531,7 @@ public struct IndicatorChip: View {
         VStack(spacing: 4) {
             Text(title)
                 .font(.caption2.weight(.semibold))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(DS.Adaptive.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .allowsTightening(true)
@@ -548,7 +548,7 @@ public struct IndicatorChip: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity, minHeight: 52)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(DS.Adaptive.chipBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(borderColor, lineWidth: 0.8)

@@ -1873,13 +1873,13 @@ struct OthersListSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(tiles.count) Coins")
                             .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                         if let date = lastUpdated {
                             let rel = relativeUpdatedString(since: date)
                             if !rel.isEmpty {
                                 Text("Updated \(rel)")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundColor(DS.Adaptive.textTertiary)
                             }
                         }
                     }
@@ -1888,10 +1888,10 @@ struct OthersListSheet: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("Total Cap")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         Text(formatCap(tiles.reduce(0) { $0 + $1.marketCap }))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                 }
                 .padding(.horizontal, 16)

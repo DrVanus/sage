@@ -526,7 +526,7 @@ struct OpenOrdersFullView: View {
             
             Text(value)
                 .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(DS.Adaptive.textPrimary)
             
             Text(label)
                 .font(.system(size: 9))
@@ -757,11 +757,11 @@ struct OpenOrdersFullView: View {
             VStack(spacing: 6) {
                 Text("Loading Orders")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(DS.Adaptive.textPrimary)
+
                 Text("Fetching from connected exchanges...")
                     .font(.system(size: 13))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
             }
             
             Spacer()
@@ -1111,12 +1111,12 @@ private struct PremiumStatCard: View {
             // Value with emphasized styling
             Text(value)
                 .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            
+                .foregroundColor(DS.Adaptive.textPrimary)
+
             // Label
             Text(label)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
                 .textCase(.uppercase)
                 .tracking(0.3)
         }
