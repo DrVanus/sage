@@ -476,7 +476,7 @@ public struct TechnicalsDetailView: View {
 
     public var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            DS.Adaptive.background.ignoresSafeArea()
             TradingViewTechnicalsWebView(symbol: symbol, theme: theme)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

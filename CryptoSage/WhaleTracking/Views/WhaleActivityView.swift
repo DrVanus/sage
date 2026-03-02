@@ -265,10 +265,9 @@ struct WhaleActivityView: View {
                             }
                         }
                     } else {
-                        Text("Loading...")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(DS.Adaptive.textPrimary)
-                        
+                        ShimmerBar(height: 28, cornerRadius: 6)
+                            .frame(width: 120)
+
                         Text("Fetching whale activity")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(DS.Adaptive.textTertiary)

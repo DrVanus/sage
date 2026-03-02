@@ -39,7 +39,7 @@ struct ChartDetailView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.black.ignoresSafeArea()
+            DS.Adaptive.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Top bar with dismiss
@@ -49,12 +49,12 @@ struct ChartDetailView: View {
                     } label: {
                         Image(systemName: "chevron.down.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                     Spacer()
                     Text("Portfolio Chart")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(DS.Adaptive.textPrimary)
                     Spacer()
                     // Placeholder for balance
                     Color.clear.frame(width: 24)

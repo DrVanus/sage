@@ -41,7 +41,7 @@ struct LiveBotsListView: View {
                 botList
             }
         }
-        .background(Color.black)
+        .background(DS.Adaptive.background)
         .navigationTitle("Live Bots")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -94,7 +94,7 @@ struct LiveBotsListView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .background(Color.black)
+        .background(DS.Adaptive.background)
     }
     
     private func filterPill(_ option: BotFilterOption) -> some View {

@@ -117,7 +117,7 @@ struct RiskReportView: View {
     // MARK: - Background
     private var backgroundGradient: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            DS.Adaptive.background.ignoresSafeArea()
             
             // Subtle radial gradient from top
             RadialGradient(

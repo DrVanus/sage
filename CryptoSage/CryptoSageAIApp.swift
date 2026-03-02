@@ -1843,7 +1843,10 @@ extension View {
 struct LazyView<Content: View>: View {
     let build: () -> Content
     init(_ build: @autoclosure @escaping () -> Content) { self.build = build }
-    var body: some View { build() }
+    var body: some View {
+        build()
+            .background(DS.Adaptive.background)
+    }
 }
 
 private struct PremiumStartupView: View {
