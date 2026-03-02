@@ -538,11 +538,11 @@ private struct AIInsightsLockedState: View {
             VStack(spacing: 12) {
                 Text("Pro Feature")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(DS.Adaptive.textPrimary)
+
                 Text("AI Insights provides deep portfolio analysis, performance tracking, and personalized recommendations.")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(DS.Adaptive.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -557,10 +557,10 @@ private struct AIInsightsLockedState: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(DS.Adaptive.chipBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            .stroke(DS.Adaptive.stroke, lineWidth: 1)
                     )
             )
             .padding(.horizontal, 32)
@@ -594,15 +594,15 @@ private struct AIInsightsLockedState: View {
                         Text("Preview with Demo Data")
                             .font(.subheadline.weight(.medium))
                     }
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(DS.Adaptive.textSecondary)
                 }
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 40)
     }
-    
+
     private func featureRow(icon: String, text: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -611,7 +611,7 @@ private struct AIInsightsLockedState: View {
                 .frame(width: 24)
             Text(text)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(DS.Adaptive.textSecondary)
             Spacer()
             Image(systemName: "checkmark")
                 .font(.caption.weight(.bold))

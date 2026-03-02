@@ -73,10 +73,10 @@ struct EnhancedPaymentMethodPickerView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
                         TextField("Search payment methods", text: $searchText)
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                     .padding(8)
-                    .background(Color.white.opacity(0.1))
+                    .background(DS.Adaptive.chipBackground)
                     .cornerRadius(10)
                     .padding(.horizontal)
                     .padding(.top, 8)
@@ -89,7 +89,7 @@ struct EnhancedPaymentMethodPickerView: View {
                                     // Show a star if it's the preferred method
                                     HStack(spacing: 4) {
                                         Text(method.name)
-                                            .foregroundColor(.white)
+                                            .foregroundColor(DS.Adaptive.textPrimary)
                                             .font(.headline)
                                         if method.isPreferred {
                                             Image(systemName: "star.fill")
