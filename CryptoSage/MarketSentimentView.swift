@@ -253,9 +253,9 @@ struct MarketSentimentView: View {
         calUTC.timeZone = TimeZone(secondsFromGMT: 0)!
         let todayStartUTC = calUTC.startOfDay(for: Date())
         let noon: TimeInterval = 60 * 60 * 12
-        let yDate = calUTC.date(byAdding: .day, value: -1, to: todayStartUTC)!.addingTimeInterval(noon)
-        let wDate = calUTC.date(byAdding: .day, value: -7, to: todayStartUTC)!.addingTimeInterval(noon)
-        let mDate = calUTC.date(byAdding: .day, value: -30, to: todayStartUTC)!.addingTimeInterval(noon)
+        let yDate = (calUTC.date(byAdding: .day, value: -1, to: todayStartUTC) ?? todayStartUTC).addingTimeInterval(noon)
+        let wDate = (calUTC.date(byAdding: .day, value: -7, to: todayStartUTC) ?? todayStartUTC).addingTimeInterval(noon)
+        let mDate = (calUTC.date(byAdding: .day, value: -30, to: todayStartUTC) ?? todayStartUTC).addingTimeInterval(noon)
         let yTs = Int(yDate.timeIntervalSince1970)
         let wTs = Int(wDate.timeIntervalSince1970)
         let mTs = Int(mDate.timeIntervalSince1970)

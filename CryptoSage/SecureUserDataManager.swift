@@ -72,7 +72,9 @@ final class SecureUserDataManager: ObservableObject {
             return
         }
         
+        #if DEBUG
         print("🔐 [SecureUserDataManager] Migrating user data to encrypted storage...")
+        #endif
         
         // Migrate transactions
         if let txData = UserDefaults.standard.data(forKey: "CryptoSage.ManualTransactions") {
@@ -82,9 +84,13 @@ final class SecureUserDataManager: ObservableObject {
                 let transactions = try decoder.decode([Transaction].self, from: txData)
                 saveTransactions(transactions)
                 UserDefaults.standard.removeObject(forKey: "CryptoSage.ManualTransactions")
+                #if DEBUG
                 print("✅ Migrated \(transactions.count) transactions to encrypted storage")
+                #endif
             } catch {
+                #if DEBUG
                 print("⚠️ Failed to migrate transactions: \(error)")
+                #endif
             }
         }
         
@@ -96,15 +102,21 @@ final class SecureUserDataManager: ObservableObject {
                 let accounts = try decoder.decode([ConnectedAccount].self, from: accData)
                 saveConnectedAccounts(accounts)
                 UserDefaults.standard.removeObject(forKey: "CryptoSage.ConnectedAccounts")
+                #if DEBUG
                 print("✅ Migrated \(accounts.count) connected accounts to encrypted storage")
+                #endif
             } catch {
+                #if DEBUG
                 print("⚠️ Failed to migrate connected accounts: \(error)")
+                #endif
             }
         }
         
         UserDefaults.standard.set(true, forKey: migrationKey)
         isDataLoaded = true
+        #if DEBUG
         print("🔐 [SecureUserDataManager] Migration complete")
+        #endif
     }
     
     // MARK: - Transactions (SENSITIVE)
@@ -342,7 +354,9 @@ final class SecureUserDataManager: ObservableObject {
         
         // Note: Keychain items are NOT deleted - user must explicitly remove API keys
         
+        #if DEBUG
         print("🗑️ [SecureUserDataManager] All encrypted user data wiped")
+        #endif
     }
     
     /// Securely delete ALL data including Keychain

@@ -12,6 +12,8 @@
 	<string></string>
 	<key>3COMMAS_TRADING_SECRET</key>
 	<string></string>
+	<key>CFBundleName</key>
+	<string>CryptoSage</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.finance</string>
 	<key>UIBackgroundModes</key>

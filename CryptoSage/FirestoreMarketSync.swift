@@ -107,21 +107,13 @@ final class FirestoreMarketSync: ObservableObject {
     private var lastCoinGeckoSnapshotHash: Int = 0
     
     private init() {
+        // NOTE: Firestore settings (PersistentCacheSettings / MemoryCacheSettings) are now
+        // configured in CryptoSageAIApp.init() immediately after FirebaseApp.configure(),
+        // before any singleton accesses Firestore.firestore(). Settings cannot be changed
+        // after the first .firestore() call, so they must be set centrally and early.
         #if targetEnvironment(simulator)
-        // MEMORY FIX v5.0.13: Use in-memory cache on simulator.
-        // PersistentCacheSettings creates an SQLite database and background gRPC
-        // connections that continuously allocate memory (~15 MB/3s) even without
-        // active snapshot listeners. MemoryCacheSettings eliminates all disk I/O
-        // and background network threads from Firestore.
-        let settings = FirestoreSettings()
-        settings.cacheSettings = MemoryCacheSettings()
-        db.settings = settings
         logger.info("🔥 [FirestoreMarketSync] Initialized with memory-only cache (Simulator)")
         #else
-        // Restore persistent offline cache for stable listener behavior across launches.
-        let settings = FirestoreSettings()
-        settings.cacheSettings = PersistentCacheSettings()
-        db.settings = settings
         logger.info("🔥 [FirestoreMarketSync] Initialized with offline persistence")
         #endif
     }

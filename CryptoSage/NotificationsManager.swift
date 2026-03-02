@@ -709,6 +709,7 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             DispatchQueue.main.async {
                 self?.notificationPermissionGranted = granted
             }
+            #if DEBUG
             if let error = error {
                 print("[NotificationsManager] Authorization error: \(error)")
             } else if granted {
@@ -716,6 +717,7 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             } else {
                 print("[NotificationsManager] ⚠️ Push notifications NOT authorized — alerts will trigger but notifications won't appear")
             }
+            #endif
         }
     }
     
@@ -726,9 +728,11 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             DispatchQueue.main.async {
                 self?.notificationPermissionGranted = granted
             }
+            #if DEBUG
             if !granted {
                 print("[NotificationsManager] ⚠️ Notification permission status: \(settings.authorizationStatus.rawValue) — notifications will NOT be delivered")
             }
+            #endif
         }
     }
 
@@ -1476,7 +1480,9 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             return nil
         } catch {
             APIRequestCoordinator.shared.recordFailure(for: .binance)
+            #if DEBUG
             print("[NotificationsManager] Failed to fetch price for \(symbol): \(error)")
+            #endif
             return nil
         }
     }
@@ -1531,10 +1537,12 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             userInfo: userInfo
         )
         
+        #if DEBUG
         // Log for debugging
         let aiTag = alert.hasAIFeatures ? " [AI]" : ""
         let reasonTag = aiReason.map { " - \($0)" } ?? ""
         print("[NotificationsManager] Alert triggered\(aiTag): \(alert.symbol) [\(alert.conditionType.rawValue)] threshold=\(alert.threshold) (current: \(currentPrice))\(reasonTag)")
+        #endif
     }
     
     /// Update the lastTriggeredAt timestamp for recurring alerts
@@ -1560,7 +1568,9 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
         // Verify notification permission before attempting to send
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+                #if DEBUG
                 print("[NotificationsManager] ⚠️ Cannot send notification for \(alert.symbol) — permission not granted (status: \(settings.authorizationStatus.rawValue))")
+                #endif
                 // Try requesting permission again in case user hasn't been asked yet
                 if settings.authorizationStatus == .notDetermined {
                     self?.requestAuthorization()
@@ -1602,11 +1612,13 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             )
             
             UNUserNotificationCenter.current().add(request) { error in
+                #if DEBUG
                 if let error = error {
                     print("[NotificationsManager] Failed to send notification: \(error)")
                 } else {
                     print("[NotificationsManager] ✅ Notification sent for \(alert.symbol) at $\(currentPrice)")
                 }
+                #endif
             }
         }
     }

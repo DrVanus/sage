@@ -366,7 +366,9 @@ struct BrokerageConnectionView: View {
         do {
             connectedAccounts = try await PlaidService.shared.loadAccounts()
         } catch {
+            #if DEBUG
             print("Failed to load accounts: \(error)")
+            #endif
         }
     }
     

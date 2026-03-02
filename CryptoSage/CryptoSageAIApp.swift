@@ -329,7 +329,18 @@ struct CryptoSageAIApp: App {
         // to let the main run loop process pending UI work. This prevents a long blocking chain.
         FirebaseApp.configure()
         logMemory("After FirebaseApp.configure()")
-        
+
+        // SETTINGS FIX: Configure Firestore settings immediately after FirebaseApp.configure(),
+        // before any singleton (PushNotificationManager, FirestoreMarketSync, etc.) calls
+        // Firestore.firestore(). Settings can only be applied before the first .firestore() call.
+        let firestoreSettings = FirestoreSettings()
+        #if targetEnvironment(simulator)
+        firestoreSettings.cacheSettings = MemoryCacheSettings()
+        #else
+        firestoreSettings.cacheSettings = PersistentCacheSettings()
+        #endif
+        Firestore.firestore().settings = firestoreSettings
+
         // RELAUNCH FIX v5.0.15: Clear Firestore cache AFTER Firebase is configured
         // but BEFORE any listeners start. Must happen here — Firestore.firestore()
         // requires FirebaseApp to be initialized.
