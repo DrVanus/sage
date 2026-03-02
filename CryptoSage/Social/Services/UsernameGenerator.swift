@@ -190,17 +190,26 @@ public struct UsernameGenerator {
         return UsernameValidationResult(isValid: errors.isEmpty, errors: errors)
     }
     
-    /// Check if a username is available (would need Firebase integration)
+    /// Check if a username is available by comparing against known local profiles.
     /// - Parameter username: The username to check
     /// - Parameter completion: Callback with availability result
     public static func checkAvailability(
         _ username: String,
         completion: @escaping (Bool) -> Void
     ) {
-        // TODO: Implement Firebase check
-        // For now, always return available
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            completion(true)
+        Task { @MainActor in
+            let lower = username.lowercased()
+            let social = SocialService.shared
+
+            // Unavailable if it matches the current user's own username
+            if let own = social.currentProfile?.username.lowercased(), own == lower {
+                completion(true) // own username is still "available" to them
+                return
+            }
+
+            // Check against discovered (known) profiles
+            let taken = social.discoveredUsers.contains { $0.username.lowercased() == lower }
+            completion(!taken)
         }
     }
     

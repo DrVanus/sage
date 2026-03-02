@@ -1208,7 +1208,12 @@ final class ExtendedFearGreedViewModel: ObservableObject {
             // Defer state modifications to avoid "Modifying state during view update"
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                if src == self.selectedSource { self.data = list }
+                if src == self.selectedSource {
+                    self.data = list
+                    if let first = list.first, let intVal = Int(first.value) {
+                        WidgetBridge.syncFearGreed(value: intVal, classification: first.value_classification)
+                    }
+                }
             }
             self.saveCache(list, for: src)
 

@@ -9,7 +9,7 @@ import Foundation
 import WidgetKit
 
 /// App Group identifier for sharing data between main app and widget
-let appGroupIdentifier = "group.com.cryptosage.shared"
+let appGroupIdentifier = "group.com.dee.CryptoSage"
 
 /// Keys for shared UserDefaults
 enum WidgetDataKey {

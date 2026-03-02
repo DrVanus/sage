@@ -1113,6 +1113,7 @@ final class MarketViewModel: ObservableObject {
                             self.allCoins = self.capToMaxCoins(liveCoins)
                         }
                         self.state = .success(liveCoins)
+                        WidgetBridge.syncWatchlist(from: self.allCoins)
                         // MEMORY FIX v7: Use deferred scheduling instead of synchronous call.
                         // Direct applyAllFiltersAndSort() here triggers heavy processing inside
                         // a Combine sink, blocking the main thread and creating cascading
@@ -4033,6 +4034,7 @@ final class MarketViewModel: ObservableObject {
             merged.sort { self.bestCap(for: $0) > self.bestCap(for: $1) }
             await MainActor.run {
                 self.allCoins = merged
+                WidgetBridge.syncWatchlist(from: merged)
                 self.lastGoodAllCoins = merged
                 if merged.count >= self.minUsableSnapshotCount { self.saveCoinsCacheCapped(merged) }
                 self.rebuildPriceBooks()

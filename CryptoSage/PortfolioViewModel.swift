@@ -674,8 +674,9 @@ class PortfolioViewModel: ObservableObject {
                 purchaseDate: holding.purchaseDate
             )
         }
+        WidgetBridge.syncPortfolio(holdings: holdings)
     }
-    
+
     /// STARTUP FIX: Immediately refresh holding prices from the best available source.
     /// Called when holdings are first loaded to avoid showing $0 or stale prices.
     /// Uses MarketViewModel.bestPrice(forSymbol:) which checks LivePriceManager,
@@ -720,9 +721,10 @@ class PortfolioViewModel: ObservableObject {
         if anyUpdated {
             holdings = updated
             lastLiveUpdateAt = Date()
+            WidgetBridge.syncPortfolio(holdings: holdings)
         }
     }
-    
+
     // MARK: - Demo Override Controls
     /// Apply a seeded demo portfolio and freeze repository-driven updates until disabled.
     func applyDemoSeed(holdings: [Holding], history: [ChartPoint]) {
