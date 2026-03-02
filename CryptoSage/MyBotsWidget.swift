@@ -337,7 +337,7 @@ struct CompactBotsWidget: View {
                 if totalBots > 0 {
                     Text("\(runningBots)/\(totalBots)")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(DS.Adaptive.textPrimary)
                     
                     if runningBots > 0 {
                         Circle()
@@ -347,12 +347,12 @@ struct CompactBotsWidget: View {
                 } else {
                     Text(isDemoMode ? "Demo bots" : "No bots")
                         .font(.system(size: 12))
-                        .foregroundColor(isDemoMode ? BrandColors.goldBase : .gray)
+                        .foregroundColor(isDemoMode ? BrandColors.goldBase : DS.Adaptive.textTertiary)
                 }
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

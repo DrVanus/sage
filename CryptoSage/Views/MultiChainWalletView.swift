@@ -826,7 +826,7 @@ struct PremiumChainIcon: View {
             // Unknown chain fallback
             Text("?")
                 .font(.system(size: size * 0.4, weight: .bold))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
         }
     }
 }

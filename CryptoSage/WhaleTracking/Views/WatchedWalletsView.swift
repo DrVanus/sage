@@ -571,7 +571,7 @@ struct AddWatchedWalletView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textSecondary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {

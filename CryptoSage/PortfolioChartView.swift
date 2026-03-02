@@ -1926,7 +1926,7 @@ struct PortfolioChartView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textSecondary)
             Text(value)
                 .font(.callout)
                 // LIGHT MODE FIX: "white" text color was invisible in light mode
