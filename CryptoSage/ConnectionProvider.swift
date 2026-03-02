@@ -491,14 +491,15 @@ extension ConnectedAccountsManager {
     }
     
     /// Get provider by connection type
+    /// Returns the real implementation classes, not the stubs.
     func provider(for type: ConnectionType) -> ConnectionProvider? {
         switch type {
         case .oauth:
-            return OAuthConnectionProvider.shared
+            return OAuthConnectionProviderImpl.shared
         case .apiKey:
-            return DirectAPIConnectionProvider.shared
+            return DirectAPIConnectionProviderImpl.shared
         case .walletAddress:
-            return BlockchainConnectionProvider.shared
+            return BlockchainConnectionProviderImpl.shared
         case .threeCommas:
             return ThreeCommasConnectionProvider.shared
         }

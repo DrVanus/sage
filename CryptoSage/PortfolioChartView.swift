@@ -117,26 +117,8 @@ class PortfolioChartViewModel: ObservableObject {
                 self.dataPoints = history.sorted { $0.date < $1.date }.map { PortfolioDataPoint(date: $0.date, value: $0.value) }
             }
         } else {
-            // Fallback to simulated data (same as before)
-            let count: Int = {
-                switch range {
-                case .day: return 24
-                case .week: return 7
-                case .month: return 30
-                case .threeMonth: return 90
-                case .sixMonth: return 180
-                case .year: return 365
-                case .threeYear: return 365 * 3
-                case .all: return 365 * 3
-                }
-            }()
-            self.dataPoints = (0..<count).map { i in
-                let date = Calendar.current.date(byAdding: .day, value: -(count - 1 - i), to: now) ?? now
-                // Use deterministic sine wave pattern instead of random to prevent visual jitter
-                let waveFactor = sin(Double(i) * 0.5) * 0.02
-                let value = portfolioTotal * (1 + waveFactor)
-                return PortfolioDataPoint(date: date, value: value)
-            }.sorted { $0.date < $1.date }
+            // No history available — show empty state ("No data yet") instead of fake data
+            self.dataPoints = []
         }
 
         // Derive min/max and range change

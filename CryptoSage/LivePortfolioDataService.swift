@@ -118,20 +118,20 @@ final class LivePortfolioDataService: PortfolioDataService {
     
     // MARK: - Refresh Holdings
     
-    /// Refresh holdings from 3Commas
+    /// Refresh holdings from all connected providers (3Commas, Direct API, OAuth, Blockchain)
     func refreshHoldings() async {
         // Prevent concurrent refreshes
         guard !isRefreshing else { return }
-        
+
         // Check cooldown
         if let lastRefresh = lastRefreshTime,
            Date().timeIntervalSince(lastRefresh) < refreshCooldown {
             return
         }
-        
+
         isRefreshing = true
         defer { isRefreshing = false }
-        
+
         // Check if we have connected accounts
         guard !accountsManager.accounts.isEmpty else {
             await MainActor.run {
@@ -139,85 +139,105 @@ final class LivePortfolioDataService: PortfolioDataService {
             }
             return
         }
-        
-        // Fetch from connected accounts
-        do {
-            var allHoldings: [Holding] = []
-            
-            for account in accountsManager.accounts {
-                guard let accountId = account.accountId else { continue }
-                
-                let balances = try await ThreeCommasAPI.shared.loadAccountBalances(accountId: accountId)
-                
-                // Convert balances to holdings
-                for balance in balances where balance.balance > 0 {
+
+        // Fetch from all connected accounts, routing through the correct provider
+        var allHoldings: [Holding] = []
+
+        for account in accountsManager.accounts {
+            do {
+                // Fetch raw balances based on provider type
+                let rawBalances: [(symbol: String, balance: Double)]
+
+                switch account.provider {
+                case "3commas":
+                    // 3Commas uses integer accountId
+                    guard let tcAccountId = account.accountId else { continue }
+                    let tcBalances = try await ThreeCommasAPI.shared.loadAccountBalances(accountId: tcAccountId)
+                    rawBalances = tcBalances.map { ($0.currency, $0.balance) }
+
+                case "direct", "oauth", "blockchain":
+                    // Route through the real ConnectionProvider implementation
+                    let connectionType: ConnectionType = {
+                        switch account.provider {
+                        case "oauth": return .oauth
+                        case "blockchain": return .walletAddress
+                        default: return .apiKey
+                        }
+                    }()
+                    guard let provider = accountsManager.provider(for: connectionType) else { continue }
+                    let pBalances = try await provider.fetchBalances(accountId: account.id)
+                    rawBalances = pBalances.map { ($0.symbol, $0.balance) }
+
+                default:
+                    continue
+                }
+
+                // Convert balances to holdings (unified for all providers)
+                for entry in rawBalances where entry.balance > 0 {
                     // Skip very small balances
-                    guard balance.balance > 0.00001 else { continue }
-                    
+                    guard entry.balance > 0.00001 else { continue }
+
                     // Fetch current price for the currency
-                    let price = await fetchPrice(for: balance.currency)
-                    
+                    let price = await fetchPrice(for: entry.symbol)
+
                     // Determine asset type: commodity for precious metals, crypto otherwise
-                    let isPreciousMetal = PreciousMetalsHelper.isPreciousMetal(balance.currency)
+                    let isPreciousMetal = PreciousMetalsHelper.isPreciousMetal(entry.symbol)
                     let assetType: AssetType = isPreciousMetal ? .commodity : .crypto
-                    
+
                     // PRICE CONSISTENCY: Get 24h change from unified pipeline (LivePriceManager)
                     let dailyPct: Double = await MainActor.run {
                         let coins = LivePriceManager.shared.currentCoinsList
-                        if let coin = coins.first(where: { $0.symbol.uppercased() == balance.currency.uppercased() }),
+                        if let coin = coins.first(where: { $0.symbol.uppercased() == entry.symbol.uppercased() }),
                            let change = LivePriceManager.shared.bestChange24hPercent(for: coin),
                            change.isFinite {
                             return change
                         }
                         return 0
                     }
-                    
+
                     // Create holding with appropriate asset type
                     var holding = Holding(
-                        coinName: coinName(for: balance.currency),
-                        coinSymbol: balance.currency,
-                        quantity: balance.balance,
+                        coinName: coinName(for: entry.symbol),
+                        coinSymbol: entry.symbol,
+                        quantity: entry.balance,
                         currentPrice: price,
-                        costBasis: price, // We don't have cost basis from 3Commas
+                        costBasis: price, // Cost basis unavailable from balance APIs
                         imageUrl: nil,
                         isFavorite: false,
                         dailyChange: dailyPct,
-                        purchaseDate: Date() // We don't have purchase date from balance API
+                        purchaseDate: Date()
                     )
-                    
+
                     // Set the asset type for precious metals
                     holding.assetType = assetType
-                    
+
                     // Check for duplicate and merge
-                    if let existingIndex = allHoldings.firstIndex(where: { $0.coinSymbol == balance.currency }) {
-                        allHoldings[existingIndex].quantity += balance.balance
+                    if let existingIndex = allHoldings.firstIndex(where: { $0.coinSymbol == entry.symbol }) {
+                        allHoldings[existingIndex].quantity += entry.balance
                     } else {
                         allHoldings.append(holding)
                     }
                 }
-                
+
                 // Update last sync time
                 accountsManager.updateLastSync(for: account)
+
+            } catch {
+                #if DEBUG
+                print("⚠️ [LivePortfolio] Failed to fetch holdings for \(account.name): \(error)")
+                #endif
+                // Continue with other accounts — don't fail entire refresh for one provider
             }
-            
-            // Sort by value (descending)
-            allHoldings.sort { $0.currentValue > $1.currentValue }
-            
-            // Capture immutable copy to avoid "captured var in concurrently-executing code"
-            let finalHoldings = allHoldings
-            await MainActor.run {
-                holdingsSubject.send(finalHoldings)
-                lastRefreshTime = Date()
-            }
-            
-        } catch {
-            print("❌ Failed to fetch holdings: \(error)")
-            
-            // PRODUCTION FIX: Keep existing holdings on error, don't fall back to mock data.
-            // Previously showed hardcoded fake portfolio (BTC at $42K) when API failed.
-            await MainActor.run {
-                // Keep whatever holdings we already have; don't inject fake data
-            }
+        }
+
+        // Sort by value (descending)
+        allHoldings.sort { $0.currentValue > $1.currentValue }
+
+        // Capture immutable copy to avoid "captured var in concurrently-executing code"
+        let finalHoldings = allHoldings
+        await MainActor.run {
+            holdingsSubject.send(finalHoldings)
+            lastRefreshTime = Date()
         }
     }
     

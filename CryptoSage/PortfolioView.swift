@@ -2267,12 +2267,7 @@ extension PortfolioView {
                                 }
                                 
                                 Divider()
-                                
-                                Button("Rebalance to target…") { }
-                                Button("View on Market") { }
-                                
-                                Divider()
-                                
+
                                 // Context menu only for regular holdings (not Paper Trading)
                                 if !paperTradingManager.isPaperTradingEnabled {
                                     Button {
