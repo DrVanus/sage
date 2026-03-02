@@ -338,7 +338,13 @@ struct WalletConnectView: View {
                 showQRCode = true
             }
         } catch {
-            // Handle error
+            await MainActor.run {
+                connectionURI = nil
+                showQRCode = false
+            }
+            #if DEBUG
+            print("[WalletConnect] Connection failed: \(error.localizedDescription)")
+            #endif
         }
     }
     

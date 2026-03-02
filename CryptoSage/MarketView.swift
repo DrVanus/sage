@@ -486,8 +486,9 @@ struct MarketView: View {
                 .foregroundStyle(DS.Adaptive.textSecondary)
                 .frame(width: 32, height: 32)
         }
+        .accessibilityLabel(vm.showSearchBar ? "Close search" : "Search coins")
     }
-    
+
     /// Whether any non-default filter is currently active
     private var hasActiveFilter: Bool {
         vm.selectedCategory != .all || vm.sortField != .marketCap || vm.sortDirection != .desc
@@ -521,6 +522,8 @@ struct MarketView: View {
                 }
             }
         }
+        .accessibilityLabel(hasActiveFilter ? "Filter (active)" : "Filter")
+        .accessibilityHint("Open filter and sort options")
     }
 
     // MARK: - Column Header

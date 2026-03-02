@@ -981,7 +981,9 @@ class PriceViewModel: ObservableObject {
                 }
             }
         } catch {
-            // handle error
+            #if DEBUG
+            print("[PriceVM] Historical price fetch failed: \(error.localizedDescription)")
+            #endif
         }
     }
 }

@@ -454,7 +454,7 @@ struct APIConfigurationView: View {
     }
     
     private func helpLink(title: String, url: String, color: Color) -> some View {
-        Link(destination: URL(string: url)!) {
+        Link(destination: URL(string: url) ?? URL(string: "https://cryptosage.app")!) {
             HStack(spacing: 12) {
                 Circle()
                     .fill(color.opacity(0.15))
@@ -632,7 +632,7 @@ struct APIServiceInfoSheet: View {
                         )
                         
                         // Get key button
-                        Link(destination: URL(string: service.signupURL)!) {
+                        Link(destination: URL(string: service.signupURL) ?? URL(string: "https://cryptosage.app")!) {
                             HStack {
                                 Text("Get \(service.name) API Key")
                                 Image(systemName: "arrow.up.right.square")

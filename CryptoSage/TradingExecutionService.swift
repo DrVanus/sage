@@ -1325,7 +1325,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -1381,7 +1381,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1422,7 +1422,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1452,7 +1452,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
 
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1515,7 +1515,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1585,7 +1585,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -1656,7 +1656,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postString.data(using: .utf8)
@@ -1711,7 +1711,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1750,7 +1750,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1787,7 +1787,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1865,7 +1865,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1946,7 +1946,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postString.data(using: .utf8)
@@ -2024,7 +2024,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -2069,7 +2069,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2122,7 +2122,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2161,7 +2161,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
 
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2222,7 +2222,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2290,7 +2290,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
+        guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData

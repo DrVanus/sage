@@ -2809,6 +2809,7 @@ extension AITabView {
             .scaleEffect(isActive ? 1 : 0.95)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
             .animation(.easeInOut(duration: 0.15), value: isThinking)
+            .accessibilityLabel(isThinking ? "Stop generating" : "Send message")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

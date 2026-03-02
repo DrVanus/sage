@@ -425,7 +425,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
             .appendingPathComponent(config.accountEndpoint)
             .absoluteString + "?\(queryString)&signature=\(signature)"
         
-        var request = URLRequest(url: URL(string: url)!)
+        guard let parsedURL = URL(string: url) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-MBX-APIKEY")
         
@@ -482,7 +483,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
             .appendingPathComponent("/api/v3/account")
             .absoluteString + "?\(queryString)&signature=\(signature)"
         
-        var request = URLRequest(url: URL(string: url)!)
+        guard let parsedURL = URL(string: url) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = "GET"
         request.setValue(key, forHTTPHeaderField: "X-MBX-APIKEY")
         
@@ -800,7 +802,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         
         let urlString = "https://\(host)\(endpoint)?\(paramString)&Signature=\(signatureBase64)"
         
-        var request = URLRequest(url: URL(string: urlString)!)
+        guard let parsedURL = URL(string: urlString) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -881,7 +884,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         
         let urlString = "https://\(host)\(endpoint)?\(paramString)&Signature=\(signatureBase64)"
         
-        var request = URLRequest(url: URL(string: urlString)!)
+        guard let parsedURL = URL(string: urlString) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -938,7 +942,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         
         let urlString = "https://\(host)\(endpoint)?\(paramString)&Signature=\(signatureBase64)"
         
-        var request = URLRequest(url: URL(string: urlString)!)
+        guard let parsedURL = URL(string: urlString) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -1061,7 +1066,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
             .appendingPathComponent(config.accountEndpoint)
             .absoluteString + "?\(queryString)&signature=\(signature)"
         
-        var request = URLRequest(url: URL(string: url)!)
+        guard let parsedURL = URL(string: url) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-MEXC-APIKEY")
         
@@ -1117,7 +1123,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
             .appendingPathComponent(config.accountEndpoint)
             .absoluteString + "?\(queryString)&signature=\(signature)"
         
-        var request = URLRequest(url: URL(string: url)!)
+        guard let parsedURL = URL(string: url) else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: parsedURL)
         request.httpMethod = "GET"
         request.setValue(key, forHTTPHeaderField: "X-MEXC-APIKEY")
         

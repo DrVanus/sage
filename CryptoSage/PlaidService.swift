@@ -264,7 +264,9 @@ actor PlaidService {
             throw PlaidServiceError.notConfigured
         }
         
-        let url = URL(string: "\(configuration.environment.baseURL)/link/token/create")!
+        guard let url = URL(string: "\(configuration.environment.baseURL)/link/token/create") else {
+            throw PlaidServiceError.invalidResponse
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -313,7 +315,9 @@ actor PlaidService {
             throw PlaidServiceError.notConfigured
         }
         
-        let url = URL(string: "\(configuration.environment.baseURL)/item/public_token/exchange")!
+        guard let url = URL(string: "\(configuration.environment.baseURL)/item/public_token/exchange") else {
+            throw PlaidServiceError.invalidResponse
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -376,7 +380,9 @@ actor PlaidService {
             throw PlaidServiceError.notConfigured
         }
         
-        let url = URL(string: "\(configuration.environment.baseURL)/investments/holdings/get")!
+        guard let url = URL(string: "\(configuration.environment.baseURL)/investments/holdings/get") else {
+            throw PlaidServiceError.invalidResponse
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -235,8 +235,9 @@ struct PortfolioCoinRow: View {
         let marketURL: URL? = MarketViewModel.shared.allCoins.first(where: { $0.symbol.lowercased() == lower })?.imageUrl
         let knownFallback: URL? = CoinIconFallbacks[lower]
         // CoinCap CDN is reliable and works for most coins
-        let genericCDN: URL = URL(string: "https://assets.coincap.io/assets/icons/\(lower)@2x.png")!
-        return providedURL ?? marketURL ?? knownFallback ?? genericCDN
+        let genericCDN: URL? = URL(string: "https://assets.coincap.io/assets/icons/\(lower.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? lower)@2x.png")
+        // swiftlint:disable:next force_unwrapping — static fallback URL is always valid
+        return providedURL ?? marketURL ?? knownFallback ?? genericCDN ?? URL(string: "https://assets.coincap.io/assets/icons/btc@2x.png")!
     }
     
     /// Format price with proper currency formatting (commas + appropriate decimals)

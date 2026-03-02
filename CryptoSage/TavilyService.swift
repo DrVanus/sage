@@ -159,7 +159,9 @@ final class TavilyService {
             throw TavilyError.noAPIKey
         }
         
-        let url = URL(string: "\(baseURL)/search")!
+        guard let url = URL(string: "\(baseURL)/search") else {
+            throw TavilyError.networkError(URLError(.badURL))
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
