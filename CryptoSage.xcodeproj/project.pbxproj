@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		336FE2B92F562DAB0091B126 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 336FE2B82F562DAA0091B126 /* WidgetKit.framework */; };
+		336FE2BB2F562DAB0091B126 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 336FE2BA2F562DAB0091B126 /* SwiftUI.framework */; };
+		336FE2CA2F562DAB0091B126 /* CryptoSageWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 336FE2B62F562DAA0091B126 /* CryptoSageWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		93551D222F3796F9007170EE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 93FA00012F29B00000000001 /* FirebaseAuth */; };
 		93552C172F37B410007170EE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 93GS00022F30000000000002 /* GoogleSignIn */; };
 		93552C182F37B410007170EE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 93GS00032F30000000000003 /* GoogleSignInSwift */; };
@@ -30,6 +33,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		336FE2C82F562DAB0091B126 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 826ACF7D2DC47BFE0054954D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 336FE2B52F562DAA0091B126;
+			remoteInfo = CryptoSageWidgetExtension;
+		};
 		826ACF932DC47BFF0054954D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 826ACF7D2DC47BFE0054954D /* Project object */;
@@ -46,7 +56,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		336FE2CB2F562DAB0091B126 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				336FE2CA2F562DAB0091B126 /* CryptoSageWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		336FE2B62F562DAA0091B126 /* CryptoSageWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CryptoSageWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		336FE2B82F562DAA0091B126 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		336FE2BA2F562DAB0091B126 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		336FE2DA2F562F210091B126 /* CryptoSageWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CryptoSageWidgetExtension.entitlements; sourceTree = "<group>"; };
 		826ACF852DC47BFE0054954D /* CryptoSage.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CryptoSage.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		826ACF922DC47BFF0054954D /* CryptoSageTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CryptoSageTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		826ACF9C2DC47BFF0054954D /* CryptoSageUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CryptoSageUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +87,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		336FE2CF2F562DAB0091B126 /* Exceptions for "CryptoSageWidget" folder in "CryptoSageWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 336FE2B52F562DAA0091B126 /* CryptoSageWidgetExtension */;
+		};
 		938994C32EA13837002A0ED9 /* Exceptions for "CryptoSage" folder in "CryptoSage" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -69,6 +104,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		336FE2BC2F562DAB0091B126 /* CryptoSageWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				336FE2CF2F562DAB0091B126 /* Exceptions for "CryptoSageWidget" folder in "CryptoSageWidgetExtension" target */,
+			);
+			path = CryptoSageWidget;
+			sourceTree = "<group>";
+		};
 		826ACF872DC47BFE0054954D /* CryptoSage */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -90,6 +133,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		336FE2B32F562DAA0091B126 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				336FE2BB2F562DAB0091B126 /* SwiftUI.framework in Frameworks */,
+				336FE2B92F562DAB0091B126 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		826ACF822DC47BFE0054954D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -129,14 +181,26 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		336FE2B72F562DAA0091B126 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				336FE2B82F562DAA0091B126 /* WidgetKit.framework */,
+				336FE2BA2F562DAB0091B126 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		826ACF7C2DC47BFE0054954D = {
 			isa = PBXGroup;
 			children = (
+				336FE2DA2F562F210091B126 /* CryptoSageWidgetExtension.entitlements */,
 				AA0000000000000000000002 /* PrivacyInfo.xcprivacy */,
 				9363F30A2EAA75FD00DBC274 /* LaunchScreen.storyboard */,
 				826ACF872DC47BFE0054954D /* CryptoSage */,
 				826ACF952DC47BFF0054954D /* CryptoSageTests */,
 				826ACF9F2DC47BFF0054954D /* CryptoSageUITests */,
+				336FE2BC2F562DAB0091B126 /* CryptoSageWidget */,
+				336FE2B72F562DAA0091B126 /* Frameworks */,
 				826ACF862DC47BFE0054954D /* Products */,
 				93E56D002E8E0C3F000D56F0 /* CryptoNewsRSS.swift */,
 				93E56D022E8E12B4000D56F0 /* StaticNewsSeed.swift */,
@@ -151,6 +215,7 @@
 				826ACF852DC47BFE0054954D /* CryptoSage.app */,
 				826ACF922DC47BFF0054954D /* CryptoSageTests.xctest */,
 				826ACF9C2DC47BFF0054954D /* CryptoSageUITests.xctest */,
+				336FE2B62F562DAA0091B126 /* CryptoSageWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -158,6 +223,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		336FE2B52F562DAA0091B126 /* CryptoSageWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 336FE2CE2F562DAB0091B126 /* Build configuration list for PBXNativeTarget "CryptoSageWidgetExtension" */;
+			buildPhases = (
+				336FE2B22F562DAA0091B126 /* Sources */,
+				336FE2B32F562DAA0091B126 /* Frameworks */,
+				336FE2B42F562DAA0091B126 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				336FE2BC2F562DAB0091B126 /* CryptoSageWidget */,
+			);
+			name = CryptoSageWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = CryptoSageWidgetExtension;
+			productReference = 336FE2B62F562DAA0091B126 /* CryptoSageWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		826ACF842DC47BFE0054954D /* CryptoSage */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 826ACFA62DC47BFF0054954D /* Build configuration list for PBXNativeTarget "CryptoSage" */;
@@ -165,10 +252,12 @@
 				826ACF812DC47BFE0054954D /* Sources */,
 				826ACF822DC47BFE0054954D /* Frameworks */,
 				826ACF832DC47BFE0054954D /* Resources */,
+				336FE2CB2F562DAB0091B126 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				336FE2C92F562DAB0091B126 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				826ACF872DC47BFE0054954D /* CryptoSage */,
@@ -248,9 +337,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1630;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					336FE2B52F562DAA0091B126 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					826ACF842DC47BFE0054954D = {
 						CreatedOnToolsVersion = 16.3;
 						LastSwiftMigration = 1630;
@@ -287,11 +379,19 @@
 				826ACF842DC47BFE0054954D /* CryptoSage */,
 				826ACF912DC47BFF0054954D /* CryptoSageTests */,
 				826ACF9B2DC47BFF0054954D /* CryptoSageUITests */,
+				336FE2B52F562DAA0091B126 /* CryptoSageWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		336FE2B42F562DAA0091B126 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		826ACF832DC47BFE0054954D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -317,6 +417,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		336FE2B22F562DAA0091B126 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		826ACF812DC47BFE0054954D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -345,6 +452,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		336FE2C92F562DAB0091B126 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 336FE2B52F562DAA0091B126 /* CryptoSageWidgetExtension */;
+			targetProxy = 336FE2C82F562DAB0091B126 /* PBXContainerItemProxy */;
+		};
 		826ACF942DC47BFF0054954D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 826ACF842DC47BFE0054954D /* CryptoSage */;
@@ -358,6 +470,72 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		336FE2CC2F562DAB0091B126 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CryptoSageWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8AC94HX753;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CryptoSageWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CryptoSageWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dee.CryptoSage.CryptoSageWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		336FE2CD2F562DAB0091B126 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CryptoSageWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8AC94HX753;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CryptoSageWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CryptoSageWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dee.CryptoSage.CryptoSageWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		826ACFA42DC47BFF0054954D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -652,6 +830,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		336FE2CE2F562DAB0091B126 /* Build configuration list for PBXNativeTarget "CryptoSageWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				336FE2CC2F562DAB0091B126 /* Debug */,
+				336FE2CD2F562DAB0091B126 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		826ACF802DC47BFE0054954D /* Build configuration list for PBXProject "CryptoSage" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
