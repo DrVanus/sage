@@ -998,9 +998,8 @@ struct CommoditiesMarketView: View {
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundColor(DS.Adaptive.textTertiary.opacity(0.5))
                 } else {
-                    Text("—")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(DS.Adaptive.textTertiary)
+                    ShimmerBar(height: 12, cornerRadius: 3)
+                        .frame(width: 42)
                 }
             }
             

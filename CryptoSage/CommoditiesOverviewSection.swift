@@ -759,10 +759,9 @@ struct CommoditiesOverviewSection: View {
                             .fill(DS.Adaptive.textTertiary.opacity(0.2))
                             .frame(width: 45, height: 14)
                     } else if commodity.changePercent == 0 && !hasLiveData {
-                        // No data available
-                        Text("—")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundColor(DS.Adaptive.textTertiary)
+                        // No data available - shimmer placeholder
+                        ShimmerBar(height: 12, cornerRadius: 3)
+                            .frame(width: 42)
                     } else {
                         // Show actual change percentage
                         HStack(spacing: 2) {

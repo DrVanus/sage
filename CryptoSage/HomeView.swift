@@ -235,13 +235,8 @@ struct CoinCardView: View {
                     // PERFORMANCE FIX: GPU-accelerated numeric text transition
                     .contentTransition(.numericText(countsDown: false))
             } else {
-                Text("–")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(DS.Adaptive.textPrimary)
-                    .lineLimit(1)
-                    .monospacedDigit()
-                    .tracking(-0.2)
-                    .baselineOffset(1)
+                ShimmerBar(height: 14, cornerRadius: 3)
+                    .frame(width: 60)
             }
             
             // CONSISTENCY FIX: Use cached value from LivePriceManager as single source of truth

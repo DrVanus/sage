@@ -1295,9 +1295,8 @@ struct MarketSentimentView: View {
                     )
                     badgeView
                 } else {
-                    Text("—")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
+                    ShimmerBar(height: 10, cornerRadius: 3)
+                        .frame(width: 30)
                     Spacer()
                 }
             }

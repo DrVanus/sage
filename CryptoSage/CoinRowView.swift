@@ -724,9 +724,8 @@ struct CoinRowView: View {
                             .accessibilityLabel("24 hour change")
                             .accessibilityValue(fmt24.accessibility)
                     } else {
-                        Text("—")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(DS.Adaptive.textTertiary.opacity(0.5))
+                        ShimmerBar(height: 12, cornerRadius: 3)
+                            .frame(width: 48)
                             .accessibilityLabel(Text("24 hour change loading"))
                     }
                 }

@@ -843,9 +843,8 @@ struct TrendingSectionView: View {
                                 .minimumScaleFactor(0.6)
                                 .allowsTightening(true)
                         } else {
-                            Text("—")
-                                .font(.footnote.monospacedDigit())
-                                .foregroundColor(DS.Adaptive.textTertiary)
+                            ShimmerBar(height: 12, cornerRadius: 3)
+                                .frame(width: 50)
                         }
                     }
 

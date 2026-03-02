@@ -560,9 +560,8 @@ struct MarketSentimentDetailView: View {
                                     .font(.system(size: isNow ? 13 : 11, weight: isNow ? .bold : .semibold, design: .rounded))
                                     .foregroundColor(isNow ? gold : point.color)
                             } else {
-                                Text("—")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(DS.Adaptive.textTertiary)
+                                ShimmerBar(height: 10, cornerRadius: 3)
+                                    .frame(width: 28)
                             }
                             
                             // Bar with zones
@@ -649,19 +648,10 @@ struct MarketSentimentDetailView: View {
                                         .fill((isUp ? Color.green : Color.red).opacity(0.15))
                                 )
                             } else {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "minus")
-                                        .font(.system(size: 7, weight: .medium))
-                                    Text("—")
-                                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                                }
-                                .foregroundColor(DS.Adaptive.textTertiary.opacity(0.5))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(DS.Adaptive.chipBackground.opacity(0.3))
-                                )
+                                ShimmerBar(height: 10, cornerRadius: 8)
+                                    .frame(width: 36)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
                             }
                         }
                         .frame(maxWidth: .infinity)

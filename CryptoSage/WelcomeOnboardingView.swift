@@ -25,7 +25,7 @@ struct WelcomeOnboardingView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            DS.Adaptive.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {

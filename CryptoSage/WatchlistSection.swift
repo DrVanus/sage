@@ -295,13 +295,12 @@ struct ChangeView: View {
                     .accessibilityLabel("\(processedLabel) change")
                     .accessibilityValue(fmt.accessibility)
             } else {
-                // No data available - show placeholder
-                Text("—")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(isDark ? Color.white.opacity(0.4) : Color.secondary)
+                // No data available - show shimmer placeholder
+                ShimmerBar(height: 12, cornerRadius: 3)
+                    .frame(width: 50)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .accessibilityLabel("\(processedLabel) change")
-                    .accessibilityValue("unavailable")
+                    .accessibilityValue("loading")
             }
         }
         .onAppear {
