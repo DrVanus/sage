@@ -823,7 +823,9 @@ enum ChartInterval: String, CaseIterable {
         
         if isCoinbase {
             // COINBASE FALLBACK: Binance WebSocket failed, using Coinbase as fallback
+            #if DEBUG
             print("[LiveWS] 🔄 Binance WS failed - switching to Coinbase WebSocket fallback")
+            #endif
             logger.info("[LiveWS] Using Coinbase WebSocket fallback for \(self.coinbaseProductId)")
             
             // Coinbase requires custom headers and subscription message
@@ -1264,7 +1266,9 @@ enum ChartInterval: String, CaseIterable {
                         self.isRetrying = false
                         self.autoRetryCount = 0
                         self.errorMessage = "Request timed out. Check your internet connection and try again."
+                        #if DEBUG
                         print("[CryptoChartViewModel] Loading timeout for \(symbol) \(interval.rawValue) after \(self.maxAutoRetries) retries")
+                        #endif
                     }
                 }
             }
@@ -1285,7 +1289,9 @@ enum ChartInterval: String, CaseIterable {
         isRetrying = true
         isLoading = false // Stop loading indicator during delay
         
+        #if DEBUG
         print("[CryptoChartViewModel] Auto-retry \(autoRetryCount)/\(maxAutoRetries) for \(symbol) \(interval.rawValue) in \(delay)s")
+        #endif
         
         pendingRetryWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -1811,7 +1817,9 @@ enum ChartInterval: String, CaseIterable {
             self.fetchFromCoinGecko(symbol: symbol, interval: interval, days: days, currentSeq: currentSeq) { [weak self] in
                 guard let self = self else { return }
                 // Fallback to Binance if CoinGecko fails
+                #if DEBUG
                 print("[\(timeframeName)] CoinGecko failed, falling back to Binance")
+                #endif
                 let nowMs = Date().timeIntervalSince1970 * 1000
                 let startTime: TimeInterval = interval == .threeYear
                     ? nowMs - TimeInterval(156 * 7 * 86_400 * 1000)  // 156 weeks = 3 years
@@ -2903,7 +2911,9 @@ enum ChartInterval: String, CaseIterable {
             
             self.fetchFromCoinGecko(symbol: symbol, interval: interval, days: days, currentSeq: currentSeq) { [weak self] in
                 guard let self = self else { return }
+                #if DEBUG
                 print("[\(timeframeName)] CoinGecko failed, falling back to Binance")
+                #endif
                 let nowMs = Date().timeIntervalSince1970 * 1000
                 let startTime: TimeInterval = interval == .threeYear
                     ? nowMs - TimeInterval(156 * 7 * 86_400 * 1000)
@@ -3121,7 +3131,9 @@ enum ChartInterval: String, CaseIterable {
                 
                 // Handle network errors
                 if let error = error {
+                    #if DEBUG
                     print("[CoinGecko] Error fetching \(timeframeName) data: \(error.localizedDescription)")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                     return
@@ -3129,7 +3141,9 @@ enum ChartInterval: String, CaseIterable {
                 
                 // Check HTTP response
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    #if DEBUG
                     print("[CoinGecko] Invalid response type for \(timeframeName) timeframe")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                     return
@@ -3137,21 +3151,27 @@ enum ChartInterval: String, CaseIterable {
                 
                 // Handle rate limiting (429) and other errors
                 if httpResponse.statusCode == 429 {
+                    #if DEBUG
                     print("[CoinGecko] Rate limited (429) for \(timeframeName) timeframe - falling back to Binance")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                     return
                 }
                 
                 guard httpResponse.statusCode == 200 else {
+                    #if DEBUG
                     print("[CoinGecko] HTTP \(httpResponse.statusCode) for \(timeframeName) timeframe")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                     return
                 }
                 
                 guard let data = data else {
+                    #if DEBUG
                     print("[CoinGecko] No data received for \(timeframeName) timeframe")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                     return
@@ -3162,7 +3182,9 @@ enum ChartInterval: String, CaseIterable {
                     let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                     guard let pricesArray = json?["prices"] as? [[Double]],
                           let volumesArray = json?["total_volumes"] as? [[Double]] else {
+                        #if DEBUG
                         print("[CoinGecko] Missing prices/volumes in response for \(timeframeName)")
+                        #endif
                         Self.completeInflightFetch(key: inflightKey)
                         fallback()
                         return
@@ -3195,7 +3217,9 @@ enum ChartInterval: String, CaseIterable {
                     // Validate we got meaningful data (at least ~2 years of weekly data for 3Y, ~5 years for ALL)
                     let minPoints = interval == .threeYear ? 80 : 100
                     guard pts.count >= minPoints else {
+                        #if DEBUG
                         print("[CoinGecko] Insufficient data points for \(timeframeName): \(pts.count) (need \(minPoints))")
+                        #endif
                         Self.completeInflightFetch(key: inflightKey)
                         fallback()
                         return
@@ -3226,9 +3250,13 @@ enum ChartInterval: String, CaseIterable {
                         self.dataPoints = weeklyPoints
                     }
                     self.volumeDataStable = true
+                    #if DEBUG
                     print("[CoinGecko] Successfully loaded \(timeframeName) data: \(weeklyPoints.count) weekly points from \(weeklyPoints.first?.date ?? Date()) to \(weeklyPoints.last?.date ?? Date())")
+                    #endif
                 } catch {
+                    #if DEBUG
                     print("[CoinGecko] JSON parsing error for \(timeframeName): \(error)")
+                    #endif
                     Self.completeInflightFetch(key: inflightKey)
                     fallback()
                 }

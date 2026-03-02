@@ -14,7 +14,9 @@ private actor _RateLimitedLogger {
             return
         }
         logTimes[key] = now
+        #if DEBUG
         print(message)
+        #endif
     }
     
     func shouldLogFastPathRace() -> Bool {
@@ -1167,7 +1169,9 @@ actor BinanceService {
                 return closes
             }
         } catch {
+            #if DEBUG
             print("❌ [BinanceService] Coinbase sparkline error for \(symbol):", error)
+            #endif
         }
         return []
     }
@@ -1263,7 +1267,9 @@ actor BinanceService {
                     change24h: 0
                 )
             } catch {
+                #if DEBUG
                 print("❌ [BinanceService] Coinbase 24h fetch failed for \(symbol):", error)
+                #endif
                 return nil
             }
         }

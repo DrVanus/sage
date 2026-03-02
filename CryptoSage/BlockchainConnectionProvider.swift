@@ -387,7 +387,7 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
     }
     
     private func fetchEthBalance(address: String) async throws -> PortfolioBalance? {
-        var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false) else { return nil }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "balance"),
@@ -448,7 +448,7 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
         
         // Use the tokentx API to get ERC-20 transfer history, then calculate balances
         // This approach is more reliable than checking individual token contracts
-        var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false) else { return [] }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "tokentx"),
@@ -548,7 +548,7 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
         name: String,
         decimals: Int
     ) async -> PortfolioBalance? {
-        var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: BlockchainAPIConfig.ethereum.baseURL, resolvingAgainstBaseURL: false) else { return nil }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "tokenbalance"),
@@ -712,9 +712,9 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
     /// Fetch balances for any EVM-compatible chain using Etherscan-compatible API
     private func fetchEVMChainBalances(address: String, config: BlockchainAPIConfig) async throws -> [PortfolioBalance] {
         var balances: [PortfolioBalance] = []
-        
+
         // Fetch native token balance
-        var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false) else { return [] }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "balance"),
@@ -786,9 +786,9 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
     /// Fetch ERC-20/token balances for EVM chains
     private func fetchEVMTokenBalances(address: String, config: BlockchainAPIConfig) async -> [PortfolioBalance] {
         var balances: [PortfolioBalance] = []
-        
+
         // Fetch token transfer history to discover tokens
-        var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false) else { return [] }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "tokentx"),
@@ -880,7 +880,7 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
         decimals: Int,
         config: BlockchainAPIConfig
     ) async -> PortfolioBalance? {
-        var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.baseURL, resolvingAgainstBaseURL: false) else { return nil }
         components.queryItems = [
             URLQueryItem(name: "module", value: "account"),
             URLQueryItem(name: "action", value: "tokenbalance"),

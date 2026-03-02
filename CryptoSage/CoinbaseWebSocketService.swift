@@ -81,7 +81,7 @@ public actor CoinbaseWebSocketService {
         ]
 
         let messageData = try JSONSerialization.data(withJSONObject: subscribeMessage)
-        let messageString = String(data: messageData, encoding: .utf8)!
+        guard let messageString = String(data: messageData, encoding: .utf8) else { return }
 
         try await webSocketTask?.send(.string(messageString))
 

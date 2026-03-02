@@ -78,7 +78,7 @@ public final class BinanceCandleService: CandleService {
 
     public func fetchCandles(symbol: String, interval: CandleInterval, limit: Int = 500) async throws -> [Candle] {
         func buildURL(base: URL) -> URL? {
-            var components = URLComponents(url: base.appendingPathComponent("klines"), resolvingAgainstBaseURL: false)!
+            guard var components = URLComponents(url: base.appendingPathComponent("klines"), resolvingAgainstBaseURL: false) else { return nil }
             components.queryItems = [
                 URLQueryItem(name: "symbol", value: symbol),
                 URLQueryItem(name: "interval", value: interval.rawValue),
