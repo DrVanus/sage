@@ -296,7 +296,8 @@ struct TechnicalsEngine {
             out.append(first)
             if input.count > period {
                 for i in period..<input.count {
-                    let next = out.last! - (out.last! / Double(period)) + input[i]
+                    guard let lastVal = out.last else { break }
+                    let next = lastVal - (lastVal / Double(period)) + input[i]
                     out.append(next)
                 }
             }
@@ -338,7 +339,8 @@ struct TechnicalsEngine {
         let sma = tp.suffix(period).reduce(0, +) / Double(period)
         let meanDev = tp.suffix(period).reduce(0) { $0 + abs($1 - sma) } / Double(period)
         let denom = 0.015 * max(meanDev, 1e-12)
-        return (tp.last! - sma) / denom
+        guard let lastTp = tp.last else { return nil }
+        return (lastTp - sma) / denom
     }
 
     /// MACD series - returns arrays of (macdLine, signalLine, histogram) aligned with input
@@ -868,8 +870,9 @@ struct TechnicalsEngine {
         }
         
         // Step 5: Check for breakout (price above recent range with volume)
-        let recentHigh = highsData.suffix(10).max() ?? closes.last!
-        let recentLow = lowsData.suffix(10).min() ?? closes.last!
+        let closesLast = closes.last ?? 0
+        let recentHigh = highsData.suffix(10).max() ?? closesLast
+        let recentLow = lowsData.suffix(10).min() ?? closesLast
         let currentPrice = closes.last ?? 0
         let avgRecentVol = volumes.suffix(5).reduce(0, +) / 5
         let avgPriorVol = volumes.dropLast(5).suffix(20).reduce(0, +) / 20

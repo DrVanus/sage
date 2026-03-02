@@ -661,7 +661,7 @@ struct AISettingsView: View {
         let isEditing = editingCustomProvider != nil
         let title = isEditing ? "Edit Custom Provider" : "Add Custom Provider"
         
-        return NavigationView {
+        return NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Info banner
@@ -1920,7 +1920,7 @@ struct AISettingsView: View {
         let title = isChat ? "Select Chat Model" : "Select Prediction Model"
         let accentColor = isChat ? Color.blue : Color.green
         
-        return NavigationView {
+        return NavigationStack {
             List {
                 // Recommendation header for prediction mode
                 if !isChat {

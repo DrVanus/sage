@@ -539,7 +539,7 @@ struct StockDetailView: View {
         .padding(.vertical, 10)
         .background(
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.background)
                 .ignoresSafeArea()
         )
     }
@@ -2530,7 +2530,7 @@ struct StockDetailView: View {
     // MARK: - Alert Sheet
     
     private var stockAlertSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 StockImageView(ticker: ticker, assetType: assetType, size: 60)
                 

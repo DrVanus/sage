@@ -62,7 +62,7 @@ struct EnhancedPaymentMethodPickerView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Dark background
                 Color.black.ignoresSafeArea()
@@ -306,20 +306,23 @@ struct RenamePaymentMethodView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 TextField("New name", text: $text)
             }
-            .navigationBarTitle("Rename", displayMode: .inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    dismiss()
-                },
-                trailing: Button("Save") {
-                    onSave(text)
-                    dismiss()
+            .navigationTitle("Rename")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
-            )
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(text)
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
@@ -333,23 +336,26 @@ struct AddPaymentMethodView: View {
     var onAdd: (String, String) -> Void
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Payment Method Info")) {
                     TextField("Name", text: $name)
                     TextField("Details", text: $details)
                 }
             }
-            .navigationBarTitle("Add Method", displayMode: .inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    dismiss()
-                },
-                trailing: Button("Add") {
-                    onAdd(name, details)
-                    dismiss()
+            .navigationTitle("Add Method")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
-            )
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        onAdd(name, details)
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
@@ -364,7 +370,7 @@ struct ConnectPaymentMethodView: View {
     @State private var tempSecretKey: String = ""
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Connect to \(method.name)")) {
                     TextField("API Key", text: $tempApiKey)
@@ -385,7 +391,8 @@ struct ConnectPaymentMethodView: View {
                     }
                 }
             }
-            .navigationBarTitle("Connect \(method.name)", displayMode: .inline)
+            .navigationTitle("Connect \(method.name)")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

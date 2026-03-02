@@ -257,7 +257,7 @@ struct AgentSignalCompactCard: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         AgentSignalFeedView()
     }
 }

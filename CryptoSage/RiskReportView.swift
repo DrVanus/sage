@@ -18,7 +18,7 @@ struct RiskReportView: View {
     private let goldBase = BrandColors.goldBase
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Premium background gradient
                 backgroundGradient
@@ -64,9 +64,8 @@ struct RiskReportView: View {
                     }
                 }
             }
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(DS.Adaptive.background, for: .navigationBar)
         }
-        .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             // Initialize highlight animation states
             if let result = result {

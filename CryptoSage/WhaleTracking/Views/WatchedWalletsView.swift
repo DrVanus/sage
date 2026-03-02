@@ -401,7 +401,7 @@ struct AddWatchedWalletView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     TextField("Wallet Address", text: $address)

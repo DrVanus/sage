@@ -38,14 +38,28 @@ struct LeaderboardView: View {
                         joinLeaderboardBanner
                     }
                     
-                    // Top 3 Podium
-                    if leaderboardEngine.currentLeaderboard.count >= 3 {
-                        podiumView
-                            .padding(.top, 4)
+                    // Loading State
+                    if isLoading && leaderboardEngine.currentLeaderboard.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .tint(DS.Adaptive.textSecondary)
+                            Text("Loading leaderboard...")
+                                .font(.subheadline)
+                                .foregroundStyle(DS.Adaptive.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 60)
+                    } else {
+                        // Top 3 Podium
+                        if leaderboardEngine.currentLeaderboard.count >= 3 {
+                            podiumView
+                                .padding(.top, 4)
+                        }
+
+                        // Leaderboard List
+                        leaderboardList
                     }
-                    
-                    // Leaderboard List
-                    leaderboardList
                     
                     // Demo Data Indicator (subtle, at bottom)
                     if let statusMessage = leaderboardEngine.demoDataStatusMessage {
@@ -257,7 +271,7 @@ struct LeaderboardView: View {
     // MARK: - Scoring Info Sheet
     
     private var leaderboardScoringInfoSheet: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     
@@ -527,7 +541,7 @@ struct LeaderboardView: View {
         .background {
             // Glass-morphic background
             RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
                         .fill(

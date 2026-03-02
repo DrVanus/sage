@@ -1387,7 +1387,7 @@ struct ShareBotSheet: View {
 
 struct PaperBotsListView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             PaperBotsListView()
         }
         .preferredColorScheme(.dark)

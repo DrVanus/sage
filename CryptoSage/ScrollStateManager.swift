@@ -75,7 +75,23 @@ private let globalAnimationSuppressionDuration: TimeInterval = 15.0
 // Once set, ALL shimmer animations are permanently suppressed for the session.
 // This is the ONLY way to stop the ~8 MB/s memory growth from animations
 // when sparkline data never arrives (e.g., CoinGecko API returning 401).
-nonisolated(unsafe) var globalAnimationsKilled: Bool = false
+//
+// THREAD SAFETY FIX: Wrapped with NSLock to prevent data race between the
+// background memory watchdog (writer) and main-thread reads.
+private var _globalAnimationsKilled: Bool = false
+private let _globalAnimationsKilledLock = NSLock()
+var globalAnimationsKilled: Bool {
+    get {
+        _globalAnimationsKilledLock.lock()
+        defer { _globalAnimationsKilledLock.unlock() }
+        return _globalAnimationsKilled
+    }
+    set {
+        _globalAnimationsKilledLock.lock()
+        defer { _globalAnimationsKilledLock.unlock() }
+        _globalAnimationsKilled = newValue
+    }
+}
 
 /// Returns true if startup animation suppression is active OR memory emergency is active.
 /// ShimmerBar, PremiumShimmerModifier, and ScrollAwarePulse check this to avoid

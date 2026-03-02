@@ -429,17 +429,18 @@ struct PortfolioView: View {
             base = base.filter { $0.isFavorite }
         }
         // Sorting
+        // Stable sort: tiebreak on symbol to prevent holdings from swapping positions between renders
         switch sortMode {
         case .valueDesc:
-            base.sort { $0.currentValue > $1.currentValue }
+            base.sort { $0.currentValue != $1.currentValue ? $0.currentValue > $1.currentValue : $0.displaySymbol < $1.displaySymbol }
         case .plPercentDesc:
             let p: (Holding) -> Double = { h in
                 let cost = h.costBasis * h.quantity
                 return cost > 0 ? ((h.currentValue - cost) / cost * 100) : 0
             }
-            base.sort { p($0) > p($1) }
+            base.sort { let (a, b) = (p($0), p($1)); return a != b ? a > b : $0.displaySymbol < $1.displaySymbol }
         case .change24hDesc:
-            base.sort { $0.dailyChangePercent > $1.dailyChangePercent }
+            base.sort { $0.dailyChangePercent != $1.dailyChangePercent ? $0.dailyChangePercent > $1.dailyChangePercent : $0.displaySymbol < $1.displaySymbol }
         case .alpha:
             base.sort { $0.displaySymbol < $1.displaySymbol }
         }
@@ -735,8 +736,10 @@ struct PortfolioView: View {
         let currentValue = paperTradingTotalValue
         
         // Cash-only paper account (e.g. fresh $100k, no trades) should be visually flat.
+        // Use initialValue as anchor (or currentValue if available) — never fall below initial amount
+        // to avoid misleading chart showing $1 for a $0 account.
         if !hasPaperTradingExposure {
-            let anchor = max(1, currentValue > 0 ? currentValue : initialValue)
+            let anchor = currentValue > 0 ? currentValue : (initialValue > 0 ? initialValue : 100_000)
             return flatPaperTradingHistory(value: anchor, days: 90)
         }
         
@@ -2640,7 +2643,7 @@ private struct PaperTradingBalanceRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(coinName)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(DS.Adaptive.textPrimary)
                 
                 if hideBalances {
                     Text("••••••")
@@ -2660,12 +2663,12 @@ private struct PaperTradingBalanceRow: View {
                 if hideBalances {
                     Text("$••••••")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(DS.Adaptive.textPrimary)
                         .monospacedDigit()
                 } else {
                     Text(MarketFormat.price(value))
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(DS.Adaptive.textPrimary)
                         .monospacedDigit()
                 }
                 

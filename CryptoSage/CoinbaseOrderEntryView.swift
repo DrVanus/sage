@@ -43,7 +43,7 @@ struct CoinbaseOrderEntryView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 DS.Adaptive.background.ignoresSafeArea()
 

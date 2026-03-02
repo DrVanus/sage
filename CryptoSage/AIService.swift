@@ -466,7 +466,9 @@ final class AIService: ObservableObject {
                         isAutomatedFeature: isAutomatedFeature
                     )
                 }
+                #if DEBUG
                 print("[AIService] No fallback provider available - throwing missingAPIKey error")
+                #endif
                 throw AIServiceError.missingAPIKey
             }
             
@@ -591,9 +593,11 @@ final class AIService: ObservableObject {
         let firebaseService = FirebaseService.shared
         
         // Debug logging for streaming diagnostics
+        #if DEBUG
         print("[AIService] Streaming request started")
         print("[AIService] Firebase isConfigured: \(firebaseService.isConfigured)")
         print("[AIService] Firebase useFirebaseForAI: \(firebaseService.useFirebaseForAI)")
+        #endif
         
         if firebaseService.useFirebaseForAI {
             do {
@@ -603,7 +607,9 @@ final class AIService: ObservableObject {
                     return ["role": msg.role, "content": content]
                 }
                 
+                #if DEBUG
                 print("[AIService] Attempting Firebase streaming with \(historyForFirebase.count) history messages")
+                #endif
                 
                 // Try streaming first - pass systemPrompt with rich context
                 var chunkCount = 0
@@ -613,15 +619,19 @@ final class AIService: ObservableObject {
                     systemPrompt: systemPrompt,  // Pass the rich context (portfolio, market data, etc.)
                     onChunk: { text in
                         chunkCount += 1
+                        #if DEBUG
                         if chunkCount <= 3 || chunkCount % 10 == 0 {
                             print("[AIService] Streaming chunk #\(chunkCount), total length: \(text.count)")
                         }
+                        #endif
                         self.currentStreamedText = text
                         onChunk(text)
                     }
                 )
                 
+                #if DEBUG
                 print("[AIService] Streaming completed with \(chunkCount) chunks, final length: \(fullText.count)")
+                #endif
                 
                 // Update conversation history
                 if !isAutomatedFeature {
@@ -633,11 +643,15 @@ final class AIService: ObservableObject {
                 return fullText
             } catch {
                 // Log Firebase error but continue to fallback
+                #if DEBUG
                 print("[AIService] Firebase streaming failed: \(error.localizedDescription)")
                 print("[AIService] Error type: \(type(of: error))")
-                
+                #endif
+
                 // Try non-streaming Firebase as fallback
+                #if DEBUG
                 print("[AIService] Attempting Firebase non-streaming fallback...")
+                #endif
                 do {
                     let historyForFirebase: [[String: String]] = conversationHistory.suffix(20).compactMap { msg in
                         guard let content = msg.content else { return nil }
@@ -651,7 +665,9 @@ final class AIService: ObservableObject {
                     )
                     
                     let fullText = response.response
+                    #if DEBUG
                     print("[AIService] Firebase non-streaming succeeded, length: \(fullText.count)")
+                    #endif
                     currentStreamedText = fullText
                     onChunk(fullText)
                     
@@ -663,8 +679,10 @@ final class AIService: ObservableObject {
                     
                     return fullText
                 } catch {
+                    #if DEBUG
                     print("[AIService] Firebase non-streaming also failed: \(error.localizedDescription)")
                     print("[AIService] Falling back to local API keys...")
+                    #endif
                     // Continue to local API key fallback
                 }
             }

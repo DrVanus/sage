@@ -18,6 +18,7 @@
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
+		<string>remote-notification</string>
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
@@ -46,6 +47,8 @@
 	<string>CryptoSage uses your camera to scan QR codes for wallet addresses and exchange API pairing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>CryptoSage uses your photo library to attach images to AI chat conversations for analysis.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>CryptoSage uses Bluetooth to connect to hardware wallets like Ledger for secure portfolio tracking.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

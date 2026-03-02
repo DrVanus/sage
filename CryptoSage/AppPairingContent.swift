@@ -9,6 +9,9 @@
 import SwiftUI
 
 struct AppPairingContent: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var showComingSoonAlert = false
+
     var body: some View {
         ZStack {
             // A simple gradient background to set a modern tone.
@@ -23,19 +26,19 @@ struct AppPairingContent: View {
                 Text("Pair Your App")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
                     .padding(.top, 40)
                 
                 Text("Follow the steps below to pair your app with your account. Make sure your device is connected and your credentials are correct.")
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textSecondary)
                     .padding(.horizontal)
                 
                 Spacer()
                 
                 Button(action: {
-                    // TODO: Implement pairing action.
+                    showComingSoonAlert = true
                 }) {
                     Text("Pair Now")
                         .font(.headline)
@@ -54,7 +57,7 @@ struct AppPairingContent: View {
                 .padding(.horizontal)
                 
                 Button(action: {
-                    // TODO: Implement cancel action.
+                    dismiss()
                 }) {
                     Text("Cancel")
                         .font(.headline)
@@ -68,6 +71,11 @@ struct AppPairingContent: View {
                 
                 Spacer()
             }
+        }
+        .alert("Coming Soon", isPresented: $showComingSoonAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Hardware wallet pairing is coming soon.")
         }
     }
 }

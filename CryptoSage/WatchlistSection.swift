@@ -1097,14 +1097,19 @@ struct WatchlistSection: View {
         #else
         
         sparklineRefreshTimer?.invalidate()
-        sparklineRefreshTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { _ in
+        sparklineRefreshTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { timer in
             Task { @MainActor in
+                // SAFETY: If the timer was already invalidated, stop firing.
+                // This guards against the case where onDisappear doesn't fire
+                // (e.g., tab switches, sheet dismissals).
+                guard timer.isValid else { return }
                 if CryptoSageAIApp.isEmergencyStopActive() {
+                    timer.invalidate()
                     return
                 }
                 // Reload from service to ensure cache is current
                 loadPersistedSparklines()
-                
+
                 // Fetch fresh data if service says we should refresh
                 if await WatchlistSparklineService.shared.shouldRefresh() {
                     refreshSparklines()

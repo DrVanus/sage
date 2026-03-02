@@ -162,7 +162,11 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
                 // endless retry cycles that spam the console and waste resources.
                 // The Firestore SDK automatically retries on transient errors, but permission
                 // errors are permanent until rules are updated.
-                if error.localizedDescription.contains("Missing or insufficient permissions") {
+                // Check for permission errors by error code (more reliable than string matching)
+                let nsError = error as NSError
+                let isPermissionError = nsError.domain == "FIRFirestoreErrorDomain" && nsError.code == 7 // PERMISSION_DENIED
+                    || error.localizedDescription.contains("Missing or insufficient permissions")
+                if isPermissionError {
                     self.logger.warning("🔔 [NotificationsManager] Stopping listener due to permission error - check Firestore rules for alerts collection")
                     self.firestoreListener?.remove()
                     self.firestoreListener = nil
@@ -843,8 +847,9 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
             
             // Check frequency-based cooldown
             if !shouldAlertBasedOnFrequency(alert) { continue }
-            
-            let currentPrice = priceCache[alert.symbol] ?? 0
+
+            // Skip alerts for coins with no price data — avoids false triggers and $0 notifications
+            guard let currentPrice = priceCache[alert.symbol], currentPrice > 0 else { continue }
             
             // Evaluate basic alert condition
             let basicTriggered = await evaluateAlertCondition(alert)

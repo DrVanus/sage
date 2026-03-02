@@ -56,6 +56,9 @@ public final class GeminiExchangeAdapter: ExchangeAdapter {
                         do {
                             return try await self.fetchTicker(for: pair)
                         } catch {
+                            #if DEBUG
+                            print("[GeminiExchangeAdapter] error: \(error)")
+                            #endif
                             return nil
                         }
                     }

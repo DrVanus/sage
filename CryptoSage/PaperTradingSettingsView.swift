@@ -35,7 +35,7 @@ struct PaperTradingSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var paperTradingManager = PaperTradingManager.shared
-    @StateObject private var portfolioVM = PortfolioViewModel(repository: PortfolioRepository.shared)
+    @EnvironmentObject var portfolioVM: PortfolioViewModel
     @StateObject private var socialService = SocialService.shared
     
     /// Check if user is on the leaderboard (editing balance disabled for fair competition)
@@ -1278,7 +1278,7 @@ struct PaperTradingSettingsView: View {
     // MARK: - Edit Balance Sheet
     
     private var editBalanceSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Starting Balance")
@@ -1389,7 +1389,7 @@ struct PaperTradingSettingsView: View {
     // MARK: - Add Balance Sheet
     
     private var addBalanceSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 // Asset picker
                 VStack(alignment: .leading, spacing: 8) {
@@ -1513,7 +1513,7 @@ struct PaperTradingSettingsView: View {
     // MARK: - Remove Balance Sheet
     
     private var removeBalanceSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 let nonZeroAssets = paperTradingManager.nonZeroBalances.map { $0.asset }
                 
@@ -1631,7 +1631,7 @@ struct PaperTradingSettingsView: View {
     // MARK: - Export Sheet
     
     private var exportSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
                     Image(systemName: "doc.text")
@@ -2366,7 +2366,7 @@ struct PaperTradingResetInfoSheet: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     howResetsWorkSection
@@ -2500,7 +2500,7 @@ struct PaperTradingResetInfoSheet: View {
 #if DEBUG
 struct PaperTradingSettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             PaperTradingSettingsView()
         }
         .preferredColorScheme(.dark)

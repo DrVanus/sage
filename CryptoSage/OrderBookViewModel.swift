@@ -19,7 +19,9 @@ class OrderBookViewModel: ObservableObject {
         if !bids.isEmpty {
             currentSymbol = "BTC"
             currentPair = "BTC-USD"
+            #if DEBUG
             print("[OrderBook] Preloaded \(bids.count) bids, \(asks.count) asks for BTC from cache")
+            #endif
         }
     }
     
@@ -139,7 +141,9 @@ class OrderBookViewModel: ObservableObject {
         if savedAt > 0 {
             let age = Date().timeIntervalSince1970 - savedAt
             if age > cacheMaxAge {
+                #if DEBUG
                 print("[OrderBook] Cache for \(symbol.uppercased()) is \(Int(age))s old (max \(Int(cacheMaxAge))s) — discarded")
+                #endif
                 return false
             }
         }
@@ -161,7 +165,9 @@ class OrderBookViewModel: ObservableObject {
         self.asks = loadedAsks
         if hasCache {
             self.isLoading = false  // Don't show loading state when we have cached data
+            #if DEBUG
             print("[OrderBook] Instantly loaded cached book for \(symbol.uppercased()) bids=\(loadedBids.count) asks=\(loadedAsks.count)")
+            #endif
         }
         return hasCache
     }
@@ -190,9 +196,11 @@ class OrderBookViewModel: ObservableObject {
         // Already on @MainActor, assign directly
         self.bids = loadedBids
         self.asks = loadedAsks
+        #if DEBUG
         if !loadedBids.isEmpty || !loadedAsks.isEmpty {
             print("[OrderBook] Loaded cached book for \(symbol.uppercased()) bids=\(loadedBids.count) asks=\(loadedAsks.count)")
         }
+        #endif
     }
 
     private func saveCache(for symbol: String) {
@@ -350,12 +358,14 @@ class OrderBookViewModel: ObservableObject {
     
     private var _lastLogTimes: [String: Date] = [:]
     private func log(_ key: String, _ message: String, minInterval: TimeInterval = 5) {
+        #if DEBUG
         let now = Date()
         let last = _lastLogTimes[key] ?? .distantPast
         if now.timeIntervalSince(last) >= minInterval {
             print(message)
             _lastLogTimes[key] = now
         }
+        #endif
     }
 
     // In-memory book (price -> qty)
@@ -511,7 +521,9 @@ class OrderBookViewModel: ObservableObject {
             }
         }()
         
+        #if DEBUG
         print("[OrderBook] Starting for \(normalizedSymbol) on exchange: \(exchange ?? "binance (default)") | currentPair=\(currentPair ?? "nil") | bids=\(bids.count) | asks=\(asks.count)")
+        #endif
 
         let exchangeID = exchange?.lowercased() ?? (isGeoBlocked ? "coinbase" : "binance")
         let requestKey = "\(pair)|\(exchangeID)"
@@ -525,7 +537,9 @@ class OrderBookViewModel: ObservableObject {
         if isSameRequest && hasData {
             // Returning to identical symbol+exchange request with existing data.
             // Resume only missing transports; avoid duplicate startup work.
+            #if DEBUG
             print("[OrderBook] Resuming for \(normalizedSymbol) - \(bids.count) bids, \(asks.count) asks visible")
+            #endif
             isLoading = false  // Ensure no loading state shows
             if restPollTimer == nil {
                 startRESTDepthPolling(symbol: normalizedSymbol, exchange: exchange)
@@ -550,7 +564,9 @@ class OrderBookViewModel: ObservableObject {
         
         // Only clear buffers when switching to a DIFFERENT symbol
         if !isSameRequest {
+            #if DEBUG
             print("[OrderBook] Switching symbol - clearing old data")
+            #endif
             bookBids.removeAll(); bookAsks.removeAll(); lastPublishedBids = []; lastPublishedAsks = []; pendingPublish = false; lastCacheSaveAt = .distantPast
         }
         
@@ -560,10 +576,14 @@ class OrderBookViewModel: ObservableObject {
         // Only show loading if we truly have no data to display
         if !hasData { 
             self.isLoading = true 
+            #if DEBUG
             print("[OrderBook] No cached data - showing loading state")
+            #endif
         } else {
             self.isLoading = false
+            #if DEBUG
             print("[OrderBook] Loaded \(bids.count) bids, \(asks.count) asks from cache")
+            #endif
         }
         
         // RELIABILITY FIX: Immediate first fetch bypasses rate limiter for faster cold start
@@ -605,7 +625,9 @@ class OrderBookViewModel: ObservableObject {
         // This ensures we have fresh data to display instantly on next start
         if !bids.isEmpty || !asks.isEmpty {
             saveCache(for: currentSymbol)
+            #if DEBUG
             print("[OrderBook] Saved \(bids.count) bids, \(asks.count) asks to cache before stopping")
+            #endif
         }
         
         timer?.invalidate()
@@ -656,7 +678,9 @@ class OrderBookViewModel: ObservableObject {
             return
         }
         
+        #if DEBUG
         print("[OrderBook] Fetching from \(exchangeID): \(url.absoluteString)")
+        #endif
         
         // FIX: Record request with coordinator - use the actual exchange, not always coinbase
         let apiSvc: APIRequestCoordinator.APIService = exchangeID == "coinbase" ? .coinbase : .binance
@@ -686,7 +710,9 @@ class OrderBookViewModel: ObservableObject {
             }
             guard let data = data else {
                 Task { @MainActor in
+                    #if DEBUG
                     print("[OrderBook] No data from \(exchangeID) order book.")
+                    #endif
                     self.fallbackFetchOrderBook(pair: pair)
                 }
                 return
@@ -702,7 +728,9 @@ class OrderBookViewModel: ObservableObject {
                     // GEO-BLOCKING FIX: Empty response indicates blocked endpoint
                     // Binance returns 0 bids/asks when geo-blocked instead of an error
                     if sb.isEmpty && sa.isEmpty {
+                        #if DEBUG
                         print("[OrderBook] Empty response from \(exchangeID) (possible geo-block) - trying fallback")
+                        #endif
                         self.fallbackFetchOrderBook(pair: pair)
                         return
                     }
@@ -724,9 +752,13 @@ class OrderBookViewModel: ObservableObject {
                     self.saveCacheThrottled(for: base)
                     self.isFetching = false
                     self.isLoading = false
+                    #if DEBUG
                     print("[OrderBook] Successfully loaded from \(exchangeID): bids=\(sb.count) asks=\(sa.count)")
+                    #endif
                 } catch {
+                    #if DEBUG
                     print("[OrderBook] Parse error from \(exchangeID): \(error.localizedDescription)")
+                    #endif
                     self.fallbackFetchOrderBook(pair: pair)
                 }
             }
@@ -884,11 +916,15 @@ class OrderBookViewModel: ObservableObject {
                     Task { @MainActor in
                         self.binanceHTTPDisabledUntil = Date().addingTimeInterval(600)
                         self.binanceGeoBlockCount += 1
+                        #if DEBUG
                         print("[OrderBook] HTTP 451 from \(http.url?.host ?? "?"); disabling Binance HTTP for 600s (count: \(self.binanceGeoBlockCount))")
+                        #endif
                         // FIX v5.0.3: After 3+ geo-blocks, permanently disable Binance for this session
                         if self.binanceGeoBlockCount >= 3 && !self.binancePermanentlyBlocked {
                             self.binancePermanentlyBlocked = true
+                            #if DEBUG
                             print("[OrderBook] 🛑 Binance permanently blocked for this session after \(self.binanceGeoBlockCount) geo-blocks")
+                            #endif
                         }
                     }
                     Task { @MainActor in attempt(index + 1) }
@@ -899,7 +935,9 @@ class OrderBookViewModel: ObservableObject {
                         Task { @MainActor in attempt(index + 1) }
                         return
                     }
+                    #if DEBUG
                     print("Binance order book error (attempt \(index)):", nsErr.localizedDescription)
+                    #endif
                     Task { @MainActor in attempt(index + 1) }
                     return
                 }
@@ -994,7 +1032,9 @@ class OrderBookViewModel: ObservableObject {
         }
 
         if source == .binance && !binanceWSEnabled() {
+            #if DEBUG
             print("[OrderBook] Binance WS temporarily disabled; trying Coinbase fallback")
+            #endif
             // Fall back to Coinbase WebSocket instead of just REST
             startWebSocket(for: symbol, source: .coinbase)
             return
@@ -1005,7 +1045,9 @@ class OrderBookViewModel: ObservableObject {
 
         stopWebSocket()
         self.currentSourceWS = source
+        #if DEBUG
         print("[OrderBook] Starting WebSocket for \(symbol.uppercased()) on \(source.rawValue)")
+        #endif
         wsReconnectAttempts = 0
         wsBackoff = 1.0
         self.wsConnectedAt = Date()
@@ -1032,7 +1074,11 @@ class OrderBookViewModel: ObservableObject {
             ]
             if let data = try? JSONSerialization.data(withJSONObject: sub, options: []),
                let text = String(data: data, encoding: .utf8) {
-                task.send(.string(text)) { err in if let err = err { print("WS send error:", err.localizedDescription) } }
+                task.send(.string(text)) { err in
+                    #if DEBUG
+                    if let err = err { print("WS send error:", err.localizedDescription) }
+                    #endif
+                }
             }
 
             schedulePing()
@@ -1044,7 +1090,9 @@ class OrderBookViewModel: ObservableObject {
             guard !candidates.isEmpty else { return }
             let index = max(0, binanceWSIndex) % candidates.count
             let url = candidates[index]
+            #if DEBUG
             print("[OrderBook] Connecting WS to: \(url.absoluteString) [idx=\(index)]")
+            #endif
 
             var req = URLRequest(url: url)
             let originHost = (url.host?.contains("binance.us") == true) ? "https://www.binance.us" : "https://www.binance.com"
@@ -1061,7 +1109,9 @@ class OrderBookViewModel: ObservableObject {
         case .kraken:
             // Kraken WebSocket for order book
             guard let url = URL(string: "wss://ws.kraken.com") else { 
+                #if DEBUG
                 print("[OrderBook] Failed to create Kraken WS URL, falling back to REST")
+                #endif
                 startRESTDepthPolling(symbol: symbol, exchange: "kraken")
                 return 
             }
@@ -1081,7 +1131,11 @@ class OrderBookViewModel: ObservableObject {
             ]
             if let data = try? JSONSerialization.data(withJSONObject: sub, options: []),
                let text = String(data: data, encoding: .utf8) {
-                task.send(.string(text)) { err in if let err = err { print("[OrderBook] Kraken WS send error:", err.localizedDescription) } }
+                task.send(.string(text)) { err in
+                    #if DEBUG
+                    if let err = err { print("[OrderBook] Kraken WS send error:", err.localizedDescription) }
+                    #endif
+                }
             }
             
             schedulePing()
@@ -1091,7 +1145,9 @@ class OrderBookViewModel: ObservableObject {
         case .kucoin:
             // KuCoin requires a token from their REST API first - use REST polling instead
             // KuCoin's WebSocket requires a dynamic token which adds complexity
+            #if DEBUG
             print("[OrderBook] KuCoin using REST polling (WebSocket requires token)")
+            #endif
             startRESTDepthPolling(symbol: symbol, exchange: "kucoin")
             return
         }
@@ -1170,7 +1226,9 @@ class OrderBookViewModel: ObservableObject {
                                 let candidates = self.binanceWSCandidates(for: self.currentSymbol)
                                 if self.binanceWSIndex >= candidates.count {
                                     // Tried all Binance endpoints, fall back to Coinbase
+                                    #if DEBUG
                                     print("[OrderBook] All Binance WS endpoints failed; falling back to Coinbase")
+                                    #endif
                                     self.currentSourceWS = .coinbase
                                     self.binanceWSIndex = 0
                                 }
@@ -1179,7 +1237,9 @@ class OrderBookViewModel: ObservableObject {
                             // Currently on Coinbase fallback, try returning to Binance
                             // PERFORMANCE FIX v25: Don't retry Binance if geo-blocked
                             if !isGeoBlocked && self.binanceWSEnabled() {
+                                #if DEBUG
                                 print("[OrderBook] Retrying Binance depth WS after Coinbase stall…")
+                                #endif
                                 self.currentSourceWS = .binance
                                 self.binanceWSIndex = 0
                             } else {
@@ -1451,7 +1511,9 @@ class OrderBookViewModel: ObservableObject {
         if let dict = json as? [String: Any] {
             if let event = dict["event"] as? String {
                 if event == "subscriptionStatus" {
+                    #if DEBUG
                     print("[OrderBook][Kraken] Subscription confirmed")
+                    #endif
                 }
                 // Ignore heartbeats, system status, etc.
                 return
@@ -1630,11 +1692,15 @@ class OrderBookViewModel: ObservableObject {
                         Task { @MainActor in
                             self.binanceHTTPDisabledUntil = Date().addingTimeInterval(600)
                             self.binanceGeoBlockCount += 1
+                            #if DEBUG
                             print("[OrderBook][REST] Discovery 451 from \(url.host ?? "?"); disabling Binance HTTP for 600s (count: \(self.binanceGeoBlockCount))")
+                            #endif
                             // FIX v5.0.3: After 3+ geo-blocks, permanently disable Binance for this session
                             if self.binanceGeoBlockCount >= 3 && !self.binancePermanentlyBlocked {
                                 self.binancePermanentlyBlocked = true
+                                #if DEBUG
                                 print("[OrderBook] 🛑 Binance permanently blocked for this session after \(self.binanceGeoBlockCount) geo-blocks")
+                                #endif
                             }
                             // FIX v5.0.3: Purge Binance URLs from cache on discovery 451
                             self.restCandidatesCache.removeAll { $0.host?.contains("binance") == true }
@@ -1643,24 +1709,32 @@ class OrderBookViewModel: ObservableObject {
                         return
                     }
                     if let err = err {
+                        #if DEBUG
                         print("[OrderBook][REST] discovery error: \(url.host ?? "?") — \(err.localizedDescription)")
+                        #endif
                         Task { @MainActor in tryNext(index + 1) }
                         return
                     }
                     guard let http = resp as? HTTPURLResponse else {
+                        #if DEBUG
                         print("[OrderBook][REST] discovery no HTTP resp for \(url)")
+                        #endif
                         Task { @MainActor in tryNext(index + 1) }
                         return
                     }
                     guard (200...299).contains(http.statusCode), let data = data, data.count > 0 else {
+                        #if DEBUG
                         print("[OrderBook][REST] discovery bad status=\(http.statusCode) for \(url)")
+                        #endif
                         Task { @MainActor in tryNext(index + 1) }
                         return
                     }
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], json["bids"] != nil || json["asks"] != nil {
                         completion(url); return
                     }
+                    #if DEBUG
                     print("[OrderBook][REST] discovery parse fail for \(url)")
+                    #endif
                     Task { @MainActor in tryNext(index + 1) }
                 }.resume()
             }
@@ -1687,11 +1761,15 @@ class OrderBookViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             self.binanceHTTPDisabledUntil = Date().addingTimeInterval(600)
                             self.binanceGeoBlockCount += 1
+                            #if DEBUG
                             print("[OrderBook][REST] Poll 451 from \(url.host ?? "?"); disabling Binance HTTP for 600s (count: \(self.binanceGeoBlockCount))")
+                            #endif
                             // FIX v5.0.3: After 3+ geo-blocks, permanently disable Binance for this session
                             if self.binanceGeoBlockCount >= 3 && !self.binancePermanentlyBlocked {
                                 self.binancePermanentlyBlocked = true
+                                #if DEBUG
                                 print("[OrderBook] 🛑 Binance permanently blocked for this session after \(self.binanceGeoBlockCount) geo-blocks")
+                                #endif
                             }
                             // SCALABILITY: Enable Firebase proxy on geo-block
                             self.enableFirebaseProxyMode()
@@ -1711,7 +1789,9 @@ class OrderBookViewModel: ObservableObject {
                     }
                     if let err = err {
                         DispatchQueue.main.async {
+                            #if DEBUG
                             print("[OrderBook][REST] poll error: \(err.localizedDescription)")
+                            #endif
                             self.restErrorStreak += 1
                             self.restSuccessStreak = 0
                             self.restPollInterval = min(3.0, 0.9 * pow(1.4, Double(self.restErrorStreak)))
@@ -1722,14 +1802,18 @@ class OrderBookViewModel: ObservableObject {
                                 self.enableFirebaseProxyMode()
                                 let disableFor = min(120.0, 15.0 * pow(1.5, Double(self.restErrorStreak - 4)))
                                 self.restDisabledUntil = Date().addingTimeInterval(disableFor)
+                                #if DEBUG
                                 print("[OrderBook][REST] disabling direct REST for \(Int(disableFor))s, using Firebase proxy")
+                                #endif
                             }
                         }
                         return
                     }
                     guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode), let data = data else {
                         DispatchQueue.main.async {
+                            #if DEBUG
                             print("[OrderBook][REST] poll bad response for \(url.absoluteString)")
+                            #endif
                             self.restErrorStreak += 1
                             self.restSuccessStreak = 0
                             self.restPollInterval = min(3.0, 0.9 * pow(1.4, Double(self.restErrorStreak)))
@@ -1740,7 +1824,9 @@ class OrderBookViewModel: ObservableObject {
                                 self.enableFirebaseProxyMode()
                                 let disableFor = min(120.0, 15.0 * pow(1.5, Double(self.restErrorStreak - 4)))
                                 self.restDisabledUntil = Date().addingTimeInterval(disableFor)
+                                #if DEBUG
                                 print("[OrderBook][REST] disabling direct REST for \(Int(disableFor))s, using Firebase proxy")
+                                #endif
                             }
                         }
                         return
@@ -1820,7 +1906,9 @@ class OrderBookViewModel: ObservableObject {
                         }
                     } else {
                         DispatchQueue.main.async {
+                            #if DEBUG
                             print("[OrderBook][REST] poll JSON parse failed for \(url.host ?? "?")")
+                            #endif
                             self.restErrorStreak += 1
                             self.restSuccessStreak = 0
                             self.restPollInterval = min(3.0, 0.9 * pow(1.4, Double(self.restErrorStreak)))
@@ -1829,7 +1917,9 @@ class OrderBookViewModel: ObservableObject {
                             if self.restErrorStreak >= 5 {
                                 let disableFor = min(120.0, 15.0 * pow(1.5, Double(self.restErrorStreak - 4)))
                                 self.restDisabledUntil = Date().addingTimeInterval(disableFor)
+                                #if DEBUG
                                 print("[OrderBook][REST] disabling REST polling for \(Int(disableFor))s due to error streak=\(self.restErrorStreak)")
+                                #endif
                             }
                         }
                     }
@@ -1903,10 +1993,14 @@ class OrderBookViewModel: ObservableObject {
                             self.restIndex = self.restIndex % self.restCandidatesCache.count
                             self.restDepthURL = self.restCandidatesCache[self.restIndex]
                         } else {
+                            #if DEBUG
                             print("[OrderBook][REST] No REST candidates available - cannot start polling")
+                            #endif
                             return
                         }
+                        #if DEBUG
                         if let url = self.restDepthURL { print("[OrderBook][REST] using \(url.absoluteString)") }
+                        #endif
                         // Immediate first poll for faster cold start
                         performPoll()
                         scheduleNextPoll()
@@ -1974,7 +2068,9 @@ class OrderBookViewModel: ObservableObject {
                     self.useFirebaseProxy = false
                     self.firebaseProxyErrorCount = 0
                     self.restDisabledUntil = Date().addingTimeInterval(8)
+                    #if DEBUG
                     print("[OrderBook] Switching back to direct API after Firebase errors")
+                    #endif
                 }
             }
         }
@@ -1986,7 +2082,9 @@ class OrderBookViewModel: ObservableObject {
         guard !useFirebaseProxy else { return }
         useFirebaseProxy = true
         firebaseProxyErrorCount = 0
+        #if DEBUG
         print("[OrderBook] Enabled Firebase proxy mode for scalability")
+        #endif
     }
 
     private func trimInMemoryBook() {

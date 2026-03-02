@@ -94,7 +94,11 @@ final class PortfolioRepository {
     private var cancellables = Set<AnyCancellable>()
     
     // User preference for showing stocks
-    @AppStorage("showStocksInPortfolio") private var showStocksEnabled: Bool = false
+    // FIX: @AppStorage doesn't trigger reactivity in non-View classes and captures
+    // the value once at init. Use a computed property to read fresh from UserDefaults.
+    private var showStocksEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "showStocksInPortfolio")
+    }
 
     // MARK: - Initialization
     
@@ -134,7 +138,20 @@ final class PortfolioRepository {
                         if Thread.isMainThread {
                             return MainActor.assumeIsolated { MarketViewModel.shared.bestPrice(forSymbol: symbol) ?? 0 }
                         }
-                        return 0
+                        var price: Double = 0
+                        let group = DispatchGroup()
+                        group.enter()
+                        DispatchQueue.main.async {
+                            price = MainActor.assumeIsolated { MarketViewModel.shared.bestPrice(forSymbol: symbol) ?? 0 }
+                            group.leave()
+                        }
+                        if group.wait(timeout: .now() + 0.5) == .timedOut {
+                            #if DEBUG
+                            print("[PortfolioRepository] Warning: main thread access timed out for \(symbol)")
+                            #endif
+                            return 0
+                        }
+                        return price
                     }()
                     return Holding(
                         id: UUID(),

@@ -72,13 +72,39 @@ final class AuthenticationManager: NSObject, ObservableObject {
     
     private var currentNonce: String? = nil
     private let userDefaultsKey = "AuthenticatedUser"
+    private let keychainService = "AuthenticatedUser"
+    private let keychainAccount = "session"
     private var hasScheduledDeferredFirestoreSync = false
-    
+    private var tokenRefreshTask: Task<Void, Never>?
+
     // MARK: - Initialization
-    
+
     private override init() {
         super.init()
+        migrateSessionFromUserDefaultsToKeychain()
         restoreUserSession()
+    }
+
+    // MARK: - Migration (UserDefaults → Keychain)
+
+    /// One-time migration: move User session data from UserDefaults to Keychain.
+    /// After migration the UserDefaults entry is removed so it only runs once.
+    private func migrateSessionFromUserDefaultsToKeychain() {
+        // Only migrate if data exists in UserDefaults but NOT in Keychain
+        guard let legacyData = UserDefaults.standard.data(forKey: userDefaultsKey),
+              KeychainHelper.shared.readData(service: keychainService, account: keychainAccount) == nil else {
+            return
+        }
+
+        do {
+            try KeychainHelper.shared.saveData(legacyData, service: keychainService, account: keychainAccount)
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+            authLog("[AuthenticationManager] Migrated session data from UserDefaults to Keychain")
+        } catch {
+            // Migration failed — leave UserDefaults intact so data is not lost.
+            // The next launch will retry.
+            authLog("[AuthenticationManager] Keychain migration failed: \(error.localizedDescription)")
+        }
     }
     
     // MARK: - Session Restoration
@@ -88,9 +114,9 @@ final class AuthenticationManager: NSObject, ObservableObject {
         // Check if Firebase Auth has a current user (persisted by the SDK)
         if let firebaseUser = Auth.auth().currentUser {
             // Firebase has a session — also verify Apple credential state
-            if let userData = UserDefaults.standard.data(forKey: userDefaultsKey),
+            if let userData = KeychainHelper.shared.readData(service: keychainService, account: keychainAccount),
                let user = try? JSONDecoder().decode(User.self, from: userData) {
-                
+
                 verifyAppleCredentialState(for: user) { [weak self] isValid in
                     guard let self = self else { return }
                     
@@ -105,10 +131,11 @@ final class AuthenticationManager: NSObject, ObservableObject {
                             // Get a fresh Firebase ID token for API calls
                             if let token = try? await firebaseUser.getIDToken() {
                                 FirebaseService.shared.setAuthToken(token, userId: user.id)
+                                self.startTokenRefreshLoop()
                             } else {
                                 FirebaseService.shared.setAuthToken(nil, userId: user.id)
                             }
-                            
+
                             self.scheduleDeferredFirestoreSyncBatches(reason: "restore-session")
                             
                             authLog("[AuthenticationManager] Restored Firebase session for user: \(user.id)")
@@ -132,21 +159,22 @@ final class AuthenticationManager: NSObject, ObservableObject {
                 self.syncUserToProfile(user)
                 
                 if let userData = try? JSONEncoder().encode(user) {
-                    UserDefaults.standard.set(userData, forKey: userDefaultsKey)
+                    try? KeychainHelper.shared.saveData(userData, service: keychainService, account: keychainAccount)
                 }
-                
+
                 Task {
                     if let token = try? await firebaseUser.getIDToken() {
                         FirebaseService.shared.setAuthToken(token, userId: user.id)
+                        self.startTokenRefreshLoop()
                     }
                 }
-                
+
                 // Defer Firestore sync startup via centralized scheduler.
                 scheduleDeferredFirestoreSyncBatches(reason: "restore-firebase-only")
                 
                 authLog("[AuthenticationManager] Rebuilt session from Firebase Auth: \(user.id)")
             }
-        } else if let userData = UserDefaults.standard.data(forKey: userDefaultsKey),
+        } else if let userData = KeychainHelper.shared.readData(service: keychainService, account: keychainAccount),
                   let user = try? JSONDecoder().decode(User.self, from: userData) {
             // Legacy: Local session exists but no Firebase Auth session
             // Verify Apple credential state and restore if valid
@@ -429,17 +457,18 @@ final class AuthenticationManager: NSObject, ObservableObject {
         self.isAuthenticated = true
         self.state = .signedIn(user)
         
-        // Persist session
+        // Persist session to Keychain
         if let userData = try? JSONEncoder().encode(user) {
-            UserDefaults.standard.set(userData, forKey: userDefaultsKey)
+            try? KeychainHelper.shared.saveData(userData, service: keychainService, account: keychainAccount)
         }
-        
+
         // Sync profile data
         syncUserToProfile(user)
         
         // Update FirebaseService
         FirebaseService.shared.setAuthToken(firebaseIDToken, userId: userId)
-        
+        startTokenRefreshLoop()
+
         // Start Firestore sync in deferred batches (same as restored sessions)
         scheduleDeferredFirestoreSyncBatches(reason: "post-sign-in")
     }
@@ -448,6 +477,8 @@ final class AuthenticationManager: NSObject, ObservableObject {
     
     /// Sign out the current user
     func signOut() {
+        tokenRefreshTask?.cancel()
+        tokenRefreshTask = nil
         hasScheduledDeferredFirestoreSync = false
         
         // Stop Firestore sync before clearing auth
@@ -462,13 +493,18 @@ final class AuthenticationManager: NSObject, ObservableObject {
         if let userId = currentUser?.id {
             UserDefaults.standard.removeObject(forKey: "AppleUserID_\(userId)")
         }
+
+        // Deactivate FCM token so push notifications stop for this user
+        if let fcmToken = PushNotificationManager.shared.fcmToken {
+            PushNotificationManager.shared.removeFCMTokenFromFirestore(fcmToken)
+        }
         
         currentUser = nil
         isAuthenticated = false
         state = .signedOut
         
-        // Clear saved session
-        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        // Clear saved session from Keychain
+        try? KeychainHelper.shared.delete(service: keychainService, account: keychainAccount)
         
         // Reset profile to defaults (user can still use app without account)
         clearProfileData()
@@ -506,9 +542,9 @@ final class AuthenticationManager: NSObject, ObservableObject {
                     currentUser = user
                     state = .signedIn(user)
                     
-                    // Persist updated session
+                    // Persist updated session to Keychain
                     if let userData = try? JSONEncoder().encode(user) {
-                        UserDefaults.standard.set(userData, forKey: userDefaultsKey)
+                        try? KeychainHelper.shared.saveData(userData, service: keychainService, account: keychainAccount)
                     }
                 }
                 
@@ -620,11 +656,11 @@ final class AuthenticationManager: NSObject, ObservableObject {
         self.isAuthenticated = true
         self.state = .signedIn(user)
         
-        // Persist session
+        // Persist session to Keychain
         if let userData = try? JSONEncoder().encode(user) {
-            UserDefaults.standard.set(userData, forKey: userDefaultsKey)
+            try? KeychainHelper.shared.saveData(userData, service: keychainService, account: keychainAccount)
         }
-        
+
         // Store Apple user ID for credential state verification (required by Apple)
         if let appleUserID = appleUserID {
             UserDefaults.standard.set(appleUserID, forKey: "AppleUserID_\(userId)")
@@ -635,7 +671,8 @@ final class AuthenticationManager: NSObject, ObservableObject {
         
         // Update FirebaseService with the real Firebase ID token
         FirebaseService.shared.setAuthToken(firebaseIDToken, userId: userId)
-        
+        startTokenRefreshLoop()
+
         // Start Firestore sync in deferred batches (same as restored sessions)
         scheduleDeferredFirestoreSyncBatches(reason: "post-apple-exchange")
         
@@ -683,6 +720,33 @@ final class AuthenticationManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Token Refresh
+
+    /// Periodically refreshes the Firebase ID token before it expires (every 45 min).
+    /// Firebase ID tokens expire after 60 minutes; refreshing at 45 min ensures
+    /// authenticated Cloud Function calls never silently fail with 401.
+    private func startTokenRefreshLoop() {
+        tokenRefreshTask?.cancel()
+        tokenRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                // Refresh every 45 minutes (tokens expire at 60 min)
+                try? await Task.sleep(nanoseconds: 45 * 60 * 1_000_000_000)
+                guard !Task.isCancelled else { break }
+                guard let firebaseUser = Auth.auth().currentUser,
+                      let self = self else { break }
+                do {
+                    let newToken = try await firebaseUser.getIDTokenForcingRefresh(true)
+                    await MainActor.run {
+                        FirebaseService.shared.setAuthToken(newToken, userId: firebaseUser.uid)
+                    }
+                    authLog("[AuthenticationManager] Firebase token refreshed")
+                } catch {
+                    authLog("[AuthenticationManager] Token refresh failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
     
     /// Error type for nonce generation failures

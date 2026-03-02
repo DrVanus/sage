@@ -275,7 +275,7 @@ struct SocialTabView: View {
             .padding(.vertical, 32)
             .background(
                 RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
         }
         .ignoresSafeArea(edges: .bottom)

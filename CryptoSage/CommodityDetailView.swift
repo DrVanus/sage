@@ -121,7 +121,7 @@ struct CommodityDetailView: View {
     
     // Environment
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var portfolioVM: PortfolioViewModel
     
     // Shared price manager for consistent data across the app
@@ -290,7 +290,7 @@ struct CommodityDetailView: View {
         .tint(.yellow)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
     
     // Supported intervals for commodities (Yahoo Finance supports these)
@@ -305,7 +305,7 @@ struct CommodityDetailView: View {
             // Back button
             CSNavButton(
                 icon: "chevron.left",
-                action: { presentationMode.wrappedValue.dismiss() }
+                action: { dismiss() }
             )
             
             // Commodity icon and name
@@ -385,7 +385,7 @@ struct CommodityDetailView: View {
         .padding(.vertical, 10)
         .background(
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.background)
                 .ignoresSafeArea()
         )
     }

@@ -40,7 +40,7 @@ struct QRCodeView: View {
 
 // MARK: - ExchangeConnectionView
 struct ExchangeConnectionView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     
     private var isDark: Bool { colorScheme == .dark }
@@ -95,7 +95,7 @@ struct ExchangeConnectionView: View {
             VStack(spacing: 0) {
                 // MARK: - Custom Top Bar
                 CSPageHeader(title: "Connect \(exchangeName)") {
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 }
                 
                 // MARK: - Main Content
@@ -130,7 +130,7 @@ struct ExchangeConnectionView: View {
         }
         .alert("Connection Successful", isPresented: $showSuccessAlert) {
             Button("OK") {
-                presentationMode.wrappedValue.dismiss()
+                dismiss()
             }
         } message: {
             Text("\(exchangeName) has been connected successfully!")
@@ -149,7 +149,7 @@ struct ExchangeConnectionView: View {
         .navigationBarBackButtonHidden(true)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
     
     // MARK: - Exchange Header
@@ -229,7 +229,7 @@ struct ExchangeConnectionView: View {
                 Button(action: {
                 if let account = accountsManager.account(for: exchangeName) {
                     accountsManager.removeAccount(account)
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 }
                 }) {
                 HStack {

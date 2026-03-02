@@ -191,7 +191,7 @@ struct AgentPortfolioView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         AgentPortfolioView()
     }
 }

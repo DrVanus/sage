@@ -232,7 +232,7 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         }
         
         // Validate passphrase if required
-        if config.requiresPassphrase && (passphrase == nil || passphrase!.isEmpty) {
+        if config.requiresPassphrase && (passphrase?.isEmpty ?? true) {
             throw ConnectionError.invalidCredentials
         }
         
@@ -330,7 +330,7 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         }
         
         // Validate passphrase requirement
-        if config.requiresPassphrase && (passphrase == nil || passphrase!.isEmpty) {
+        if config.requiresPassphrase && (passphrase?.isEmpty ?? true) {
             return false
         }
         
@@ -587,10 +587,11 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let signPayload = timestamp + credentials.apiKey + recvWindow + paramStr
         let signature = hmacSHA256(message: signPayload, secret: credentials.apiSecret)
         
-        var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false) else { return false }
         components.queryItems = [URLQueryItem(name: "accountType", value: "UNIFIED")]
-        
-        var request = URLRequest(url: components.url!)
+
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-BAPI-API-KEY")
         request.setValue(timestamp, forHTTPHeaderField: "X-BAPI-TIMESTAMP")
@@ -652,10 +653,11 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let signPayload = timestamp + key + recvWindow + paramStr
         let signature = hmacSHA256(message: signPayload, secret: secret)
         
-        var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false) else { return false }
         components.queryItems = [URLQueryItem(name: "accountType", value: "UNIFIED")]
-        
-        var request = URLRequest(url: components.url!)
+
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(key, forHTTPHeaderField: "X-BAPI-API-KEY")
         request.setValue(timestamp, forHTTPHeaderField: "X-BAPI-TIMESTAMP")

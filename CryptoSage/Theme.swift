@@ -253,7 +253,10 @@ struct AnimatedSparkleOverlay: View {
                     
                     // Re-randomize sparkles every 10 seconds for subtle variation
                     sparkleTimer?.invalidate()
-                    sparkleTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [self] _ in
+                    // TIMER LEAK FIX: Removed [self] strong capture. Added timer.isValid guard
+                    // so the callback exits early if the timer was invalidated in onDisappear.
+                    sparkleTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { timer in
+                        guard timer.isValid else { return }
                         DispatchQueue.main.async {
                             withAnimation(.easeInOut(duration: 3)) {
                                 generateSparkles()

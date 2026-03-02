@@ -284,6 +284,11 @@ public struct AIPricePrediction: Codable, Identifiable {
         nf.currencyCode = CurrencyManager.currencyCode; nf.maximumFractionDigits = 4; return nf
     }()
     public var priceRangeText: String {
+        // FIX: Static formatters capture currencyCode once at init and never update.
+        // Refresh the currency code each time so the formatter reflects the current setting.
+        let currentCode = CurrencyManager.currencyCode
+        Self._rangeFmt2.currencyCode = currentCode
+        Self._rangeFmt4.currencyCode = currentCode
         let formatter = predictedPriceLow < 1 ? Self._rangeFmt4 : Self._rangeFmt2
         let low = formatter.string(from: NSNumber(value: predictedPriceLow)) ?? "$\(predictedPriceLow)"
         let high = formatter.string(from: NSNumber(value: predictedPriceHigh)) ?? "$\(predictedPriceHigh)"
@@ -637,7 +642,9 @@ public final class AIPricePredictionService: ObservableObject {
             do {
                 cacheTimestamps = try JSONDecoder().decode([String: Date].self, from: data)
             } catch {
+                #if DEBUG
                 print("[AIPrediction] Failed to decode cache timestamps: \(error)")
+                #endif
                 cacheTimestamps = [:]
             }
         }
@@ -665,9 +672,13 @@ public final class AIPricePredictionService: ObservableObject {
                         }
                         return prediction
                     }
+                #if DEBUG
                 print("[AIPrediction] Loaded \(cachedPredictions.count) cached predictions from storage (of \(decoded.count) total)")
+                #endif
             } catch {
+                #if DEBUG
                 print("[AIPrediction] Failed to decode cached predictions: \(error)")
+                #endif
                 cachedPredictions = [:]
             }
         }
@@ -684,7 +695,9 @@ public final class AIPricePredictionService: ObservableObject {
             let timestampsData = try JSONEncoder().encode(cacheTimestamps)
             UserDefaults.standard.set(timestampsData, forKey: cacheTimestampsKey)
         } catch {
+            #if DEBUG
             print("[AIPrediction] Failed to save cached predictions: \(error)")
+            #endif
         }
     }
     
@@ -775,11 +788,15 @@ public final class AIPricePredictionService: ObservableObject {
         forceRefresh: Bool = false
     ) async throws -> AIPricePrediction {
         let key = cacheKey(symbol: symbol, timeframe: timeframe)
+        #if DEBUG
         print("[AIPrediction] Starting prediction for \(symbol.uppercased()) (\(timeframe.displayName)), forceRefresh=\(forceRefresh)")
+        #endif
         
         // When force refreshing, invalidate the existing cache entry to ensure fresh data
         if forceRefresh {
+            #if DEBUG
             print("[AIPrediction] Force refresh - invalidating cache for \(key)")
+            #endif
             cachedPredictions.removeValue(forKey: key)
             cacheTimestamps.removeValue(forKey: key)
         }
@@ -793,12 +810,16 @@ public final class AIPricePredictionService: ObservableObject {
                livePrice.isFinite, livePrice > 0 {
                 let drift = abs(livePrice - cached.currentPrice) / cached.currentPrice
                 if drift >= 0.05 {
+                    #if DEBUG
                     print("[AIPrediction] Cache invalidated for \(key) due to \(Int(drift * 100))% live-price drift")
+                    #endif
                     cachedPredictions.removeValue(forKey: key)
                     cacheTimestamps.removeValue(forKey: key)
                 } else {
                     let cacheMinutes = Int(cacheValiditySeconds(for: timeframe) / 60)
+                    #if DEBUG
                     print("[AIPrediction] Returning cached prediction for \(key) (cache valid for \(cacheMinutes) min)")
+                    #endif
                     // Track cache hit (cost savings) - report DeepSeek as the model (Firebase uses DeepSeek for predictions)
                     AnalyticsService.shared.trackAIFeatureUsage(
                         feature: .prediction,
@@ -815,7 +836,9 @@ public final class AIPricePredictionService: ObservableObject {
                 }
             } else {
                 let cacheMinutes = Int(cacheValiditySeconds(for: timeframe) / 60)
+                #if DEBUG
                 print("[AIPrediction] Returning cached prediction for \(key) (cache valid for \(cacheMinutes) min)")
+                #endif
                 // Track cache hit (cost savings) - report DeepSeek as the model (Firebase uses DeepSeek for predictions)
                 AnalyticsService.shared.trackAIFeatureUsage(
                     feature: .prediction,
@@ -836,7 +859,9 @@ public final class AIPricePredictionService: ObservableObject {
         // Developer mode bypasses coin restrictions for testing
         if !SubscriptionManager.shared.isDeveloperMode {
             guard SubscriptionManager.shared.canAccessAIForCoin(symbol) else {
+                #if DEBUG
                 print("[AIPrediction] ❌ Coin \(symbol) not allowed for free tier")
+                #endif
                 throw PredictionServiceError.coinNotAllowedForFreeTier(symbol.uppercased())
             }
         }
@@ -851,7 +876,9 @@ public final class AIPricePredictionService: ObservableObject {
                 // This prevents the UI from appearing stuck
                 let firebaseTimeoutSeconds: TimeInterval = 8
                 
+                #if DEBUG
                 print("[AIPrediction] Attempting Firebase prediction (timeout: \(Int(firebaseTimeoutSeconds))s)...")
+                #endif
                 
                 // Use Task.withTimeout pattern for cleaner cancellation
                 let prediction = try await withThrowingTaskGroup(of: AIPricePrediction.self) { group in
@@ -888,19 +915,27 @@ public final class AIPricePredictionService: ObservableObject {
                 // Record to Firebase for global accuracy tracking (fire-and-forget)
                 enqueueGlobalOutcomeRecord(for: prediction)
                 
+                #if DEBUG
                 print("[AIPrediction] ✅ Prediction loaded from Firebase")
+                #endif
                 return prediction
             } catch PredictionServiceError.timeout {
+                #if DEBUG
                 print("[AIPrediction] Firebase timed out after 8s, using technical analysis fallback")
+                #endif
                 // Fall through to technical fallback (skip direct API to avoid more delays)
             } catch {
+                #if DEBUG
                 print("[AIPrediction] Firebase prediction failed: \(error.localizedDescription), using fallback")
+                #endif
                 // Fall through to fallback
             }
             
             // If Firebase failed, immediately use technical fallback for fast response
             // Don't wait for direct OpenAI - that would add more delay
+            #if DEBUG
             print("[AIPrediction] Generating instant technical analysis prediction...")
+            #endif
             let fallbackPrediction = await generateTechnicalFallbackPrediction(
                 symbol: symbol,
                 coinName: coinName,
@@ -925,7 +960,9 @@ public final class AIPricePredictionService: ObservableObject {
             if let lastRequest = lastRequestTimestamps[key],
                Date().timeIntervalSince(lastRequest) < cooldown {
                 let waitMinutes = Int((cooldown - Date().timeIntervalSince(lastRequest)) / 60)
+                #if DEBUG
                 print("[AIPrediction] Cooldown active - wait \(waitMinutes) more minutes")
+                #endif
                 // Track cooldown triggered (cost savings)
                 AnalyticsService.shared.trackAICooldownTriggered(
                     feature: .prediction,
@@ -944,7 +981,9 @@ public final class AIPricePredictionService: ObservableObject {
         // Check API key for direct calls - DeepSeek (recommended) or OpenAI
         // If neither is available, generate technical analysis fallback
         guard APIConfig.hasValidDeepseekKey || APIConfig.hasValidOpenAIKey else {
+            #if DEBUG
             print("[AIPrediction] No AI API key configured - generating technical analysis fallback")
+            #endif
             let fallbackPrediction = await generateTechnicalFallbackPrediction(
                 symbol: symbol,
                 coinName: coinName,
@@ -962,11 +1001,15 @@ public final class AIPricePredictionService: ObservableObject {
         
         // Log which provider will be used
         let providerInfo = AIService.shared.predictionProviderInfo
+        #if DEBUG
         print("[AIPrediction] Using \(providerInfo.provider) (\(providerInfo.model)) for prediction\(providerInfo.isOptimized ? " [OPTIMIZED]" : "")")
-        
+        #endif
+
         // Check usage limit for direct API calls
         guard canGeneratePrediction else {
+            #if DEBUG
             print("[AIPrediction] ❌ Rate limited - daily limit exceeded")
+            #endif
             throw PredictionServiceError.rateLimited
         }
         
@@ -974,12 +1017,16 @@ public final class AIPricePredictionService: ObservableObject {
         lastError = nil
         defer { isLoading = false }
         
+        #if DEBUG
         print("[AIPrediction] Collecting market data for \(timeframe.displayName) timeframe...")
-        
+        #endif
+
         // Collect market data with timeframe-specific sparkline slicing
         let marketData = await collectMarketData(symbol: symbol, timeframe: timeframe)
-        
+
+        #if DEBUG
         print("[AIPrediction] Market data collected: price=$\(String(format: "%.2f", marketData.currentPrice)), drivers=\(marketData.drivers.count), timeframe=\(timeframe.displayName)")
+        #endif
         
         // Build prompt
         let prompt = buildPredictionPrompt(
@@ -990,7 +1037,9 @@ public final class AIPricePredictionService: ObservableObject {
         )
         
         // Call AI service with timeout
+        #if DEBUG
         print("[AIPrediction] Calling AI service with \(predictionTimeoutSeconds)s timeout...")
+        #endif
         let startTime = Date()
         
         do {
@@ -1043,7 +1092,9 @@ public final class AIPricePredictionService: ObservableObject {
             }
             
             let elapsed = Date().timeIntervalSince(startTime)
+            #if DEBUG
             print("[AIPrediction] AI response received in \(String(format: "%.1f", elapsed))s")
+            #endif
             
             // Parse response
             let prediction = try parsePredictionResponse(
@@ -1055,7 +1106,9 @@ public final class AIPricePredictionService: ObservableObject {
                 drivers: marketData.drivers
             )
             
+            #if DEBUG
             print("[AIPrediction] ✅ Prediction parsed: \(prediction.direction.displayName) \(prediction.formattedPriceChange) confidence=\(prediction.confidenceScore)%")
+            #endif
             
             // Cache result and persist to storage
             cachedPredictions[key] = prediction
@@ -1082,12 +1135,16 @@ public final class AIPricePredictionService: ObservableObject {
             
             return prediction
         } catch let error as PredictionServiceError where error == .timeout {
+            #if DEBUG
             print("[AIPrediction] ❌ Request timed out after \(predictionTimeoutSeconds)s")
+            #endif
             lastError = "Request timed out. Please try again."
             throw error
         } catch {
             let elapsed = Date().timeIntervalSince(startTime)
+            #if DEBUG
             print("[AIPrediction] ❌ Error after \(String(format: "%.1f", elapsed))s: \(error.localizedDescription)")
+            #endif
             lastError = error.localizedDescription
             throw PredictionServiceError.aiServiceFailed(error.localizedDescription)
         }
@@ -1173,7 +1230,9 @@ public final class AIPricePredictionService: ObservableObject {
             if let matchedCoin = allCoins.first(where: { $0.symbol.uppercased() == symbol.uppercased() }),
                let price = matchedCoin.priceUsd, price > 0 {
                 currentPrice = price
+                #if DEBUG
                 print("[AIPrediction] Price recovered from allCoins: $\(String(format: "%.2f", currentPrice))")
+                #endif
             }
         }
         
@@ -1183,22 +1242,26 @@ public final class AIPricePredictionService: ObservableObject {
             if let matchedCoin = lpmCoins.first(where: { $0.symbol.uppercased() == symbol.uppercased() }),
                let price = matchedCoin.priceUsd, price > 0 {
                 currentPrice = price
+                #if DEBUG
                 print("[AIPrediction] Price recovered from LivePriceManager: $\(String(format: "%.2f", currentPrice))")
+                #endif
             }
         }
-        
+
+        #if DEBUG
         // Log warning if we couldn't get a valid price - prediction will still work
         // but the view will need to use live price fallback for display
         if currentPrice <= 0 {
             print("[AIPrediction] ⚠️ Warning: Could not get valid price for \(symbol). View will use live price fallback.")
         }
-        
+
         // Debug: Log raw Firebase response
         print("[AIPrediction] 📊 Firebase Response for \(symbol) (\(firebaseTimeframe)):")
         print("  - Direction: \(response.prediction)")
         print("  - Confidence: \(response.confidence)")
         print("  - PriceRange: \(response.priceRange.map { "low: \($0.low), high: \($0.high)" } ?? "nil")")
         print("  - Cached: \(response.cached)")
+        #endif
         
         // Calculate price range with direction-aware fallbacks
         // The bug was: if priceRange is nil or both values are 0, we'd get 0% change
@@ -1226,7 +1289,9 @@ public final class AIPricePredictionService: ObservableObject {
         
         if priceRangeIsMissing || priceRangeIsZero {
             // Firebase didn't return valid price range - infer from direction
+            #if DEBUG
             print("[AIPrediction] ⚠️ Price range missing/zero, inferring from direction: \(direction.rawValue)")
+            #endif
             
             switch direction {
             case .bullish:
@@ -1244,7 +1309,9 @@ public final class AIPricePredictionService: ObservableObject {
                 highPct = defaultHigh * 0.8
             }
             
+            #if DEBUG
             print("[AIPrediction] 🔄 Inferred range: low=\(String(format: "%.2f", lowPct))%, high=\(String(format: "%.2f", highPct))%")
+            #endif
         } else {
             // Use Firebase values
             lowPct = rawLowPct ?? defaultLow
@@ -1266,7 +1333,9 @@ public final class AIPricePredictionService: ObservableObject {
         
         let predictedChangePercent = (lowPct + highPct) / 2
         
+        #if DEBUG
         print("[AIPrediction] ✅ Final prediction: \(String(format: "%.2f", predictedChangePercent))% change")
+        #endif
         
         // Validate and adjust confidence based on timeframe constraints
         // Firebase may return overly uniform values, so we apply timeframe-based caps
@@ -1300,7 +1369,9 @@ public final class AIPricePredictionService: ObservableObject {
             case .month: timeframeAdjustment = -18      // Monthly is most uncertain
             }
             adjustedConfidence = rawConfidence + timeframeAdjustment
+            #if DEBUG
             print("[AIPrediction] Confidence adjusted for timeframe: \(rawConfidence) -> \(adjustedConfidence) (\(timeframe.displayName))")
+            #endif
         }
         
         // Apply timeframe cap
@@ -1999,7 +2070,9 @@ public final class AIPricePredictionService: ObservableObject {
             if let matchedCoin = lpmCoins.first(where: { $0.symbol.uppercased() == sym }),
                let price = matchedCoin.priceUsd, price > 0 {
                 currentPrice = price
+                #if DEBUG
                 print("[AIPrediction] collectMarketData: Price recovered from LivePriceManager: $\(String(format: "%.2f", currentPrice))")
+                #endif
             }
         }
         
@@ -2438,7 +2511,9 @@ public final class AIPricePredictionService: ObservableObject {
                 weight: 0.75  // High weight - this is real alpha from institutional flow
             ))
             
+            #if DEBUG
             print("[AIPrediction] Smart Money Index: \(smi.score) (\(smi.trend.rawValue)) - \(smi.bullishSignals) bullish, \(smi.bearishSignals) bearish signals")
+            #endif
         }
         
         // Exchange Flow Analysis - net inflow/outflow from exchanges
@@ -2476,7 +2551,9 @@ public final class AIPricePredictionService: ObservableObject {
                 weight: 0.65  // Important signal - large moves often precede price action
             ))
             
+            #if DEBUG
             print("[AIPrediction] Exchange Flow: $\(String(format: "%.0f", netFlow)) (\(stats.flowSentiment))")
+            #endif
         }
         
         // Summarize recent whale activity
@@ -2549,7 +2626,9 @@ public final class AIPricePredictionService: ObservableObject {
                 weight: 0.5  // Contextual - affects interpretation of other indicators
             ))
             
+            #if DEBUG
             print("[AIPrediction] Market Regime: \(regimeResult.summary)")
+            #endif
         }
         
         // MARK: - Multi-Timeframe Confluence
@@ -2581,7 +2660,9 @@ public final class AIPricePredictionService: ObservableObject {
                     ))
                 }
                 
+                #if DEBUG
                 print("[AIPrediction] Multi-TF Confluence: \(conf.details)")
+                #endif
             }
         }
         
@@ -2615,7 +2696,9 @@ public final class AIPricePredictionService: ObservableObject {
             let futuresService = FuturesTradingExecutionService.shared
             let futuresTimeout: UInt64 = 10_000_000_000 // 10 seconds
             
+            #if DEBUG
             print("[AIPrediction] Fetching futures data for \(futuresSymbol) in parallel...")
+            #endif
             
             // Use TaskGroup to run all futures API calls in parallel, collecting drivers
             let collectedDrivers = await withTaskGroup(of: PredictionDriver?.self) { group -> [PredictionDriver] in
@@ -2652,10 +2735,14 @@ public final class AIPricePredictionService: ObservableObject {
                             fundingRateSentiment = "neutral"
                             driver = PredictionDriver(name: "Funding Rate", value: "\(fundingData.formattedRate) - Balanced", signal: "neutral", weight: 0.3)
                         }
+                        #if DEBUG
                         print("[AIPrediction] Funding Rate: \(fundingData.formattedRate)")
+                        #endif
                         return driver
                     } catch {
+                        #if DEBUG
                         print("[AIPrediction] Funding rate skipped: \(error.localizedDescription)")
+                        #endif
                         return nil
                     }
                 }
@@ -2675,10 +2762,14 @@ public final class AIPricePredictionService: ObservableObject {
                         }
                         openInterestValue = oiData.openInterestValue
                         openInterestFormatted = oiData.formattedValue
+                        #if DEBUG
                         print("[AIPrediction] Open Interest: \(oiData.formattedValue)")
+                        #endif
                         return PredictionDriver(name: "Open Interest", value: oiData.formattedValue, signal: "neutral", weight: 0.25)
                     } catch {
+                        #if DEBUG
                         print("[AIPrediction] Open interest skipped: \(error.localizedDescription)")
+                        #endif
                         return nil
                     }
                 }
@@ -2717,10 +2808,14 @@ public final class AIPricePredictionService: ObservableObject {
                             signalType = "neutral"
                             driverValue = "L/S Ratio: \(lsData.formattedRatio) - Balanced"
                         }
+                        #if DEBUG
                         print("[AIPrediction] L/S Ratio: \(lsData.formattedRatio)")
+                        #endif
                         return PredictionDriver(name: "Long/Short Ratio", value: driverValue, signal: signalType, weight: lsData.sentiment.contains("extreme") ? 0.6 : 0.35)
                     } catch {
+                        #if DEBUG
                         print("[AIPrediction] L/S ratio skipped: \(error.localizedDescription)")
+                        #endif
                         return nil
                     }
                 }
@@ -2753,10 +2848,14 @@ public final class AIPricePredictionService: ObservableObject {
                             signalType = "neutral"
                             driverValue = "Top Traders: \(topData.formattedRatio) - Neutral"
                         }
+                        #if DEBUG
                         print("[AIPrediction] Top Traders: \(topData.formattedRatio)")
+                        #endif
                         return PredictionDriver(name: "Top Traders", value: driverValue, signal: signalType, weight: topData.signal == "top_traders_neutral" ? 0.3 : 0.55)
                     } catch {
+                        #if DEBUG
                         print("[AIPrediction] Top trader ratio skipped: \(error.localizedDescription)")
+                        #endif
                         return nil
                     }
                 }
@@ -2789,10 +2888,14 @@ public final class AIPricePredictionService: ObservableObject {
                             signalType = "neutral"
                             driverValue = "Taker Flow: \(takerData.formattedRatio) - Balanced"
                         }
+                        #if DEBUG
                         print("[AIPrediction] Taker Flow: \(takerData.formattedRatio)")
+                        #endif
                         return PredictionDriver(name: "Taker Flow", value: driverValue, signal: signalType, weight: takerData.signal == "balanced_flow" ? 0.25 : 0.5)
                     } catch {
+                        #if DEBUG
                         print("[AIPrediction] Taker ratio skipped: \(error.localizedDescription)")
+                        #endif
                         return nil
                     }
                 }
@@ -2809,7 +2912,9 @@ public final class AIPricePredictionService: ObservableObject {
             
             // Add collected futures drivers to main drivers array (thread-safe now)
             drivers.append(contentsOf: collectedDrivers)
+            #if DEBUG
             print("[AIPrediction] Futures data collection completed with \(collectedDrivers.count) drivers")
+            #endif
         }
         
         // Ensure we have at least basic drivers (fallback when primary analysis fails)
@@ -2834,7 +2939,9 @@ public final class AIPricePredictionService: ObservableObject {
                 weight: 0.3
             ))
             
+            #if DEBUG
             print("[AIPrediction] Added fallback drivers, total: \(drivers.count)")
+            #endif
         }
         
         return MarketDataSnapshot(
@@ -3577,12 +3684,14 @@ public final class AIPricePredictionService: ObservableObject {
                 }
             }
             
+            #if DEBUG
             // Log validation results
             if aiDirection != validatedDirection {
                 print("[AIPrediction] Direction adjusted: AI said \(aiDirection.displayName), price change \(String(format: "%.2f", priceChange))%, threshold \(String(format: "%.1f", neutralThreshold))% -> using \(validatedDirection.displayName)")
             } else {
                 print("[AIPrediction] Direction validated: \(validatedDirection.displayName) with \(String(format: "%.2f", priceChange))% change")
             }
+            #endif
             
             // Apply accuracy-based confidence calibration
             // This adjusts confidence based on historical performance for this direction/timeframe

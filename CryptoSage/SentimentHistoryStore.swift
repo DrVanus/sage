@@ -50,7 +50,8 @@ public actor SentimentHistoryStore {
         guard endTs > startTs else { return [] }
         // Require a minimum amount of history to avoid flat series on cold start
         if points.count < 3 { return [] }
-        let spanSeconds = points.last!.ts - points.first!.ts
+        guard let firstPt = points.first, let lastPt = points.last else { return [] }
+        let spanSeconds = lastPt.ts - firstPt.ts
         if spanSeconds < 12 * 3600 { return [] } // < 12 hours of history -> treat as insufficient
 
         var out: [(Int, Double)] = []
@@ -113,8 +114,9 @@ public actor SentimentHistoryStore {
 
     private func sample(ts: Int) -> Double? {
         guard !points.isEmpty else { return nil }
-        if ts < points.first!.ts { return nil }
-        if ts > points.last!.ts { return points.last!.v }
+        guard let firstPt = points.first, let lastPt = points.last else { return nil }
+        if ts < firstPt.ts { return nil }
+        if ts > lastPt.ts { return lastPt.v }
         // Binary search for bracketing points
         var lo = 0
         var hi = points.count - 1
@@ -144,7 +146,7 @@ public actor SentimentHistoryStore {
         }
         let i = min(points.count - 1, max(0, lo))
         if i == 0 { return points[0].v }
-        if i >= points.count { return points.last!.v }
+        if i >= points.count { return points.last?.v }
         let a = points[i - 1]
         let b = points[i]
         return (abs(a.ts - ts) <= abs(b.ts - ts)) ? a.v : b.v

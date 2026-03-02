@@ -225,7 +225,7 @@ struct WalletDetailView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -325,7 +325,7 @@ struct WalletDetailView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -436,7 +436,7 @@ struct WalletDetailView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -488,7 +488,7 @@ struct WalletDetailView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)

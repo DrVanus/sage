@@ -154,11 +154,12 @@ extension MarketCoin {
     /// Derive a 7D percent change from the sparkline (first vs last/anchor).
     private func derived7dPercent(anchorPrice: Double? = nil) -> Double? {
         let series = sparklineIn7d.filter { $0.isFinite && $0 > 0 }
-        guard series.count >= 2 else { return nil }
-        let first = series.first!
+        guard series.count >= 2,
+              let first = series.first,
+              let seriesLast = series.last else { return nil }
         let last: Double = {
             if let p = anchorPrice, p.isFinite, p > 0 { return p }
-            return series.last!
+            return seriesLast
         }()
         guard first > 0 else { return nil }
         let pct = ((last - first) / first) * 100.0

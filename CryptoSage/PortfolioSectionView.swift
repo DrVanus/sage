@@ -1216,8 +1216,8 @@ struct PortfolioSectionView: View {
             let pointDate = startDate.addingTimeInterval(Double(hour) * 3600)
             
             // Find the two sparse points that bracket this date
-            var beforePoint = sortedSparse.first!
-            var afterPoint = sortedSparse.last!
+            var beforePoint = sortedSparse[0]
+            var afterPoint = sortedSparse[sortedSparse.count - 1]
             
             for i in 0..<sortedSparse.count {
                 if sortedSparse[i].date <= pointDate {
@@ -3092,8 +3092,8 @@ private struct PortfolioHeaderSparklineCard: View {
     }
 
     private func volatilityEnergy(_ values: [Double]) -> Double {
-        guard values.count > 2 else { return 0.0 }
-        var prev = values.first!
+        guard values.count > 2, let firstVal = values.first else { return 0.0 }
+        var prev = firstVal
         var accum: Double = 0
         var n: Double = 0
         for v in values.dropFirst() {

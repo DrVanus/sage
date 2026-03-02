@@ -68,7 +68,9 @@ final class BinanceWebSocketPriceService: PriceService {
         }
         lastLogTimes[key] = now
         lastLogTimesLock.unlock()
+        #if DEBUG
         print(message)
+        #endif
     }
 
     private let session: URLSession = {
@@ -603,7 +605,9 @@ final class BinanceWebSocketPriceService: PriceService {
         totalReconnectAttempts += 1
         if totalReconnectAttempts >= maxReconnectAttempts {
             wsPermDisabled = true
+            #if DEBUG
             print("[PriceService] 🛑 WS permanently disabled after \(totalReconnectAttempts) reconnect attempts — using REST polling only")
+            #endif
             startFallbackPolling()
             return
         }
@@ -912,7 +916,22 @@ final class CoinGeckoPriceService: PriceService {
             if Thread.isMainThread {
                 return MainActor.assumeIsolated { LivePriceManager.shared.currentCoinsList }
             }
-            return []
+            // Use a semaphore-free approach: dispatch async + wait with timeout
+            var result: [MarketCoin] = []
+            let group = DispatchGroup()
+            group.enter()
+            DispatchQueue.main.async {
+                result = MainActor.assumeIsolated { LivePriceManager.shared.currentCoinsList }
+                group.leave()
+            }
+            // Wait with timeout to prevent deadlock; return empty on timeout
+            if group.wait(timeout: .now() + 0.5) == .timedOut {
+                #if DEBUG
+                print("[PriceService] Warning: main thread access timed out, returning empty coin list")
+                #endif
+                return []
+            }
+            return result
         }()
         var result: [String: Double] = [:]
         for sym in symbols {

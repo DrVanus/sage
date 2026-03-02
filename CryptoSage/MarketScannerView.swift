@@ -222,7 +222,7 @@ struct MarketScannerView: View {
     @State private var selectedScannerCoin: MarketCoin? = nil
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Stats Header
                 if !vm.isScanning && !vm.allSignals.isEmpty {
@@ -272,7 +272,6 @@ struct MarketScannerView: View {
                 CoinDetailView(coin: coin)
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
         .task {
             if vm.allSignals.isEmpty {
                 await vm.scan()

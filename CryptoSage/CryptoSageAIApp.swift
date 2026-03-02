@@ -35,8 +35,10 @@ func currentMemoryMB() -> Double {
 }
 
 private func logMemory(_ label: String) {
+    #if DEBUG
     let mb = currentMemoryMB()
     print("🧠 MEMORY [\(label)]: \(String(format: "%.1f", mb)) MB")
+    #endif
 }
 
 /// Returns system-reported available memory in MB (how much headroom before jetsam kills us)
@@ -175,7 +177,9 @@ struct CryptoSageAIApp: App {
     }
 
     init() {
+        #if DEBUG
         print("🔨🔨🔨 BUILD v5.0.15 - ROBUST RELAUNCH + CLEAN SHUTDOWN GUARD 🔨🔨🔨")
+        #endif
         logMemory("APP INIT START")
         
         // ════════════════════════════════════════════════════════════
@@ -257,17 +261,23 @@ struct CryptoSageAIApp: App {
         if consecutiveFailures >= 3 {
             // NUCLEAR RESET: App has failed 3+ times in a row.
             // This replicates what "delete and reinstall" does.
+            #if DEBUG
             print("🚨 [NUCLEAR RESET] \(consecutiveFailures) consecutive failures — full state reset")
+            #endif
             CryptoSageAIApp.purgeAllCacheFiles()
             CryptoSageAIApp.clearAllTransientCaches()
             needsFirestoreCacheClear = true
             defaults.set(0, forKey: failCountKey)
         } else if previousLaunchCrashed {
+            #if DEBUG
             print("⚠️ [CRASH GUARD] Previous launch crashed — comprehensive purge (fail #\(consecutiveFailures))")
+            #endif
             CryptoSageAIApp.purgeAllCacheFiles()
             needsFirestoreCacheClear = true
         } else if wasDirtyShutdown && shouldCountDirtyShutdownAsFailure {
+            #if DEBUG
             print("⚠️ [DIRTY SHUTDOWN] App was force-quit or killed — purging caches (fail #\(consecutiveFailures))")
+            #endif
             CryptoSageAIApp.purgeAllCacheFiles()
             needsFirestoreCacheClear = true
         } else if wasDirtyShutdown {
@@ -432,12 +442,11 @@ struct CryptoSageAIApp: App {
 
         // Global navigation bar appearance
         let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor.black
-        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navBarAppearance.configureWithDefaultBackground()
+        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.label]
         UINavigationBar.appearance().standardAppearance = navBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
-        UINavigationBar.appearance().tintColor = .white
+        UINavigationBar.appearance().tintColor = UIColor.label
         
         // Register background refresh task for price alert monitoring (lightweight, ~30s budget)
         BGTaskScheduler.shared.register(
@@ -486,9 +495,13 @@ struct CryptoSageAIApp: App {
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         do {
             try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
             print("[CryptoSageAIApp] Scheduled background refresh for price alerts")
+            #endif
         } catch {
+            #if DEBUG
             print("[CryptoSageAIApp] Failed to schedule background price alert refresh: \(error)")
+            #endif
         }
     }
     
@@ -501,9 +514,13 @@ struct CryptoSageAIApp: App {
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         do {
             try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
             print("[CryptoSageAIApp] Scheduled background processing for price alerts")
+            #endif
         } catch {
+            #if DEBUG
             print("[CryptoSageAIApp] Failed to schedule background price alert processing: \(error)")
+            #endif
         }
     }
     
@@ -512,7 +529,9 @@ struct CryptoSageAIApp: App {
     /// Full API data, commodities, logos loaded ON-DEMAND when user navigates.
     private func startHeavyLoading() {
         guard !CryptoSageAIApp.isEmergencyStopActive() else {
+            #if DEBUG
             print("🛑 [Startup] Heavy loading skipped — emergency stop active")
+            #endif
             return
         }
         logMemory("startHeavyLoading BEGIN")
@@ -595,6 +614,17 @@ struct CryptoSageAIApp: App {
             logMemory("Phase 2 DONE (Firestore + polling)")
         }
         
+        // Phase 2.5 (3s): Early StoreKit subscription tier validation
+        // SECURITY FIX: The cached tier from UserDefaults is trusted on launch but may be
+        // stale (expired subscription) or tampered. Previously, StoreKit validation didn't
+        // run until Phase 6 (35s+), leaving a window where an invalid tier was trusted.
+        // This lightweight check only verifies entitlements — no product loading or ad init.
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
+            await SubscriptionManager.shared.validateWithStoreKit()
+        }
+
         // Phase 3: DISABLED — loadAllData() is redundant.
         // MEMORY FIX v5: Firestore real-time listener already provides full market data
         // via FirestoreMarketSync → LivePriceManager → MarketViewModel pipeline.
@@ -1557,6 +1587,7 @@ struct CryptoSageAIApp: App {
     }
 }
 
+@MainActor
 class AppState: ObservableObject {
     // PERFORMANCE FIX v20: Singleton for targeted publisher access without @EnvironmentObject observation
     static let shared = AppState()

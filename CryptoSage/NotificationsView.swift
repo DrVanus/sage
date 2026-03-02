@@ -25,7 +25,6 @@ struct NotificationsView: View {
     @State private var showUpgradeForAI = false
     @State private var editMode: EditMode = .inactive
     @State private var alertToEdit: PriceAlert? = nil
-    @State private var showEditSheet = false
     @State private var alertToDelete: PriceAlert? = nil
     @State private var showDeleteConfirmation = false
     
@@ -76,6 +75,8 @@ struct NotificationsView: View {
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(editMode == .active ? BrandColors.goldBase : DS.Adaptive.textSecondary)
                             }
+                            .accessibilityLabel(editMode == .active ? "Done editing" : "Edit alerts")
+                            .accessibilityHint(editMode == .active ? "Finish editing alerts" : "Reorder or delete alerts")
                         }
                         
                         // New Alert button — refined outlined capsule
@@ -98,6 +99,8 @@ struct NotificationsView: View {
                                 font: .system(size: 12, weight: .semibold)
                             )
                         )
+                        .accessibilityLabel("New Alert")
+                        .accessibilityHint("Create a new price alert")
                     }
                 }
                 
@@ -121,12 +124,10 @@ struct NotificationsView: View {
             AddAlertView()
         }
         .unifiedPaywallSheet(feature: .aiPoweredAlerts, isPresented: $showUpgradeForAI)
-        .sheet(isPresented: $showEditSheet) {
-            if let alert = alertToEdit {
-                AddAlertView(editingAlert: alert) {
-                    // On save callback - delete the old alert
-                    notificationsManager.removeAlert(id: alert.id)
-                }
+        .sheet(item: $alertToEdit) { alert in
+            AddAlertView(editingAlert: alert) {
+                // On save callback - delete the old alert
+                notificationsManager.removeAlert(id: alert.id)
             }
         }
         .onAppear {
@@ -216,8 +217,10 @@ struct NotificationsView: View {
         }
         .padding(.horizontal, 32)
         .padding(.top, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("No alerts yet. Create price alerts or enable AI market alerts to catch major crypto moves.")
     }
-    
+
     // MARK: - AI Market Alerts Card
     
     private var aiPortfolioAlertsCard: some View {
@@ -539,7 +542,6 @@ struct NotificationsView: View {
     private func editAlert(_ alert: PriceAlert) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         alertToEdit = alert
-        showEditSheet = true
     }
     
     private func duplicateAlert(_ alert: PriceAlert) {
@@ -907,7 +909,7 @@ private struct AlertCardView: View {
             )
             .background(
                 RoundedRectangle(cornerRadius: NotificationsDesign.cardCornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
     }
     
@@ -1558,7 +1560,7 @@ private struct AIPortfolioAlertsCardView: View {
             )
             .background(
                 RoundedRectangle(cornerRadius: NotificationsDesign.cardCornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
     }
 
@@ -1638,10 +1640,10 @@ private struct AIPortfolioAlertsCardView: View {
             onUpgrade()
         } label: {
             ZStack {
-                // Semi-transparent frosted overlay — fills the card exactly
+                // Semi-transparent overlay — fills the card exactly
                 RoundedRectangle(cornerRadius: NotificationsDesign.cardCornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.85)
+                    .fill(DS.Adaptive.cardBackground)
+                    .opacity(0.92)
                 
                 // Lock badge + CTA — compact inline pill
                 HStack(spacing: 6) {

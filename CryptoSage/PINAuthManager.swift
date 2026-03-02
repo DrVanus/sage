@@ -21,6 +21,10 @@ final class PINAuthManager: ObservableObject {
     private let keychainService = "CryptoSage.PIN"
     private let pinHashAccount = "pin_hash"
     private let pinSaltAccount = "pin_salt"
+    private let failedAttemptsAccount = "failed_attempts"
+    private let lockoutEndAccount = "lockout_end"
+
+    // Legacy UserDefaults keys (for migration only)
     private let failedAttemptsKey = "PINAuth.FailedAttempts"
     private let lockoutEndKey = "PINAuth.LockoutEnd"
     
@@ -54,14 +58,35 @@ final class PINAuthManager: ObservableObject {
     private func loadState() {
         // Check if PIN is set
         isPINSet = (try? KeychainHelper.shared.read(service: keychainService, account: pinHashAccount)) != nil
-        
-        // Load failed attempts
-        failedAttempts = UserDefaults.standard.integer(forKey: failedAttemptsKey)
+
+        // Migrate legacy UserDefaults values to Keychain if present
+        let legacyAttempts = UserDefaults.standard.integer(forKey: failedAttemptsKey)
+        if legacyAttempts > 0 {
+            try? KeychainHelper.shared.save(String(legacyAttempts), service: keychainService, account: failedAttemptsAccount)
+            UserDefaults.standard.removeObject(forKey: failedAttemptsKey)
+        }
+        let legacyLockout = UserDefaults.standard.double(forKey: lockoutEndKey)
+        if legacyLockout > 0 {
+            try? KeychainHelper.shared.save(String(legacyLockout), service: keychainService, account: lockoutEndAccount)
+            UserDefaults.standard.removeObject(forKey: lockoutEndKey)
+        }
+
+        // Load failed attempts from Keychain
+        if let attemptsString = try? KeychainHelper.shared.read(service: keychainService, account: failedAttemptsAccount),
+           let attempts = Int(attemptsString) {
+            failedAttempts = attempts
+        } else {
+            failedAttempts = 0
+        }
     }
     
     private func checkLockoutStatus() {
-        let lockoutEnd = UserDefaults.standard.double(forKey: lockoutEndKey)
-        
+        var lockoutEnd: Double = 0
+        if let lockoutString = try? KeychainHelper.shared.read(service: keychainService, account: lockoutEndAccount),
+           let timestamp = Double(lockoutString) {
+            lockoutEnd = timestamp
+        }
+
         if lockoutEnd > 0 {
             let remaining = lockoutEnd - Date().timeIntervalSince1970
             
@@ -85,7 +110,9 @@ final class PINAuthManager: ObservableObject {
     func setPIN(_ pin: String) -> Bool {
         guard pin.count == requiredPINLength,
               pin.allSatisfy({ $0.isNumber }) else {
+            #if DEBUG
             print("❌ [PINAuth] Invalid PIN format")
+            #endif
             return false
         }
         
@@ -107,10 +134,14 @@ final class PINAuthManager: ObservableObject {
             isPINSet = true
             resetFailedAttempts()
             
+            #if DEBUG
             print("✅ [PINAuth] PIN set successfully")
+            #endif
             return true
         } catch {
+            #if DEBUG
             print("❌ [PINAuth] Failed to save PIN: \(error)")
+            #endif
             return false
         }
     }
@@ -136,7 +167,9 @@ final class PINAuthManager: ObservableObject {
         try? KeychainHelper.shared.delete(service: keychainService, account: pinSaltAccount)
         isPINSet = false
         resetFailedAttempts()
+        #if DEBUG
         print("🗑️ [PINAuth] PIN removed")
+        #endif
     }
     
     // MARK: - PIN Verification
@@ -147,13 +180,17 @@ final class PINAuthManager: ObservableObject {
     func verifyPIN(_ pin: String) -> Bool {
         // Check lockout
         guard !isLockedOut else {
+            #if DEBUG
             print("🔒 [PINAuth] Account locked out")
+            #endif
             return false
         }
         
         guard let storedHash = try? KeychainHelper.shared.read(service: keychainService, account: pinHashAccount),
               let salt = try? KeychainHelper.shared.read(service: keychainService, account: pinSaltAccount) else {
+            #if DEBUG
             print("❌ [PINAuth] No PIN configured")
+            #endif
             return false
         }
         
@@ -165,11 +202,15 @@ final class PINAuthManager: ObservableObject {
         // Compare hashes
         if hashString == storedHash {
             resetFailedAttempts()
+            #if DEBUG
             print("✅ [PINAuth] PIN verified")
+            #endif
             return true
         } else {
             recordFailedAttempt()
+            #if DEBUG
             print("❌ [PINAuth] Invalid PIN (Attempt \(failedAttempts)/\(maxFailedAttempts))")
+            #endif
             return false
         }
     }
@@ -178,7 +219,7 @@ final class PINAuthManager: ObservableObject {
     
     private func recordFailedAttempt() {
         failedAttempts += 1
-        UserDefaults.standard.set(failedAttempts, forKey: failedAttemptsKey)
+        try? KeychainHelper.shared.save(String(failedAttempts), service: keychainService, account: failedAttemptsAccount)
         
         if failedAttempts >= maxFailedAttempts {
             startLockout()
@@ -187,25 +228,27 @@ final class PINAuthManager: ObservableObject {
     
     private func resetFailedAttempts() {
         failedAttempts = 0
-        UserDefaults.standard.set(0, forKey: failedAttemptsKey)
+        try? KeychainHelper.shared.save("0", service: keychainService, account: failedAttemptsAccount)
         clearLockout()
     }
     
     private func startLockout() {
         isLockedOut = true
         let lockoutEnd = Date().timeIntervalSince1970 + lockoutDuration
-        UserDefaults.standard.set(lockoutEnd, forKey: lockoutEndKey)
+        try? KeychainHelper.shared.save(String(lockoutEnd), service: keychainService, account: lockoutEndAccount)
         lockoutRemainingSeconds = Int(lockoutDuration)
         
         startLockoutTimer()
         
+        #if DEBUG
         print("🔒 [PINAuth] Account locked for \(Int(lockoutDuration)) seconds")
+        #endif
     }
     
     private func clearLockout() {
         isLockedOut = false
         lockoutRemainingSeconds = 0
-        UserDefaults.standard.removeObject(forKey: lockoutEndKey)
+        try? KeychainHelper.shared.delete(service: keychainService, account: lockoutEndAccount)
         lockoutTimer?.invalidate()
         lockoutTimer = nil
     }

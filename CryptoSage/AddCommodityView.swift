@@ -304,26 +304,27 @@ struct AddCommodityView: View {
     
     private var selectedCommodityCard: some View {
         VStack(spacing: 12) {
+            if let commodity = selectedCommodity {
             HStack(spacing: 12) {
                 // Distinctive commodity icon
-                CommodityIconView(commodityId: selectedCommodity!.id, size: 50)
-                
+                CommodityIconView(commodityId: commodity.id, size: 50)
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(selectedCommodity!.name)
+                    Text(commodity.name)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(isDark ? .white : .primary)
-                    
+
                     HStack(spacing: 6) {
-                        Text(selectedCommodity!.displaySymbol)
+                        Text(commodity.displaySymbol)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
-                        Text(selectedCommodity!.type.rawValue)
+
+                        Text(commodity.type.rawValue)
                             .font(.caption2.weight(.medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(commodityColor(for: selectedCommodity!.type).opacity(0.8))
+                            .background(commodityColor(for: commodity.type).opacity(0.8))
                             .clipShape(Capsule())
                     }
                 }
@@ -363,7 +364,7 @@ struct AddCommodityView: View {
                     Text(formatCurrency(currentPrice))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(isDark ? .white : .primary)
-                    Text("/ \(selectedCommodity!.unit)")
+                    Text("/ \(commodity.unit)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -372,6 +373,7 @@ struct AddCommodityView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            } // end if let commodity
         }
         .padding(16)
         .background(
@@ -383,7 +385,7 @@ struct AddCommodityView: View {
                 .stroke(isDark ? Color.white.opacity(0.1) : Color.black.opacity(0.08), lineWidth: 1)
         )
     }
-    
+
     // MARK: - Entry Form Section
     
     private var entryFormSection: some View {

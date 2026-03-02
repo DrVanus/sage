@@ -37,7 +37,9 @@ final class NetworkMonitor {
                             let result = try await CryptoAPIService.shared.fetchAllAndWatchlist(visibleIDs: mappedIDs)
                             promise(.success(result))
                         } catch {
+                            #if DEBUG
                             print("❌ [CryptoAPIService] liveMarketDataPublisher error:", error)
+                            #endif
                             promise(.success((allCoins: [], watchlistCoins: [])))
                         }
                     }
@@ -221,9 +223,11 @@ final class CryptoAPIService {
             return
         }
         _logTimes[key] = now
+        #if DEBUG
         print(message)
+        #endif
     }
-    
+
     // MARK: - In-Memory Cache for loadCachedMarketCoins
     // Prevents repeated disk I/O during startup when the function is called many times
     private var inMemoryCachedCoins: [MarketCoin]?
@@ -372,7 +376,9 @@ final class CryptoAPIService {
     /// Fallback fetch for a stable set of top markets by explicit IDs.
     private func fetchFallbackTopMarkets() async -> [MarketCoin] {
         if Self.verboseCacheLogging {
+            #if DEBUG
             print("[CryptoAPIService] Curated top-ID fallback disabled (live-only policy)")
+            #endif
         }
         return []
     }
@@ -496,7 +502,9 @@ final class CryptoAPIService {
         let globalData = convertFirebaseGlobalToGlobalMarketData(response.global)
         
         if response.stale == true {
+            #if DEBUG
             print("[CryptoAPIService] Firebase returned stale global data (cache hit during rate limit)")
+            #endif
         }
         
         return globalData
@@ -619,13 +627,17 @@ final class CryptoAPIService {
             if !isDataValid(direct) {
                 clearCoinsCache()
                 if let bundled = bundledCoins, bundled.count >= minCount {
-                    if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache corrupted, using bundled cache with \(bundled.count) coins") }
+                    #if DEBUG
+                if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache corrupted, using bundled cache with \(bundled.count) coins") }
+                #endif
                     return cacheAndReturn(bundled)
                 }
             }
             // If Documents has FEWER coins than bundle, merge them or prefer bundle
             if direct.count < bundledCount, let bundled = bundledCoins {
+                #if DEBUG
                 if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache (\(direct.count) coins) smaller than bundle (\(bundledCount)), using bundle") }
+                #endif
                 return cacheAndReturn(bundled)
             }
             return cacheAndReturn(direct)
@@ -638,12 +650,16 @@ final class CryptoAPIService {
                 if !isDataValid(mapped) {
                     clearCoinsCache()
                     if let bundled = bundledCoins, bundled.count >= minCount {
-                        if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache corrupted, using bundled cache with \(bundled.count) coins") }
+                        #if DEBUG
+                if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache corrupted, using bundled cache with \(bundled.count) coins") }
+                #endif
                         return cacheAndReturn(bundled)
                     }
                 }
                 if mapped.count < bundledCount, let bundled = bundledCoins {
-                    if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache (\(mapped.count) coins) smaller than bundle (\(bundledCount)), using bundle") }
+                    #if DEBUG
+                if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Documents cache (\(mapped.count) coins) smaller than bundle (\(bundledCount)), using bundle") }
+                #endif
                     return cacheAndReturn(bundled)
                 }
                 return cacheAndReturn(mapped)
@@ -652,7 +668,9 @@ final class CryptoAPIService {
         
         // No valid Documents cache - use bundled cache
         if let bundled = bundledCoins, bundled.count >= minCount {
+            #if DEBUG
             if Self.verboseCacheLogging { print("[loadCachedMarketCoins] Using bundled cache with \(bundled.count) coins") }
+            #endif
             return cacheAndReturn(bundled)
         }
         
@@ -703,7 +721,9 @@ final class CryptoAPIService {
         
         // Bitcoin should be worth at least $10,000 - if it's showing ~$1, data is corrupted
         if let price = btc.priceUsd, price < 100 {
+            #if DEBUG
             print("[isDataValid] CORRUPTED DATA DETECTED: Bitcoin price is $\(price) - clearing cache")
+            #endif
             return false
         }
         
@@ -715,7 +735,9 @@ final class CryptoAPIService {
         
         let suspiciousRatio = Double(suspiciousCount) / Double(max(1, coins.count))
         if suspiciousRatio > 0.5 && coins.count > 20 {
+            #if DEBUG
             print("[isDataValid] CORRUPTED DATA DETECTED: \(Int(suspiciousRatio * 100))% of coins have ~$1 prices")
+            #endif
             return false
         }
         
@@ -735,9 +757,13 @@ final class CryptoAPIService {
         if fileManager.fileExists(atPath: cacheURL.path) {
             do {
                 try fileManager.removeItem(at: cacheURL)
+                #if DEBUG
                 print("[clearCoinsCache] Removed corrupted coins_cache.json from Documents")
+                #endif
             } catch {
+                #if DEBUG
                 print("[clearCoinsCache] Failed to remove cache: \(error)")
+                #endif
             }
         }
         
@@ -779,7 +805,9 @@ final class CryptoAPIService {
         }
         
         if addedFromPages > 0 {
+            #if DEBUG
             print("[loadAllCachedCoins] Base cache: \(coins.count - addedFromPages), added from pages: \(addedFromPages), total: \(coins.count)")
+            #endif
         }
         
         return coins.isEmpty ? nil : coins
@@ -852,9 +880,13 @@ final class CryptoAPIService {
         // Map raw symbols to CoinGecko IDs
         let mappedIDs = ids.map { coingeckoID(for: $0) }
         let idString = mappedIDs.joined(separator: ",")
+        #if DEBUG
         print("[fetchCoins] Requesting ids=\(idString)")
+        #endif
         guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets") else {
+            #if DEBUG
             print("❌ [CryptoAPIService] Invalid URL in fetchCoins(ids:).")
+            #endif
             return []
         }
         components.queryItems = [
@@ -865,7 +897,9 @@ final class CryptoAPIService {
             URLQueryItem(name: "price_change_percentage", value: "1h,24h,7d")
         ]
         guard let url = components.url else {
+            #if DEBUG
             print("❌ [CryptoAPIService] Invalid URL in fetchCoins(ids:).")
+            #endif
             return []
         }
 
@@ -1048,7 +1082,9 @@ final class CryptoAPIService {
                     return coins
                 }
                 let snippet = String(data: data.prefix(300), encoding: .utf8) ?? "<non-utf8>"
+                #if DEBUG
                 print("❌ [CryptoAPIService] Failed to decode fetchCoins(ids:). Body snippet:\n\(snippet)")
+                #endif
                 let fallback = await fetchFallbackTopMarkets()
                 if !fallback.isEmpty { return fallback }
                 if let cached = loadCachedMarketCoins() { return filterCoins(cached, matching: ids) }
@@ -1063,7 +1099,9 @@ final class CryptoAPIService {
                 try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
                 delay *= 2
             } catch {
+                #if DEBUG
                 print("❌ [CryptoAPIService] Failed to fetchCoins(ids:) error: \(error)")
+                #endif
                 // On failure, return cached results if available filtered by ids
                 if let cached = loadCachedMarketCoins() {
                     return filterCoins(cached, matching: ids)
@@ -1111,12 +1149,16 @@ final class CryptoAPIService {
         // RATE LIMIT FIX: Try Firebase proxy first - all users share the same cached response
         do {
             let globalData = try await fetchGlobalViaFirebase()
+            #if DEBUG
             print("[CryptoAPIService] Fetched global data via Firebase proxy")
+            #endif
             // Cache locally too
             saveCache(globalData, to: "global_cache.json")
             return globalData
         } catch {
+            #if DEBUG
             print("[CryptoAPIService] Firebase global proxy failed, falling back to direct API: \(error.localizedDescription)")
+            #endif
             // Continue to direct API call below
         }
         
@@ -1246,7 +1288,10 @@ final class CryptoAPIService {
             }
         }
         
-        return try await myTask!.value
+        guard let task = myTask else {
+            throw CryptoAPIError.rateLimited // Should not happen: either existingTask or myTask is set
+        }
+        return try await task.value
     }
     
     /// Internal method that performs the actual API fetch (called by fetchSpotPrice with deduplication)
@@ -1497,7 +1542,9 @@ final class CryptoAPIService {
                 return firebaseCoins
             }
         } catch {
+            #if DEBUG
             print("[CryptoAPIService] source=firebase_proxy failed=\(error.localizedDescription) -> source=direct_api")
+            #endif
             firebaseProxyFailed = true
             // Continue to direct API call below
         }
@@ -1544,8 +1591,10 @@ final class CryptoAPIService {
                 if Self.isRateLimited(response, data: data) {
                     // Rate-limit the log message to avoid console spam
                     let now = Date()
-                    if Self.lastRateLimitLogAt == nil || now.timeIntervalSince(Self.lastRateLimitLogAt!) > 30 {
+                    if Self.lastRateLimitLogAt.map({ now.timeIntervalSince($0) > 30 }) ?? true {
+                        #if DEBUG
                         print("[fetchCoinMarkets] Detected rate limit. Using all cached coins.")
+                        #endif
                         Self.lastRateLimitLogAt = now
                     }
                     Self.lastMarketsRateLimitAt = Date()
@@ -1559,8 +1608,10 @@ final class CryptoAPIService {
                 if let snippetStr = String(data: data.prefix(200), encoding: .utf8), snippetStr.contains("\"error_code\":429") {
                     // Rate-limit the log message to avoid console spam
                     let now = Date()
-                    if Self.lastRateLimitLogAt == nil || now.timeIntervalSince(Self.lastRateLimitLogAt!) > 30 {
+                    if Self.lastRateLimitLogAt.map({ now.timeIntervalSince($0) > 30 }) ?? true {
+                        #if DEBUG
                         print("[fetchCoinMarkets] Detected rate limit body. Using all cached coins.")
+                        #endif
                         Self.lastRateLimitLogAt = now
                     }
                     Self.lastMarketsRateLimitAt = Date()
@@ -1601,7 +1652,9 @@ final class CryptoAPIService {
                         
                         // Save page 1 to cache immediately for quick startup
                         Self.savePageCache(page: 1, coins: coins)
+                        #if DEBUG
                         print("[fetchCoinMarkets] Page 1 fetched with \(coins.count) coins")
+                        #endif
                         
                         // Load any cached pages we have from previous sessions (extend to page 10 for broader coverage)
                         var seen = Set(coins.map { $0.id })
@@ -1614,13 +1667,17 @@ final class CryptoAPIService {
                                     added += 1
                                 }
                                 if added > 0 {
+                                    #if DEBUG
                                     print("[fetchCoinMarkets] Loaded \(added) coins from cached page \(cachedPage)")
+                                    #endif
                                 }
                             }
                         }
                         let initialCachedCount = coins.count
                         let isFirstLaunch = initialCachedCount <= 250 // Only have page 1
+                        #if DEBUG
                         print("[fetchCoinMarkets] Total after loading caches: \(initialCachedCount) coins")
+                        #endif
                         
                         // Page fetching strategy:
                         // - Always try to fetch at least pages 2-4 to get 750+ coins
@@ -1639,20 +1696,28 @@ final class CryptoAPIService {
                         // MEMORY FIX v12: Defer all additional page fetches during startup window
                         if Self.isInStartupDeferralWindow {
                             let elapsed = Int(Date().timeIntervalSince(Self.launchTime))
+                            #if DEBUG
                             print("[fetchCoinMarkets] 🛡️ Startup deferral active (\(elapsed)s elapsed, \(Int(Self.startupPageFetchDeferralPeriod) - elapsed)s remaining) — skipping pages 2-10 fetch")
+                            #endif
                             pagesToFetch = []
                         }
                         
                         let limitedPages = Array(pagesToFetch.prefix(maxPagesToFetchPerSession))
                         
+                        #if DEBUG
                         print("[fetchCoinMarkets] Current coin count: \(coins.count), needsMoreCoins: \(needsMoreCoins), pagesToFetch: \(pagesToFetch.count)")
+                        #endif
                         
                         if (isFirstLaunch || needsMoreCoins) && !limitedPages.isEmpty {
+                            #if DEBUG
                             print("[fetchCoinMarkets] Aggressively fetching \(limitedPages.count) pages: \(limitedPages)")
+                            #endif
                         }
                         
                         if !limitedPages.isEmpty {
+                            #if DEBUG
                             print("[fetchCoinMarkets] Staggered fetch: \(limitedPages.count) uncached pages to fetch: \(limitedPages)")
+                            #endif
                         }
                         
                         var rateLimitHit = false
@@ -1667,7 +1732,9 @@ final class CryptoAPIService {
                             // Each page of 250 coins with sparklines can consume 5-15 MB of transient memory.
                             let availMB = Double(os_proc_available_memory()) / (1024 * 1024)
                             if availMB > 0 && availMB < 1500 {
+                                #if DEBUG
                                 print("[fetchCoinMarkets] ⚠️ Low memory (\(Int(availMB)) MB available) — stopping multi-page fetch at page \(p)")
+                                #endif
                                 break
                             }
                             
@@ -1691,7 +1758,9 @@ final class CryptoAPIService {
                                         let (d, r) = try await URLSession.shared.data(for: reqP)
                                         
                                         if Self.isRateLimited(r, data: d) {
+                                            #if DEBUG
                                             print("[fetchCoinMarkets] Rate limit hit on page \(p), pausing pagination")
+                                            #endif
                                             rateLimitHit = true
                                             // Wait longer before giving up entirely
                                             try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
@@ -1708,7 +1777,9 @@ final class CryptoAPIService {
                                             // Cache this page for future use
                                             let pageCoins = more.map { MarketCoin(gecko: $0) }
                                             Self.savePageCache(page: p, coins: pageCoins)
+                                            #if DEBUG
                                             print("[fetchCoinMarkets] Page \(p) added \(newCoins.count) new coins, total: \(coins.count)")
+                                            #endif
                                             success = true
                                         } else {
                                             retries += 1
@@ -1729,7 +1800,9 @@ final class CryptoAPIService {
                                 
                                 if !success && !rateLimitHit {
                                     totalFailures += 1
+                                    #if DEBUG
                                     print("[fetchCoinMarkets] Page \(p) failed after \(maxRetries) retries, totalFailures=\(totalFailures)")
+                                    #endif
                                     // Skip to next page instead of stopping
                                 }
                             }
@@ -1739,18 +1812,24 @@ final class CryptoAPIService {
                         // Binance provides 300+ coins without rate limits, so we run this regardless of CoinGecko status
                         let enrichedCoins = await self.mergeWithBinanceData(coins)
                         if enrichedCoins.count > coins.count {
+                            #if DEBUG
                             print("[fetchCoinMarkets] Binance merge added \(enrichedCoins.count - coins.count) coins, new total: \(enrichedCoins.count)")
+                            #endif
                             coins = enrichedCoins
                         }
                         
                         // Also merge with Coinbase for comprehensive coverage (ensures RLC and other Coinbase coins appear)
                         let coinbaseEnriched = await self.mergeWithCoinbaseData(coins)
                         if coinbaseEnriched.count > coins.count {
+                            #if DEBUG
                             print("[fetchCoinMarkets] Coinbase merge added \(coinbaseEnriched.count - coins.count) coins, new total: \(coinbaseEnriched.count)")
+                            #endif
                             coins = coinbaseEnriched
                         }
                         
+                        #if DEBUG
                         print("[fetchCoinMarkets] Pagination complete, total coins: \(coins.count)")
+                        #endif
 
                         if coins.count >= 20 && !Self.isDegradedSparklinePayload(coins) {
                             // Cache the merged payload for stability across launches
@@ -1817,7 +1896,9 @@ final class CryptoAPIService {
                         let limitedPagesW = Array(pagesToFetchW.prefix(maxPagesToFetchW))
                         
                         if !limitedPagesW.isEmpty {
+                            #if DEBUG
                             print("[fetchCoinMarkets-wrapped] Staggered fetch: \(limitedPagesW.count) uncached pages: \(limitedPagesW)")
+                            #endif
                         }
                         
                         var rateLimitHitW = false
@@ -1849,7 +1930,9 @@ final class CryptoAPIService {
                                             seenW.insert(item.id)
                                         }
                                         Self.savePageCache(page: p, coins: more.map { MarketCoin(gecko: $0) })
+                                        #if DEBUG
                                         print("[fetchCoinMarkets-wrapped] Page \(p) added \(newCoins.count) coins, total: \(coins.count)")
+                                        #endif
                                     } else {
                                         totalFailuresW += 1
                                     }
@@ -1863,14 +1946,18 @@ final class CryptoAPIService {
                         // Binance provides 300+ coins without rate limits
                         let enrichedCoins = await self.mergeWithBinanceData(coins)
                         if enrichedCoins.count > coins.count {
+                            #if DEBUG
                             print("[fetchCoinMarkets-wrapped] Binance merge added \(enrichedCoins.count - coins.count) coins, new total: \(enrichedCoins.count)")
+                            #endif
                             coins = enrichedCoins
                         }
                         
                         // Also merge with Coinbase for comprehensive coverage
                         let coinbaseEnriched = await self.mergeWithCoinbaseData(coins)
                         if coinbaseEnriched.count > coins.count {
+                            #if DEBUG
                             print("[fetchCoinMarkets-wrapped] Coinbase merge added \(coinbaseEnriched.count - coins.count) coins, new total: \(coinbaseEnriched.count)")
+                            #endif
                             coins = coinbaseEnriched
                         }
 
@@ -1887,7 +1974,9 @@ final class CryptoAPIService {
                     }
                     // If neither decode path works, log a snippet and throw
                     let snippet = String(data: data.prefix(200), encoding: .utf8) ?? "<non-utf8>"
+                    #if DEBUG
                     print("[fetchCoinMarkets] Decoding failed for both array and wrapper. Body snippet:\n\(snippet)")
+                    #endif
                     // FIX: Record success (request completed, even if decoding failed)
                     APIRequestCoordinator.shared.recordSuccess(for: .coinGecko)
                     let fallback = await fetchFallbackTopMarkets()
@@ -1911,7 +2000,9 @@ final class CryptoAPIService {
                     return cached
                 }
             } catch {
+                #if DEBUG
                 print("❌ [CryptoAPIService] fetchCoinMarkets error: \(error)")
+                #endif
                 // FIX: Record success to decrement active request count (request completed, returning fallback)
                 APIRequestCoordinator.shared.recordSuccess(for: .coinGecko)
                 if let cached = loadCachedMarketCoins() {
@@ -1994,7 +2085,9 @@ final class CryptoAPIService {
             
             if let geckoCoins = try? decoder.decode([CoinGeckoCoin].self, from: data) {
                 let coins = geckoCoins.map { MarketCoin(gecko: $0) }
+                #if DEBUG
                 print("[fetchCoinsByCategory] Fetched \(coins.count) coins for category: \(category.rawValue)")
+                #endif
                 return coins
             }
             
@@ -2004,12 +2097,16 @@ final class CryptoAPIService {
             }
             if let wrapped = try? decoder.decode(Wrapper.self, from: data), let geckoCoins = wrapped.data {
                 let coins = geckoCoins.map { MarketCoin(gecko: $0) }
+                #if DEBUG
                 print("[fetchCoinsByCategory] Fetched \(coins.count) coins (wrapped) for category: \(category.rawValue)")
+                #endif
                 return coins
             }
             
         } catch {
+            #if DEBUG
             print("[fetchCoinsByCategory] Error fetching category \(category.rawValue): \(error)")
+            #endif
         }
         
         return []
@@ -2038,7 +2135,9 @@ final class CryptoAPIService {
             }
         }
         
+        #if DEBUG
         print("[fetchCategoryCoins] Total unique coins from categories: \(allCoins.count)")
+        #endif
         return Array(allCoins.values)
     }
     
@@ -2082,11 +2181,15 @@ final class CryptoAPIService {
             if let httpResponse = response as? HTTPURLResponse {
                 await ExchangeHostPolicy.shared.onHTTPStatus(httpResponse.statusCode)
                 guard httpResponse.statusCode == 200 else {
+                    #if DEBUG
                     print("[fetchBinanceTickers] Bad response: \(httpResponse.statusCode)")
+                    #endif
                     return []
                 }
             } else {
+                #if DEBUG
                 print("[fetchBinanceTickers] Bad response: not HTTP")
+                #endif
                 return []
             }
             
@@ -2170,11 +2273,15 @@ final class CryptoAPIService {
                 coins.append(coin)
             }
             
+            #if DEBUG
             print("[fetchBinanceTickers] Loaded \(coins.count) coins from Binance")
+            #endif
             return coins
             
         } catch {
+            #if DEBUG
             print("[fetchBinanceTickers] Error: \(error)")
+            #endif
             return []
         }
     }
@@ -2240,10 +2347,14 @@ final class CryptoAPIService {
         }
         
         if enrichedCount > 0 {
+            #if DEBUG
             print("[mergeWithBinanceData] Enriched \(enrichedCount) existing coins with Binance data")
+            #endif
         }
         if !newCoins.isEmpty {
+            #if DEBUG
             print("[mergeWithBinanceData] Added \(newCoins.count) new coins from Binance (volume >= $\(Int(minVolumeUSD)))")
+            #endif
         }
         
         // Build result: start with existing coins (possibly enriched), then add new ones
@@ -2273,7 +2384,9 @@ final class CryptoAPIService {
             return existingCoins
         }
         
+        #if DEBUG
         print("[mergeWithCoinbaseData] Found \(missingSymbols.count) Coinbase coins not in current list: \(missingSymbols.prefix(10).joined(separator: ", "))...")
+        #endif
         
         // Fetch stats for missing coins from Coinbase (with volume)
         var newCoins: [MarketCoin] = []
@@ -2308,7 +2421,9 @@ final class CryptoAPIService {
         }
         
         if !newCoins.isEmpty {
+            #if DEBUG
             print("[mergeWithCoinbaseData] Added \(newCoins.count) new coins from Coinbase")
+            #endif
         }
         
         var result = existingCoins

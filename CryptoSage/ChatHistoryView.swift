@@ -13,49 +13,25 @@ struct ChatHistoryView: View {
     
     // Allows us to dismiss this sheet programmatically
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-    
-    // Adaptive background gradient
+    // Adaptive background gradient using design system tokens
     private var backgroundGradient: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(
-                gradient: Gradient(colors: [Color.black, Color.gray.opacity(0.2)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.98, green: 0.98, blue: 0.97),
-                    Color(red: 0.94, green: 0.95, blue: 0.96)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        LinearGradient(
+            gradient: Gradient(colors: [DS.Adaptive.background, DS.Adaptive.backgroundSecondary]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
-    
-    // Adaptive AI bubble gradient
+
+    // Adaptive AI bubble gradient using design system tokens
     private var aiBubbleGradient: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.5, green: 0.5, blue: 0.5, opacity: 0.4),
-                    Color(red: 0.6, green: 0.6, blue: 0.6, opacity: 0.8)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.94, green: 0.94, blue: 0.94),
-                    Color(red: 0.88, green: 0.88, blue: 0.88)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        LinearGradient(
+            gradient: Gradient(colors: [
+                DS.Adaptive.cardBackground,
+                DS.Adaptive.cardBackgroundElevated
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
     
     var body: some View {
@@ -70,14 +46,30 @@ struct ChatHistoryView: View {
                 
                 // Scrollable bubble layout
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(messages) { msg in
-                            messageRow(for: msg)
-                                .padding(.horizontal)
-                                .padding(.vertical, 4)
+                    if messages.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 40))
+                                .foregroundStyle(DS.Adaptive.textSecondary.opacity(0.5))
+                            Text("No conversations yet")
+                                .font(.headline)
+                                .foregroundStyle(DS.Adaptive.textSecondary)
+                            Text("Start a chat to see your history here")
+                                .font(.subheadline)
+                                .foregroundStyle(DS.Adaptive.textSecondary.opacity(0.7))
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 80)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(messages) { msg in
+                                messageRow(for: msg)
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        .padding(.top)
                     }
-                    .padding(.top)
                 }
             }
         }

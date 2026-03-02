@@ -113,8 +113,8 @@ struct MarketPairsSheet: View {
                 .padding()
             } else {
                 let sorted = rows.sorted { $0.lastUSD < $1.lastUSD }
-                let lowestPrice = sorted.first!
-                let highestPrice = sorted.last!
+                let lowestPrice = sorted[0]
+                let highestPrice = sorted[sorted.count - 1]
                 let spread = highestPrice.lastUSD - lowestPrice.lastUSD
                 let spreadPct = (spread / lowestPrice.lastUSD) * 100
                 

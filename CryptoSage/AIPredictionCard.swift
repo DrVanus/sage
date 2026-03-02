@@ -1491,8 +1491,10 @@ struct AIPredictionSectionView: View {
     private func startStalenessCheckTimer() {
         stopStalenessCheckTimer() // Clear any existing timer
         
-        // NOTE: SwiftUI View structs use [self] - timer invalidated in stopStalenessCheckTimer
-        stalenessCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [self] _ in
+        // TIMER LEAK FIX: Removed [self] strong capture. Added timer.isValid guard
+        // so the callback exits early if the timer was invalidated in onDisappear.
+        stalenessCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { timer in
+            guard timer.isValid else { return }
             Task { @MainActor in
                 // Trigger UI update by changing the trigger UUID
                 // This causes the view to re-evaluate staleness properties
@@ -1530,7 +1532,7 @@ struct AIPredictionSectionView: View {
                     
                     // Auto-collapse after showing expired state for 12 seconds
                     // (extended from 8s to give user time to see the outcome)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [self] in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
                         isShowingExpired = false
                         expiredPrediction = nil
                         evaluatedOutcome = nil
@@ -3255,7 +3257,7 @@ struct AIPredictionSheet: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 DS.Adaptive.background.ignoresSafeArea()
                 

@@ -83,6 +83,9 @@ public final class BinanceExchangeAdapter: ExchangeAdapter {
                                         let (last, bid, ask, vol, ts) = try await self.fetch24hr(session: self.session, base: self.baseURL, symbol: sym)
                                         return MMETicker(pair: p, last: last, bid: bid, ask: ask, volume24hBase: vol, ts: ts)
                                     } catch {
+                                        #if DEBUG
+                                        print("[BinanceExchangeAdapter] decode error: \(error)")
+                                        #endif
                                         return nil
                                     }
                                 }
@@ -119,6 +122,9 @@ public final class BinanceExchangeAdapter: ExchangeAdapter {
                                     let (last, bid, ask, vol, ts) = try await self.fetch24hr(session: self.session, base: self.baseURL, symbol: sym)
                                     return MMETicker(pair: p, last: last, bid: bid, ask: ask, volume24hBase: vol, ts: ts)
                                 } catch {
+                                    #if DEBUG
+                                    print("[BinanceExchangeAdapter] decode error: \(error)")
+                                    #endif
                                     return nil
                                 }
                             }

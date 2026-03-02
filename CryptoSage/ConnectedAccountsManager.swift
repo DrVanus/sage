@@ -72,14 +72,18 @@ final class ConnectedAccountsManager: ObservableObject {
         accounts = secureDataManager.loadConnectedAccounts()
         
         if !accounts.isEmpty {
+            #if DEBUG
             print("🔐 Loaded \(accounts.count) connected accounts from encrypted storage")
+            #endif
         }
     }
     
     private func saveAccounts() {
         // Save to secure encrypted storage
         secureDataManager.saveConnectedAccounts(accounts)
+        #if DEBUG
         print("🔐 Saved \(accounts.count) connected accounts to encrypted storage")
+        #endif
     }
     
     // MARK: - Account Management
@@ -111,7 +115,9 @@ final class ConnectedAccountsManager: ObservableObject {
     func addAccount(_ account: ConnectedAccount) {
         // Check for duplicates
         guard !accounts.contains(where: { $0.id == account.id }) else {
+            #if DEBUG
             print("⚠️ Account already exists: \(account.name)")
+            #endif
             return
         }
         
@@ -221,7 +227,9 @@ final class ConnectedAccountsManager: ObservableObject {
     func syncWithThreeCommas() async {
         // Only sync if 3Commas is actually configured
         guard !ThreeCommasConfig.readOnlyAPIKey.isEmpty else {
+            #if DEBUG
             print("ℹ️ 3Commas not configured, skipping sync")
+            #endif
             return
         }
         

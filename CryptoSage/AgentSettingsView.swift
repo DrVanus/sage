@@ -238,7 +238,7 @@ struct AgentSettingsView: View {
     // MARK: - Generate Key Sheet
 
     private var generateKeySheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 if let key = generatedKey {
                     // Show generated key
@@ -356,7 +356,7 @@ struct AgentSettingsView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         AgentSettingsView()
     }
 }

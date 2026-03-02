@@ -459,7 +459,7 @@ public struct MarketMetricsEngine {
             if let firstIdx = arr.firstIndex(where: { $0.t >= cutoff }) {
                 if firstIdx > 0 { arr.removeFirst(firstIdx) }
             } else if !arr.isEmpty {
-                arr = [arr.last!]
+                if let lastElement = arr.last { arr = [lastElement] }
             }
             if arr.count > anchorMaxPerSymbol { arr.removeFirst(arr.count - anchorMaxPerSymbol) }
             anchorSeries[symbol] = arr
@@ -472,7 +472,8 @@ public struct MarketMetricsEngine {
         var arr: [(t: TimeInterval, p: Double)] = []
         anchorQueue.sync { arr = anchorSeries[symbol] ?? [] }
         guard arr.count >= 2, let last = arr.last else { return nil }
-        if targetT <= arr.first!.t { return nil }
+        guard let arrFirst = arr.first else { return nil }
+        if targetT <= arrFirst.t { return nil }
         if targetT >= last.t { return nil }
         var lo = 0
         var hi = arr.count - 1
@@ -563,14 +564,14 @@ public struct MarketMetricsEngine {
 
     private static func stabilizeOutputs(symbol: String, oneH: Double, day: Double) -> (Double, Double) {
         let now = Date().timeIntervalSince1970
-        let prev = lastOutputs[symbol]
+        let prev: (t: TimeInterval, oneH: Double, day: Double)? = anchorQueue.sync { lastOutputs[symbol] }
         let prevValid = prev != nil && (now - (prev!.t)) <= outputsTTL ? prev : nil
         let prev1h = prevValid?.oneH
         let prev24 = prevValid?.day
         // Hysteresis bands in percent units
         let s1 = stabilizePercent(prev: prev1h, new: oneH, band: 0.03, alpha: 0.35)   // 0.03% band for 1H
         let s24 = stabilizePercent(prev: prev24, new: day,  band: 0.05, alpha: 0.30)   // 0.05% band for 24H
-        lastOutputs[symbol] = (t: now, oneH: s1, day: s24)
+        anchorQueue.sync { lastOutputs[symbol] = (t: now, oneH: s1, day: s24) }
         return (s1, s24)
     }
 
@@ -884,8 +885,8 @@ public struct MarketMetricsEngine {
         let last = data[n - 1]
         let idx = Double(n - 1) - (clampedHours / step)
         let prev: Double
-        if idx <= 0 { prev = data.first! }
-        else if idx >= Double(n - 1) { prev = data.last! }
+        if idx <= 0 { prev = data[0] }
+        else if idx >= Double(n - 1) { prev = data[n - 1] }
         else {
             let i0 = Int(floor(idx)); let i1 = Int(ceil(idx)); let t = idx - Double(i0)
             let v0 = data[i0]; let v1 = data[i1]
@@ -916,15 +917,16 @@ public struct MarketMetricsEngine {
         if step > Double(hours) { return nil }
         
         let lastRaw = data[n - 1]
-        let last = (isScaleCompatible(series, price: livePrice) && (livePrice ?? 0) > 0) ? (livePrice!) : lastRaw
+        let last: Double
+        if let lp = livePrice, isScaleCompatible(series, price: lp), lp > 0 { last = lp } else { last = lastRaw }
         let clampedHours = max(0.0, min(Double(hours), effectiveSpan))
 
         // Refuse horizons longer than the provided span to avoid fabricating deltas
         if Double(hours) > effectiveSpan * 0.98 { return nil }
         let idx = Double(n - 1) - (clampedHours / step)
         let prev: Double
-        if idx <= 0 { prev = data.first! }
-        else if idx >= Double(n - 1) { prev = data.last! }
+        if idx <= 0 { prev = data[0] }
+        else if idx >= Double(n - 1) { prev = data[n - 1] }
         else {
             let i0 = Int(floor(idx)); let i1 = Int(ceil(idx)); let t = idx - Double(i0)
             let v0 = data[i0]; let v1 = data[i1]

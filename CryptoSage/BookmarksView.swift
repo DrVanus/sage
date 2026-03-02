@@ -231,7 +231,7 @@ private struct ToolbarCircleIconBookmarks: View {
 
 struct BookmarksView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             BookmarksView()
                 .environmentObject(CryptoNewsFeedViewModel.shared)
                 .environmentObject(AppState())

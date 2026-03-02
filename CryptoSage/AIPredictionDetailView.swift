@@ -1120,7 +1120,7 @@ struct AIPredictionDetailView: View {
             ZStack {
                 // Glassmorphism base
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
                 
                 // Subtle gold gradient overlay for premium feel
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -2034,7 +2034,7 @@ struct AIPredictionDetailView: View {
                 
                 // Blur overlay for glassmorphism effect
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(isDark ? 0.3 : 0.5))
+                    .fill(DS.Adaptive.cardBackground.opacity(isDark ? 0.6 : 0.8))
             }
         )
         .overlay(
@@ -2350,7 +2350,7 @@ struct AIPredictionDetailView: View {
                     )
                 
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(isDark ? 0.2 : 0.4))
+                    .fill(DS.Adaptive.cardBackground.opacity(isDark ? 0.5 : 0.7))
             }
         )
         .overlay(
@@ -2535,7 +2535,7 @@ struct AIPredictionDetailView: View {
                     )
                 
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(isDark ? 0.2 : 0.4))
+                    .fill(DS.Adaptive.cardBackground.opacity(isDark ? 0.5 : 0.7))
             }
         )
         .overlay(
@@ -2820,7 +2820,7 @@ struct AIPredictionDetailView: View {
     
     /// Sheet view explaining the prediction engine technology and benchmark data.
     private var aiCredentialsSheet: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Brief intro (hero section removed – redundant with navigation title)
@@ -7884,7 +7884,7 @@ struct PredictionHeroCard: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)

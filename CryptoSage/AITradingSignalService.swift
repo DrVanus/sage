@@ -13,7 +13,7 @@ import Foundation
 
 /// Service that fetches AI-powered trading signals from Firebase Cloud Functions.
 /// Falls back to local technical analysis when Firebase is unavailable.
-final class AITradingSignalService {
+@MainActor final class AITradingSignalService {
     static let shared = AITradingSignalService()
     
     /// In-memory cache to avoid redundant calls within the same session

@@ -435,50 +435,58 @@ final class StockMarketViewModel: ObservableObject {
             return
         }
         
-        // If Yahoo Finance fails completely, use sample data so the UI works
-        #if DEBUG
-        print("⚠️ [StockMarketVM] Yahoo Finance unavailable, loading sample data...")
-        #endif
-        
-        loadSampleData()
-        errorMessage = nil // Clear error since we have sample data
+        // If Yahoo Finance fails completely, fall back to cached or placeholder data
+        if !cache.stocks.isEmpty {
+            // Keep previously cached real prices rather than overwriting with stale hardcoded values
+            #if DEBUG
+            print("⚠️ [StockMarketVM] Yahoo Finance unavailable, keeping \(cache.stocks.count) previously cached stocks")
+            #endif
+            errorMessage = nil
+        } else {
+            // No cache at all — load symbol/name placeholders without prices so the UI isn't empty
+            #if DEBUG
+            print("⚠️ [StockMarketVM] Yahoo Finance unavailable and no cache, loading placeholder stock list...")
+            #endif
+            loadSampleData()
+            errorMessage = nil
+        }
     }
     
-    /// Load sample data when API is unavailable (for demo/offline purposes)
+    /// Load placeholder stock list when API is unavailable and no cache exists.
+    /// Prices are set to 0 so the UI can show "—" instead of stale hardcoded values.
     private func loadSampleData() {
-        let sampleStocks: [(String, String, Double, Double, AssetType)] = [
-            ("AAPL", "Apple Inc.", 248.50, 1.25, .stock),
-            ("MSFT", "Microsoft Corporation", 425.80, 0.85, .stock),
-            ("GOOGL", "Alphabet Inc.", 175.30, -0.45, .stock),
-            ("AMZN", "Amazon.com Inc.", 198.75, 2.10, .stock),
-            ("META", "Meta Platforms Inc.", 585.20, 1.75, .stock),
-            ("TSLA", "Tesla Inc.", 248.90, -1.30, .stock),
-            ("NVDA", "NVIDIA Corporation", 875.40, 3.25, .stock),
-            ("JPM", "JPMorgan Chase & Co.", 198.50, 0.65, .stock),
-            ("V", "Visa Inc.", 285.30, 0.40, .stock),
-            ("JNJ", "Johnson & Johnson", 155.80, -0.25, .stock),
-            ("WMT", "Walmart Inc.", 168.40, 0.55, .stock),
-            ("PG", "Procter & Gamble Co.", 165.20, 0.35, .stock),
-            ("UNH", "UnitedHealth Group Inc.", 525.60, 1.15, .stock),
-            ("HD", "Home Depot Inc.", 385.40, 0.90, .stock),
-            ("SPY", "SPDR S&P 500 ETF Trust", 525.80, 0.75, .etf),
-            ("QQQ", "Invesco QQQ Trust", 485.30, 1.10, .etf),
-            ("VOO", "Vanguard S&P 500 ETF", 482.50, 0.70, .etf),
-            ("DIA", "SPDR Dow Jones Industrial ETF", 420.80, 0.45, .etf),
-            ("IWM", "iShares Russell 2000 ETF", 225.40, -0.35, .etf),
+        let sampleStocks: [(String, String, AssetType)] = [
+            ("AAPL", "Apple Inc.", .stock),
+            ("MSFT", "Microsoft Corporation", .stock),
+            ("GOOGL", "Alphabet Inc.", .stock),
+            ("AMZN", "Amazon.com Inc.", .stock),
+            ("META", "Meta Platforms Inc.", .stock),
+            ("TSLA", "Tesla Inc.", .stock),
+            ("NVDA", "NVIDIA Corporation", .stock),
+            ("JPM", "JPMorgan Chase & Co.", .stock),
+            ("V", "Visa Inc.", .stock),
+            ("JNJ", "Johnson & Johnson", .stock),
+            ("WMT", "Walmart Inc.", .stock),
+            ("PG", "Procter & Gamble Co.", .stock),
+            ("UNH", "UnitedHealth Group Inc.", .stock),
+            ("HD", "Home Depot Inc.", .stock),
+            ("SPY", "SPDR S&P 500 ETF Trust", .etf),
+            ("QQQ", "Invesco QQQ Trust", .etf),
+            ("VOO", "Vanguard S&P 500 ETF", .etf),
+            ("DIA", "SPDR Dow Jones Industrial ETF", .etf),
+            ("IWM", "iShares Russell 2000 ETF", .etf),
         ]
-        
-        for (symbol, name, price, changePercent, assetType) in sampleStocks {
-            let change = price * changePercent / 100
+
+        for (symbol, name, assetType) in sampleStocks {
             cache.updateStock(CachedStock(
                 symbol: symbol,
                 name: name,
-                currentPrice: price,
-                change: change,
-                changePercent: changePercent,
-                dayHigh: price * 1.01,
-                dayLow: price * 0.99,
-                previousClose: price - change,
+                currentPrice: 0,
+                change: 0,
+                changePercent: 0,
+                dayHigh: 0,
+                dayLow: 0,
+                previousClose: 0,
                 marketCap: nil,
                 volume: nil,
                 assetType: assetType,
@@ -489,13 +497,13 @@ final class StockMarketViewModel: ObservableObject {
         }
         
         // Set up index constituents
-        let stockSymbols = sampleStocks.filter { $0.4 == .stock }.map { $0.0 }
+        let stockSymbols = sampleStocks.filter { $0.2 == .stock }.map { $0.0 }
         cache.setIndexConstituents(.sp500, symbols: stockSymbols)
         cache.setIndexConstituents(.nasdaq100, symbols: stockSymbols.filter { ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"].contains($0) })
         cache.setIndexConstituents(.dowJones, symbols: ["AAPL", "MSFT", "JPM", "V", "JNJ", "WMT", "PG", "UNH", "HD"])
-        
+
         #if DEBUG
-        print("✅ [StockMarketVM] Loaded \(sampleStocks.count) sample stocks")
+        print("✅ [StockMarketVM] Loaded \(sampleStocks.count) placeholder stocks (no prices)")
         #endif
     }
     

@@ -1173,7 +1173,9 @@ extension PortfolioViewModel {
             }
             }
         }
-        RunLoop.main.add(mockTickerTimer!, forMode: .common)
+        if let timer = mockTickerTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
     }
 
     private func stopMockTicker() {
@@ -1272,7 +1274,9 @@ extension PortfolioViewModel {
                 holdings.append(newHolding)
             } else {
                 // Correctly formatted error message:
+                #if DEBUG
                 print("Error: Trying to sell a coin that doesn't exist in holdings.")
+                #endif
             }
         }
     }
@@ -1345,14 +1349,18 @@ extension PortfolioViewModel {
     func updateTransaction(oldTx: Transaction, newTx: Transaction) {
         // Only allow editing of manual transactions
         guard oldTx.isManual else {
+            #if DEBUG
             print("Error: Cannot update an exchange transaction.")
+            #endif
             return
         }
-        
+
         if let index = transactions.firstIndex(where: { $0.id == oldTx.id }) {
             transactions[index] = newTx
         } else {
+            #if DEBUG
             print("Error: Transaction not found.")
+            #endif
         }
         
         recalcHoldingsFromAllTransactions()
@@ -1363,14 +1371,18 @@ extension PortfolioViewModel {
     func deleteManualTransaction(_ tx: Transaction) {
         // Only allow deletion of manual transactions
         guard tx.isManual else {
+            #if DEBUG
             print("Error: Cannot delete an exchange transaction.")
+            #endif
             return
         }
-        
+
         if let index = transactions.firstIndex(where: { $0.id == tx.id }) {
             transactions.remove(at: index)
         } else {
+            #if DEBUG
             print("Error: Transaction not found.")
+            #endif
         }
         
         recalcHoldingsFromAllTransactions()
@@ -1395,11 +1407,13 @@ extension PortfolioViewModel {
             let decoded = try JSONDecoder().decode([Transaction].self, from: data)
             self.transactions = decoded
         } catch {
+            #if DEBUG
             print("Failed to load transactions:", error)
+            #endif
             self.transactions = []
         }
     }
-    
+
     /// PERFORMANCE FIX: Async version of loadTransactions to avoid blocking main thread
     private func loadTransactionsAsync() async {
         let fileURL = transactionsFileURL
@@ -1418,7 +1432,9 @@ extension PortfolioViewModel {
                     let decoded = try JSONDecoder().decode([Transaction].self, from: data)
                     continuation.resume(returning: decoded)
                 } catch {
+                    #if DEBUG
                     print("Failed to load transactions:", error)
+                    #endif
                     continuation.resume(returning: [])
                 }
             }
@@ -1447,7 +1463,9 @@ extension PortfolioViewModel {
                 // is encrypted by iOS and inaccessible when the device is locked.
                 try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
             } catch {
+                #if DEBUG
                 print("Failed to save transactions:", error)
+                #endif
             }
         }
     }
@@ -1654,7 +1672,9 @@ extension PortfolioViewModel {
     func addStockHolding(_ holding: Holding) {
         // Validate asset type
         guard holding.assetType == .stock || holding.assetType == .etf else {
+            #if DEBUG
             print("Error: addStockHolding called with non-stock asset type")
+            #endif
             return
         }
         

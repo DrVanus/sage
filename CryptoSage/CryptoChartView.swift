@@ -2249,35 +2249,39 @@ enum ChartInterval: String, CaseIterable {
         let usNowMs = Int(Date().timeIntervalSince1970 * 1000)
         let usLookbackMs = Int(interval.lookbackSeconds * 1.3 * 1000)
         let usStartMs = usLookbackMs > 0 ? usNowMs - usLookbackMs : 0
-        var success = false
-        for p in pairs {
-            var urlStr = "\(ExchangeAPI.binanceUS.rawValue)/api/v3/klines?symbol=\(p)&interval=\(interval.binanceInterval)&limit=\(interval.binanceLimit)"
-            if usStartMs > 0 {
-                urlStr += "&startTime=\(usStartMs)"
+        // Try each pair sequentially using async/await (no semaphore blocking)
+        Task { [weak self] in
+            guard let self = self else { return }
+            var success = false
+            for p in pairs {
+                var urlStr = "\(ExchangeAPI.binanceUS.rawValue)/api/v3/klines?symbol=\(p)&interval=\(interval.binanceInterval)&limit=\(interval.binanceLimit)"
+                if usStartMs > 0 {
+                    urlStr += "&startTime=\(usStartMs)"
+                }
+                guard let url = URL(string: urlStr) else { continue }
+                do {
+                    let (data, _) = try await self.session.data(from: url)
+                    if let arr = try? JSONSerialization.jsonObject(with: data) as? [[Any]], !arr.isEmpty {
+                        success = true
+                        await MainActor.run {
+                            self.isUS = true
+                            self.lastResolvedPair = p
+                            self.cancelLoadingTimeout()
+                            self.isLoading = false
+                            self.parse(data: data)
+                        }
+                        break
+                    }
+                } catch {
+                    continue
+                }
             }
-            guard let url = URL(string: urlStr) else { continue }
-            let semaphore = DispatchSemaphore(value: 0)
-            session.dataTask(with: url) { [weak self] data, _, error in
-                defer { semaphore.signal() }
-                guard let self = self else { return }
-                if let data = data, let arr = try? JSONSerialization.jsonObject(with: data) as? [[Any]], !arr.isEmpty {
-                    success = true
-                    Task { @MainActor in
-                        self.isUS = true
-                        self.lastResolvedPair = p
-                        self.cancelLoadingTimeout()
-                        self.isLoading = false
-                        self.parse(data: data)
+            if !success {
+                await MainActor.run {
+                    if !self.fallbackToCache(symbol: symbol, interval: interval, errorContext: "No data from US") {
+                        self.showErrorAndComplete(symbol: symbol, interval: interval, message: "No data from US for \(symbol).")
                     }
                 }
-            }.resume()
-            _ = semaphore.wait(timeout: .now() + 10)
-            if success { break }
-        }
-        if !success {
-            // FIX: Try fallback to cached data before showing error
-            if !self.fallbackToCache(symbol: symbol, interval: interval, errorContext: "No data from US") {
-                self.showErrorAndComplete(symbol: symbol, interval: interval, message: "No data from US for \(symbol).")
             }
         }
     }

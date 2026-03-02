@@ -328,7 +328,7 @@ struct ScanStepCard: View {
         .frame(height: cardHeight) // FIXED HEIGHT prevents jumping
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
                 .opacity(isActive ? 0.95 : 0.85)
         )
         .background(
@@ -512,7 +512,7 @@ struct ScanningOverlayView: View {
             // Blurred background with better contrast
             Color.black.opacity(0.92)
                 .ignoresSafeArea()
-                .background(.ultraThinMaterial.opacity(0.5))
+                .background(DS.Adaptive.cardBackground.opacity(0.7))
             
             VStack(spacing: 24) {
                 Spacer()

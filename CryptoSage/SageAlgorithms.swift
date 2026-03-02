@@ -785,9 +785,12 @@ public struct SageVolatilityAlgorithm: SageAlgorithm {
         // 1. Momentum direction (weight: 40%)
         // Use last 3-5 candles to determine breakout direction
         let recentCloses = Array(data.closes.suffix(5))
-        if recentCloses.count >= 3 {
-            let trend = recentCloses.last! - recentCloses.first!
-            let trendPercent = (trend / recentCloses.first!) * 100
+        if recentCloses.count >= 3,
+           let lastClose = recentCloses.last,
+           let firstClose = recentCloses.first,
+           firstClose != 0 {
+            let trend = lastClose - firstClose
+            let trendPercent = (trend / firstClose) * 100
             score += min(max(trendPercent * 10, -40), 40)
         }
         

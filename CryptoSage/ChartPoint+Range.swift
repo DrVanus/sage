@@ -113,8 +113,8 @@ extension Array where Element == ChartPoint {
             let targetDate = firstPoint.date.addingTimeInterval(Double(i) * intervalSeconds)
             
             // Find the two original points that bracket this target date
-            var beforePoint = sorted.first!
-            var afterPoint = sorted.last!
+            var beforePoint = firstPoint
+            var afterPoint = lastPoint
             
             for j in 0..<sorted.count {
                 if sorted[j].date <= targetDate {

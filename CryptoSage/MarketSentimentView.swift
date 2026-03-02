@@ -275,8 +275,8 @@ struct MarketSentimentView: View {
         // 3) Binary-search linear interpolation with [0,100] clamping
         func interp(_ x: Int) -> Int {
             guard xs.count == ys.count, xs.count >= 2 else { return ys.last ?? (vm.currentValue ?? 50) }
-            if x <= xs.first! { return max(0, min(100, ys.first!)) }
-            if x >= xs.last! { return max(0, min(100, ys.last!)) }
+            if x <= xs[0] { return max(0, min(100, ys[0])) }
+            if x >= xs[xs.count - 1] { return max(0, min(100, ys[ys.count - 1])) }
             var lo = 0
             var hi = xs.count - 1
             while lo + 1 < hi {

@@ -112,7 +112,14 @@ public actor CompositePriceService {
                 let sub = pairs.filter { $0.exchangeID == adapter.id }
                 if sub.isEmpty { continue }
                 group.addTask {
-                    do { return try await adapter.fetchTickers(for: sub) } catch { return [] }
+                    do {
+                        return try await adapter.fetchTickers(for: sub)
+                    } catch {
+                        #if DEBUG
+                        print("[CompositePriceService] fetchTickers error: \(error)")
+                        #endif
+                        return []
+                    }
                 }
             }
             var out: [MMETicker] = []
@@ -139,7 +146,14 @@ public actor CompositePriceService {
             for item in constituents {
                 if let adapter = adapters.first(where: { $0.id == item.pair.exchangeID }) {
                     group.addTask {
-                        do { return try await adapter.fetchCandles(pair: item.pair, interval: interval, limit: limit) } catch { return [] }
+                        do {
+                            return try await adapter.fetchCandles(pair: item.pair, interval: interval, limit: limit)
+                        } catch {
+                            #if DEBUG
+                            print("[CompositePriceService] fetchCandles error: \(error)")
+                            #endif
+                            return []
+                        }
                     }
                 }
             }

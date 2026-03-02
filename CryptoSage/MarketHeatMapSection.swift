@@ -528,7 +528,7 @@ public struct MarketHeatMapSection: View {
             let target = max(0, min(1, p)) * totalW
             var cum = 0.0
             for s in sorted { cum += s.w; if cum >= target { return s.mag } }
-            return sorted.last!.mag
+            return sorted.last?.mag ?? 0
         }
 
         // Use STABLE percentiles for consistent color spread
@@ -541,7 +541,7 @@ public struct MarketHeatMapSection: View {
         let devs = sorted.map { (d: abs($0.mag - p50), w: $0.w) }.sorted { $0.d < $1.d }
         let totalW2 = devs.reduce(0.0) { $0 + $1.w }
         var cum2: Double = 0
-        var mad: Double = devs.last!.d
+        var mad: Double = devs.last?.d ?? 0
         let target2 = 0.50 * totalW2
         for e in devs { cum2 += e.w; if cum2 >= target2 { mad = e.d; break } }
         let robustCap = p50 + 3.0 * mad // Stable ~3-sigma robust cap

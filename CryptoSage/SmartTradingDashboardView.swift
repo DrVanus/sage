@@ -12,12 +12,34 @@ import SwiftUI
 
 struct SmartTradingDashboardView: View {
     @StateObject private var coordinator = SmartTradingCoordinator.shared
+    @Environment(\.dismiss) private var dismiss
     @State private var showSettings = false
     @State private var selectedDecision: SmartTradingDecision?
     @State private var isRefreshing = false
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            SubpageHeaderBar(
+                title: "AI Intelligence",
+                onDismiss: { dismiss() }
+            ) {
+                Button {
+                    Task {
+                        isRefreshing = true
+                        await coordinator.fullRefresh()
+                        isRefreshing = false
+                    }
+                } label: {
+                    if isRefreshing || coordinator.isAnalyzing {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .disabled(coordinator.isAnalyzing)
+            }
+
             ScrollView {
                 VStack(spacing: 20) {
                     // Market Context Header
@@ -43,34 +65,18 @@ struct SmartTradingDashboardView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 100)
             }
-            .background(Color(.systemBackground))
-            .navigationTitle("AI Intelligence")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task {
-                            isRefreshing = true
-                            await coordinator.fullRefresh()
-                            isRefreshing = false
-                        }
-                    } label: {
-                        if isRefreshing || coordinator.isAnalyzing {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .disabled(coordinator.isAnalyzing)
-                }
-            }
-            .task {
-                await coordinator.analyzePortfolio()
-            }
-            .sheet(item: $selectedDecision) { decision in
-                DecisionDetailSheet(decision: decision)
-            }
+        }
+        .background(DS.Adaptive.background.ignoresSafeArea())
+        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .enableInteractivePopGesture()
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
+        .task {
+            await coordinator.analyzePortfolio()
+        }
+        .sheet(item: $selectedDecision) { decision in
+            DecisionDetailSheet(decision: decision)
         }
     }
 
@@ -130,7 +136,7 @@ struct SmartTradingDashboardView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
 
             // Engine status
@@ -182,6 +188,31 @@ struct SmartTradingDashboardView: View {
 
     private var overviewSection: some View {
         VStack(spacing: 16) {
+            // Loading / Empty state for decisions
+            if coordinator.portfolioDecisions.isEmpty && coordinator.watchlistDecisions.isEmpty {
+                if coordinator.isAnalyzing {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.1)
+                        Text("Analyzing portfolio...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(DS.Adaptive.cardBackground)
+                    )
+                } else {
+                    emptyStateView(
+                        icon: "chart.bar.doc.horizontal",
+                        title: "No Analysis Results Yet",
+                        message: "Pull to refresh to analyze your portfolio and watchlist"
+                    )
+                }
+            }
+
             // Top Actionable Decisions
             if !coordinator.portfolioDecisions.isEmpty {
                 sectionHeader("Portfolio Intelligence", icon: "briefcase")
@@ -220,7 +251,7 @@ struct SmartTradingDashboardView: View {
                     .font(.subheadline.weight(.medium))
                 }
                 .padding()
-                .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
             }
 
             // Quick Performance Glance
@@ -277,7 +308,7 @@ struct SmartTradingDashboardView: View {
                 .padding(.top, 4)
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+            .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
 
             // Active Plans
             let plans = SmartDCAEngine.shared.activePlans
@@ -367,7 +398,7 @@ struct SmartTradingDashboardView: View {
                 }
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+            .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
 
             // Signal Weights
             VStack(alignment: .leading, spacing: 12) {
@@ -381,7 +412,7 @@ struct SmartTradingDashboardView: View {
                 weightSlider(label: "Risk", value: coordinator.currentConfig.riskWeight, icon: "shield")
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+            .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
         }
     }
 
@@ -422,7 +453,7 @@ struct SmartTradingDashboardView: View {
             )
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+        .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
     }
 
     private func performanceStat(label: String, value: String, color: Color) -> some View {

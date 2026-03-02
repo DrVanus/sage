@@ -7,7 +7,7 @@ private let accentPurple = Color(red: 0.65, green: 0.4, blue: 0.95)
 private let accentOrange = Color(red: 0.95, green: 0.6, blue: 0.2)
 
 struct PortfolioPaymentMethodsView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var appState: AppState
     
@@ -60,7 +60,7 @@ struct PortfolioPaymentMethodsView: View {
             VStack(spacing: 0) {
                 // MARK: - Custom Top Bar (matching Settings page style)
                 CSPageHeader(title: "Connections", leadingAction: {
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 })
                 
                 ScrollView(showsIndicators: false) {
@@ -177,7 +177,7 @@ struct PortfolioPaymentMethodsView: View {
         }
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
         // Pop-to-root: Dismiss all nested navigation when Portfolio tab is tapped
         .onChange(of: appState.dismissPortfolioSubviews) { _, shouldDismiss in
             // Defer to avoid "Modifying state during view update"
@@ -745,11 +745,11 @@ struct RenameExchangeSheet: View {
     @Binding var exchangeName: String
     var onSave: () -> Void
     
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 DS.Adaptive.background.ignoresSafeArea()
                 
@@ -769,7 +769,7 @@ struct RenameExchangeSheet: View {
                     
                     HStack(spacing: 12) {
                         Button {
-                            presentationMode.wrappedValue.dismiss()
+                            dismiss()
                         } label: {
                             Text("Cancel")
                                 .font(.headline)
@@ -782,7 +782,7 @@ struct RenameExchangeSheet: View {
                         
                         Button {
                             onSave()
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                         } label: {
                             Text("Save")
                                 .font(.headline)
@@ -861,7 +861,7 @@ private struct AccountActionMenuPopover: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             LinearGradient(colors: [DS.Adaptive.gradientHighlight, .clear], startPoint: .top, endPoint: .center)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

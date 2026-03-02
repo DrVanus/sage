@@ -30,7 +30,7 @@ struct RoundedCorner: Shape {
 
 struct DerivativesChatView: View {
     @ObservedObject var viewModel: DerivativesBotViewModel
-    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var messageText = ""
 

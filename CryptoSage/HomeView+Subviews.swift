@@ -108,7 +108,7 @@ extension HomeView {
             RecentTransaction(symbol: "ETH", title: "Sell ETH", subtitle: "Limit order", cryptoAmountSigned: "-12.50 ETH", fiatAmount: "$29,000.00", direction: .out, status: .completed, hash: "0x1ab2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2", date: Date().addingTimeInterval(-60*60*24), exchange: "Binance"),
             RecentTransaction(symbol: "SOL", title: "Stake SOL", subtitle: "APY 7.1%", cryptoAmountSigned: "+50.00 SOL", fiatAmount: "", direction: .in, status: .pending, hash: nil, date: Date().addingTimeInterval(-60*60*24*2), exchange: "Marinade")
         ]
-        @Published var items: [RecentTransaction] = mockItems
+        @Published var items: [RecentTransaction] = []
         @Published var isLoading = false
 
         func transactions(filteredBy filter: TxFilter) -> [RecentTransaction] {
@@ -1526,9 +1526,9 @@ struct SocialTradingPreviewSection: View {
         // Fallback sample data based on current mode with avatar presets
         if localLeaderboardMode == .paper {
             return [
-                (1, "paper_legend", 385.4, .yellow, "crypto_bitcoin"),
-                (2, "sim_whale", 295.2, .gray, "animal_whale"),
-                (3, "virtual_victor", 268.5, .orange, "crypto_chart")
+                (1, "CryptoTrader_47", 385.4, .yellow, "crypto_bitcoin"),
+                (2, "PortfolioKing", 295.2, .gray, "animal_whale"),
+                (3, "SatoshiFan", 268.5, .orange, "crypto_chart")
             ]
         } else {
             return [

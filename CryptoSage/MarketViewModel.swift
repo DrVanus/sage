@@ -752,10 +752,15 @@ final class MarketViewModel: ObservableObject {
             // Even non-empty updates during emergency trigger SwiftUI cascades.
             if isMemoryEmergency { return }
             
-            // MEMORY FIX: Cap array size to prevent unbounded growth
+            // MEMORY FIX: Cap array size to prevent unbounded growth.
+            // NOTE: We defer the truncation to the next run-loop to avoid recursive didSet,
+            // which could cause a stack overflow if the cap is repeatedly exceeded.
             if allCoins.count > Self.maxAllCoinsCount {
-                allCoins = Array(allCoins.prefix(Self.maxAllCoinsCount))
-                return // didSet will fire again with the capped array
+                let capped = Array(allCoins.prefix(Self.maxAllCoinsCount))
+                DispatchQueue.main.async { [weak self] in
+                    self?.allCoins = capped
+                }
+                return
             }
             
             // MEMORY FIX v8: Skip expensive cascade if allCoins membership hasn't changed.
@@ -1174,7 +1179,9 @@ final class MarketViewModel: ObservableObject {
 
         if AppSettings.isSimulatorLimitedDataMode {
             // Limited simulator profile: allow baseline refresh for parity, skip long-running loops.
+            #if DEBUG
             print("🧪 [MarketViewModel] Simulator limited profile: baseline enabled, category/sync timers disabled")
+            #endif
             self.ensureBaselineSnapshotIfNeeded(minCount: Self.maxAllCoinsCount)
         } else {
             // Proactively seed a baseline if our snapshots are still tiny at startup
@@ -1190,12 +1197,16 @@ final class MarketViewModel: ObservableObject {
                 try? await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
                 let avail = Double(os_proc_available_memory()) / (1024 * 1024)
                 if avail > 0 && avail < 200 {
+                    #if DEBUG
                     print("⚠️ [MarketViewModel] Skipping category fetch — only \(String(format: "%.0f", avail)) MB available")
+                    #endif
                     return
                 }
                 guard let self = self else { return }
                 if self.allCoins.count >= Self.maxAllCoinsCount {
+                    #if DEBUG
                     print("⚠️ [MarketViewModel] Skipping category fetch — already at cap (\(self.allCoins.count))")
+                    #endif
                     return
                 }
                 await self.fetchAndMergeCategoryCoins()
@@ -1206,7 +1217,9 @@ final class MarketViewModel: ObservableObject {
                 try? await Task.sleep(nanoseconds: 20_000_000_000) // 20 seconds
                 let avail = Double(os_proc_available_memory()) / (1024 * 1024)
                 if avail > 0 && avail < 200 {
+                    #if DEBUG
                     print("⚠️ [MarketViewModel] Skipping periodic sync start — only \(String(format: "%.0f", avail)) MB available")
+                    #endif
                     return
                 }
                 await MainActor.run {
@@ -2754,7 +2767,9 @@ final class MarketViewModel: ObservableObject {
             if !self.hasCompletedInitialFilterPass {
                 self.hasCompletedInitialFilterPass = true
                 self.startupFilterFreezeUntil = Date().addingTimeInterval(self.startupFilterFreezeDuration)
+                #if DEBUG
                 print("🧊 [MarketViewModel] Initial filter pass done — freezing further passes for \(String(format: "%.2f", self.startupFilterFreezeDuration))s")
+                #endif
             }
             self.applyAllFiltersAndSort()
         }
@@ -4218,8 +4233,11 @@ final class MarketViewModel: ObservableObject {
         // is killed. The emergency flag tells ALL views to return minimal empty bodies.
         if !isMemoryEmergency {
             isMemoryEmergency = true
+            // Notify observing views to tear down heavy sections (e.g., HomeView strips to portfolio-only).
+            // Without this, views remain subscribed with stale empty data, causing UI corruption.
+            NotificationCenter.default.post(name: .memoryEmergencySectionsStrip, object: nil)
         }
-        
+
         trimMemory()
         // Clear the main arrays entirely — these hold the bulk of live data.
         // MEMORY FIX v13: Only set @Published properties if they're NOT already empty.
@@ -4232,7 +4250,9 @@ final class MarketViewModel: ObservableObject {
         if !filteredCoins.isEmpty { filteredCoins = [] }
         if !watchlistCoins.isEmpty { watchlistCoins = [] }
         if case .idle = state {} else { state = .idle }
+        #if DEBUG
         print("🗑️ [MarketViewModel] Emergency trim: cleared \(coinCount) coins from all arrays (emergency mode ON)")
+        #endif
     }
     
     /// Load from cache only - for instant startup without triggering network calls

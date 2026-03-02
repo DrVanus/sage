@@ -311,8 +311,8 @@ struct StockImageView: View {
             
             // Glassmorphism overlay for depth
             Circle()
-                .fill(.ultraThinMaterial)
-                .opacity(isDark ? 0.25 : 0.4)
+                .fill(DS.Adaptive.chipBackground)
+                .opacity(isDark ? 0.45 : 0.6)
             
             // Inner glow ring
             Circle()

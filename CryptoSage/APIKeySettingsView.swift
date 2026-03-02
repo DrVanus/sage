@@ -38,7 +38,7 @@ struct APIKeySettingsView: View {
     private let notificationFeedback = UINotificationFeedbackGenerator()
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 // Info section
                 Section {
@@ -369,7 +369,7 @@ struct APIKeySettingsView: View {
         .padding(30)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .transition(.scale.combined(with: .opacity))
     }

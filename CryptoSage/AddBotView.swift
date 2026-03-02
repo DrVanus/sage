@@ -27,7 +27,7 @@ struct AddBotView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Bot Info")) {
                     TextField("Bot Name", text: $name)

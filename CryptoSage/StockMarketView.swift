@@ -545,6 +545,7 @@ struct StockMarketView: View {
     }
     
     private func formatCompactCurrency(_ value: Double) -> String {
+        if value == 0 { return "—" } // No price available (placeholder data)
         if value >= 1000 {
             return "$\(String(format: "%.0f", value))"
         } else if value >= 1 {
@@ -850,8 +851,9 @@ struct StockMarketView: View {
             visibleCount = min(visibleCount + 30, vm.displayedStocks.count)
         }
     }
-    
+
     private func formatCurrency(_ value: Double) -> String {
+        if value == 0 { return "—" } // No price available (placeholder data)
         if value >= 10000 {
             return "$\(String(format: "%.0f", value))"
         } else if value >= 1 {
@@ -860,8 +862,9 @@ struct StockMarketView: View {
             return "$\(String(format: "%.4f", value))"
         }
     }
-    
+
     private func formatPercent(_ value: Double) -> String {
+        if value == 0 { return "—" } // No change data available (placeholder)
         let sign = value >= 0 ? "+" : ""
         return "\(sign)\(String(format: "%.2f", value))%"
     }
@@ -1000,8 +1003,9 @@ private struct StockMarketRowView: View {
             }
         }
     }
-    
+
     private func formatCurrency(_ value: Double) -> String {
+        if value == 0 { return "—" } // No price available (placeholder data)
         if value >= 10000 {
             return "$\(String(format: "%.0f", value))"
         } else if value >= 1 {
@@ -1010,12 +1014,13 @@ private struct StockMarketRowView: View {
             return "$\(String(format: "%.4f", value))"
         }
     }
-    
+
     private func formatPercent(_ value: Double) -> String {
+        if value == 0 { return "—" } // No change data available (placeholder)
         let sign = value >= 0 ? "+" : ""
         return "\(sign)\(String(format: "%.2f", value))%"
     }
-    
+
     /// Strip common suffixes from company names for cleaner display.
     /// "Amazon.com Inc." → "Amazon.com", "NVIDIA Corporation" → "NVIDIA"
     static func abbreviateCompanyName(_ name: String) -> String {

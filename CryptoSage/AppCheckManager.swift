@@ -75,7 +75,7 @@ final class AppCheckManager {
         let providerFactory = AppAttestProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
 
-        print("🔐 [App Check] Configured with App Attest/Device Check provider")
+        // Print removed from production branch - logging only available in DEBUG builds
 
         #endif
     }
@@ -85,17 +85,23 @@ final class AppCheckManager {
     func getToken(completion: @escaping (String?, Error?) -> Void) {
         AppCheck.appCheck().token(forcingRefresh: false) { token, error in
             if let error = error {
+                #if DEBUG
                 print("❌ [App Check] Failed to get token: \(error.localizedDescription)")
+                #endif
                 completion(nil, error)
                 return
             }
 
             if let token = token?.token {
+                #if DEBUG
                 print("✅ [App Check] Token retrieved successfully")
                 print("   Token (first 20 chars): \(String(token.prefix(20)))...")
+                #endif
                 completion(token, nil)
             } else {
+                #if DEBUG
                 print("⚠️ [App Check] Token was nil")
+                #endif
                 completion(nil, NSError(domain: "AppCheck", code: -1, userInfo: [
                     NSLocalizedDescriptionKey: "Token was nil"
                 ]))
@@ -107,16 +113,22 @@ final class AppCheckManager {
     func refreshToken(completion: @escaping (Bool, Error?) -> Void) {
         AppCheck.appCheck().token(forcingRefresh: true) { token, error in
             if let error = error {
+                #if DEBUG
                 print("❌ [App Check] Failed to refresh token: \(error.localizedDescription)")
+                #endif
                 completion(false, error)
                 return
             }
 
             if token != nil {
+                #if DEBUG
                 print("✅ [App Check] Token refreshed successfully")
+                #endif
                 completion(true, nil)
             } else {
+                #if DEBUG
                 print("⚠️ [App Check] Refreshed token was nil")
+                #endif
                 completion(false, NSError(domain: "AppCheck", code: -1, userInfo: [
                     NSLocalizedDescriptionKey: "Refreshed token was nil"
                 ]))
@@ -129,16 +141,22 @@ final class AppCheckManager {
     func verifySetup(completion: @escaping (Bool) -> Void) {
         getToken { token, error in
             if let error = error {
+                #if DEBUG
                 print("❌ [App Check] Setup verification FAILED: \(error.localizedDescription)")
+                #endif
                 completion(false)
                 return
             }
 
             if token != nil {
+                #if DEBUG
                 print("✅ [App Check] Setup verification PASSED")
+                #endif
                 completion(true)
             } else {
+                #if DEBUG
                 print("⚠️ [App Check] Setup verification FAILED: No token")
+                #endif
                 completion(false)
             }
         }

@@ -6310,9 +6310,15 @@ extension AITabView {
 
     private func saveImageDataToDisk(_ data: Data, suggestedName: String) -> String? {
         let fm = FileManager.default
-        let doc = fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let doc = fm.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         let url = doc.appendingPathComponent("ChatImages", isDirectory: true)
-        do { try fm.createDirectory(at: url, withIntermediateDirectories: true) } catch { }
+        do {
+            try fm.createDirectory(at: url, withIntermediateDirectories: true)
+        } catch {
+            #if DEBUG
+            print("[AIChatView] createDirectory error: \(error)")
+            #endif
+        }
         let fileURL = url.appendingPathComponent(suggestedName)
         do {
             try data.write(to: fileURL, options: [.atomic])
@@ -7169,7 +7175,7 @@ struct ChatBubble: View {
 // MARK: - Preview
 struct AITabView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView { AITabView() }
+        NavigationStack { AITabView() }
             .preferredColorScheme(.dark)
             .environmentObject(ChatViewModel())
             .environmentObject(PortfolioViewModel.sample)

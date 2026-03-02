@@ -83,7 +83,7 @@ struct DerivativesRiskAccountsView: View {
 
 struct DerivativesRiskAccountsView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             DerivativesRiskAccountsView(viewModel: DerivativesBotViewModel(),
                                         isUSUser: false)
         }

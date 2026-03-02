@@ -306,7 +306,7 @@ struct SecuritySettingsView: View {
             Text("This will remove your PIN code. You'll need to set it up again if you want to use PIN authentication.")
         }
         .sheet(isPresented: $showPINSetup) {
-            NavigationView {
+            NavigationStack {
                 PINEntryView(mode: .setup) { success in
                     showPINSetup = false
                     if success {
@@ -318,7 +318,7 @@ struct SecuritySettingsView: View {
             }
         }
         .sheet(isPresented: $showPINChange) {
-            NavigationView {
+            NavigationStack {
                 PINEntryView(mode: .change) { success in
                     showPINChange = false
                 }
@@ -571,7 +571,7 @@ struct PINActionMenu: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             LinearGradient(colors: [Color.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

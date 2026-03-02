@@ -59,7 +59,7 @@ public struct AvatarPickerView: View {
     }
     
     public var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Preview section
                 previewSection

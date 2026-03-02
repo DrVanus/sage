@@ -27,7 +27,7 @@ struct PortfolioLegendView: View {
                     
                     Text("\(holding.coinSymbol) \(String(format: "%.1f", pct))%")
                         .font(.caption2)
-                        .foregroundColor(.white)
+                        .foregroundStyle(DS.Adaptive.textPrimary)
                 }
             }
         }

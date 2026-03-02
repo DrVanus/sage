@@ -584,7 +584,7 @@ struct ProfileView: View {
     // MARK: - Email Change Sheet (for email/password users)
     
     private var emailChangeSheetContent: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Text("To change your email, please verify your current password first.")
                     .font(.subheadline)

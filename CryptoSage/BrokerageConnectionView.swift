@@ -355,7 +355,7 @@ struct BrokerageConnectionView: View {
             .padding(32)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
         }
     }

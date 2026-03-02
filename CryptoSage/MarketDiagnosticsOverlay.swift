@@ -108,7 +108,7 @@ struct MarketDiagnosticsOverlay: View {
             }
         }
         .padding(12)
-        .background(.ultraThinMaterial)
+        .background(DS.Adaptive.cardBackground)
         .cornerRadius(12)
         .padding()
         .onAppear {

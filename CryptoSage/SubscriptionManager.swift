@@ -401,7 +401,12 @@ public final class SubscriptionManager: ObservableObject {
             // Note: @Published already sends objectWillChange - no need to call manually
         }
     }
-    
+
+    /// SECURITY: Tracks whether StoreKit has verified the subscription tier since launch.
+    /// Until this is true, the cached UserDefaults tier has NOT been validated against
+    /// Apple's receipt/entitlement data and may be stale or tampered.
+    @Published public private(set) var hasVerifiedWithStoreKit: Bool = false
+
     // MARK: - Storage Keys
     
     private let tierKey = "Subscription.CurrentTier"
@@ -529,13 +534,40 @@ public final class SubscriptionManager: ObservableObject {
         currentTier = tier
         saveState()
         objectWillChange.send()
-        
+
         // Notify observers if tier actually changed
         if oldTier != tier {
             notifySubscriptionChanged()
         }
     }
-    
+
+    /// SECURITY: Validate the cached subscription tier against StoreKit entitlements.
+    /// This should be called early in app startup to ensure the UserDefaults-cached tier
+    /// hasn't become stale (e.g., expired subscription) or been tampered with.
+    /// Lightweight: only checks entitlements, does NOT load products or initialize ads.
+    public func validateWithStoreKit() async {
+        #if DEBUG
+        // In debug builds, developer mode may override the tier — skip StoreKit validation.
+        if isDeveloperMode {
+            hasVerifiedWithStoreKit = true
+            print("[SubscriptionManager] Skipping StoreKit validation (developer mode)")
+            return
+        }
+        #endif
+
+        let cachedTier = currentTier
+        await StoreKitManager.shared.updateSubscriptionStatus()
+        hasVerifiedWithStoreKit = true
+
+        #if DEBUG
+        if currentTier != cachedTier {
+            print("[SubscriptionManager] StoreKit validation corrected tier: \(cachedTier.rawValue) -> \(currentTier.rawValue)")
+        } else {
+            print("[SubscriptionManager] StoreKit validation confirmed tier: \(currentTier.rawValue)")
+        }
+        #endif
+    }
+
     /// Check if user has access to a specific tier or higher
     /// In developer mode, respects the simulated tier selection
     public func hasTier(_ minimumTier: SubscriptionTierType) -> Bool {

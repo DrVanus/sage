@@ -578,7 +578,9 @@ struct HardwareWalletConnectionView: View {
     private func helpRow(icon: String, iconColor: Color, title: String, subtitle: String) -> some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            // TODO: Navigate to help content
+            if let url = URL(string: "mailto:hypersageai@gmail.com?subject=CryptoSage%20Support%20-%20\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)") {
+                UIApplication.shared.open(url)
+            }
         } label: {
             HStack(spacing: 14) {
                 ZStack {

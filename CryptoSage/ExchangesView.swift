@@ -111,7 +111,7 @@ private let sampleWallets: [ExchangeItem] = [
 // MARK: - ExchangesView
 
 struct ExchangesView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     
     // Section filter - defaults to showing all
@@ -170,7 +170,7 @@ struct ExchangesView: View {
                 HStack {
                     CSNavButton(
                         icon: "chevron.left",
-                        action: { presentationMode.wrappedValue.dismiss() }
+                        action: { dismiss() }
                     )
                     
                     Spacer()
@@ -371,7 +371,7 @@ struct ExchangesView: View {
         .navigationBarBackButtonHidden(true)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
 }
 
@@ -514,17 +514,17 @@ struct ExchangeCardButtonStyle: ButtonStyle {
 struct ExchangesView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            NavigationView {
+            NavigationStack {
                 ExchangesView(filter: .all)
             }
             .previewDisplayName("All")
             
-            NavigationView {
+            NavigationStack {
                 ExchangesView(filter: .oauth)
             }
             .previewDisplayName("OAuth Only")
             
-            NavigationView {
+            NavigationStack {
                 ExchangesView(filter: .wallets)
             }
             .previewDisplayName("Wallets Only")

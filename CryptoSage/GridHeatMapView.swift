@@ -52,7 +52,7 @@ public struct GridHeatMapView: View {
                             .foregroundColor(DS.Adaptive.textPrimary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .background(DS.Adaptive.chipBackground, in: Capsule())
                             .overlay(Capsule().stroke(DS.Adaptive.stroke, lineWidth: 1))
                     }
                     .buttonStyle(PressableStyle())

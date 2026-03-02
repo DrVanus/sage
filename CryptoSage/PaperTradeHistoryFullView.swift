@@ -30,7 +30,7 @@ struct PaperTradeHistoryFullView: View {
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Stats header
                 statsHeader
@@ -535,7 +535,7 @@ private struct TradeSortPickerPopover: View {
             .padding(.vertical, 4)
         }
         .padding(4)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             LinearGradient(colors: [Color.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

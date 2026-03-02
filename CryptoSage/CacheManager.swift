@@ -159,6 +159,9 @@ final class CacheManager {
                 }
             }
         } catch {
+            #if DEBUG
+            print("[CacheManager] corrupted file '\(filename)': \(error)")
+            #endif
             // Corrupted file - return nil
         }
         return nil

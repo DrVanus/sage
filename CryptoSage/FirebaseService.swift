@@ -738,10 +738,14 @@ final class FirebaseService: ObservableObject {
         // Check if GoogleService-Info.plist exists
         if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
             isConfigured = true
+            #if DEBUG
             print("[FirebaseService] Firebase configured successfully")
+            #endif
         } else {
             isConfigured = false
+            #if DEBUG
             print("[FirebaseService] WARNING: GoogleService-Info.plist not found - Firebase features disabled")
+            #endif
         }
     }
     
@@ -1614,7 +1618,9 @@ final class FirebaseService: ObservableObject {
         print("[FirebaseService] callFunction: \(name)")
         #endif
         guard isConfigured else {
+            #if DEBUG
             print("[FirebaseService] callFunction failed: not configured")
+            #endif
             throw FirebaseServiceError.notConfigured
         }
         
@@ -1648,7 +1654,9 @@ final class FirebaseService: ObservableObject {
         
         // Build URL
         guard let url = URL(string: "\(functionsBaseURL)/\(name)") else {
+            #if DEBUG
             print("[FirebaseService] callFunction failed: invalid URL")
+            #endif
             throw FirebaseServiceError.networkError("Invalid URL")
         }
         #if DEBUG
@@ -1689,7 +1697,9 @@ final class FirebaseService: ObservableObject {
         
         // Check HTTP status
         guard let httpResponse = response as? HTTPURLResponse else {
+            #if DEBUG
             print("[FirebaseService] Invalid HTTP response for \(name)")
+            #endif
             throw FirebaseServiceError.networkError("Invalid response")
         }
         
@@ -1703,16 +1713,22 @@ final class FirebaseService: ObservableObject {
             if recent503Count > 0 { recent503Count = max(0, recent503Count - 1) }
             break
         case 401:
+            #if DEBUG
             print("[FirebaseService] Authentication required for \(name)")
+            #endif
             throw FirebaseServiceError.authenticationRequired
         case 404:
             // Function not deployed - fail fast so caller can use fallback immediately
+            #if DEBUG
             print("[FirebaseService] Function '\(name)' not found (404) - skipping to fallback")
+            #endif
             throw FirebaseServiceError.functionNotFound(name)
         case 429:
             recent503Count += 1
             last503At = Date()
+            #if DEBUG
             print("[FirebaseService] Rate limit exceeded for \(name)")
+            #endif
             throw FirebaseServiceError.rateLimitExceeded
         case 500...599:
             // RATE LIMIT FIX: Track 503s specifically for backoff
@@ -1721,11 +1737,15 @@ final class FirebaseService: ObservableObject {
                 last503At = Date()
             }
             let errorMessage = String(data: responseData, encoding: .utf8) ?? "Unknown server error"
+            #if DEBUG
             print("[FirebaseService] Server error for \(name): \(errorMessage)")
+            #endif
             throw FirebaseServiceError.serverError(errorMessage)
         default:
             let errorMessage = String(data: responseData, encoding: .utf8) ?? "Request failed"
+            #if DEBUG
             print("[FirebaseService] HTTP error \(httpResponse.statusCode) for \(name): \(errorMessage)")
+            #endif
             throw FirebaseServiceError.networkError(errorMessage)
         }
         
@@ -1743,7 +1763,9 @@ final class FirebaseService: ObservableObject {
             #endif
             return decoded.result
         } catch {
+            #if DEBUG
             print("[FirebaseService] Decoding error for \(name): \(error.localizedDescription)")
+            #endif
             // Try decoding directly (for some error responses)
             if let decoded = try? JSONDecoder().decode(T.self, from: responseData) {
                 return decoded

@@ -107,6 +107,57 @@ final class KeychainHelper {
         }
     }
     
+    // MARK: - Raw Data API (for storing encoded objects like JSON)
+
+    /// Save raw data to the Keychain with enhanced security
+    func saveData(_ data: Data, service: String, account: String) throws {
+        // First try to update existing item
+        let query: [String: Any] = [
+            kSecClass as String       : kSecClassGenericPassword,
+            kSecAttrService as String : service,
+            kSecAttrAccount as String : account,
+        ]
+        let update: [String: Any] = [
+            kSecValueData as String   : data,
+            kSecAttrAccessible as String : accessAttribute
+        ]
+
+        var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+
+        if status == errSecSuccess { return }
+
+        if status == errSecItemNotFound {
+            // Item not found, add it with security attributes
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrAccessible as String] = accessAttribute
+
+            status = SecItemAdd(addQuery as CFDictionary, nil)
+            guard status == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(status)
+            }
+        } else {
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
+
+    /// Read raw data from the Keychain
+    func readData(service: String, account: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String       : kSecClassGenericPassword,
+            kSecAttrService as String : service,
+            kSecAttrAccount as String : account,
+            kSecReturnData as String  : true,
+            kSecMatchLimit as String  : kSecMatchLimitOne
+        ]
+        var item: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess, let data = item as? Data else {
+            return nil
+        }
+        return data
+    }
+
     /// Check if a keychain item exists (without retrieving the value)
     func exists(service: String, account: String) -> Bool {
         let query: [String: Any] = [

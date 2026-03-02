@@ -14,7 +14,7 @@ final class MarketCacheManager {
 
     private init() {
         let fm = FileManager.default
-        let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
         cacheURL = docs.appendingPathComponent("coins_cache.json")
     }
     

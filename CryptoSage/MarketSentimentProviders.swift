@@ -2029,8 +2029,8 @@ struct DerivedSentimentProvider: SentimentProvider {
             func linearInterpolate(x: Int, xs: [Int], ys: [Int]) -> Int {
                 guard xs.count == ys.count, xs.count >= 2 else { return ys.last ?? 50 }
                 // Assume xs strictly increasing
-                if x <= xs.first! { return max(0, min(100, ys.first!)) }
-                if x >= xs.last! { return max(0, min(100, ys.last!)) }
+                if x <= xs[0] { return max(0, min(100, ys[0])) }
+                if x >= xs[xs.count - 1] { return max(0, min(100, ys[ys.count - 1])) }
                 // Binary search for interval
                 var lo = 0, hi = xs.count - 1
                 while lo + 1 < hi {

@@ -51,8 +51,8 @@ struct CommodityIconView: View {
             
             // Glassmorphism overlay
             Circle()
-                .fill(.ultraThinMaterial)
-                .opacity(isDark ? 0.2 : 0.3)
+                .fill(DS.Adaptive.chipBackground)
+                .opacity(isDark ? 0.4 : 0.5)
             
             // Inner glow ring
             Circle()

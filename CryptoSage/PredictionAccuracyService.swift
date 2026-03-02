@@ -1292,7 +1292,9 @@ public final class PredictionAccuracyService: ObservableObject {
             }
         }
         
+        #if DEBUG
         print("[PredictionAccuracy] Firestore sync started for user \(userId)")
+        #endif
     }
     
     /// Stop Firestore listener and cancel pending tasks
@@ -1354,9 +1356,13 @@ public final class PredictionAccuracyService: ObservableObject {
         
         do {
             try await docRef.setData(payload, merge: true)
+            #if DEBUG
             print("[PredictionAccuracy] Pushed \(storedPredictions.count) predictions to Firestore")
+            #endif
         } catch {
+            #if DEBUG
             print("[PredictionAccuracy] Firestore push failed: \(error.localizedDescription)")
+            #endif
         }
     }
     

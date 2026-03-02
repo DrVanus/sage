@@ -226,7 +226,7 @@ public enum TradingExchange: String, Codable, CaseIterable, Identifiable {
         case .binance: return URL(string: "https://api.binance.com")!
         // BINANCE-US-FIX: Binance.US is shut down - disabled for trading
         case .binanceUS: return URL(string: "https://api4.binance.com")!
-        case .coinbase: return URL(string: "https://api.exchange.coinbase.com")!
+        case .coinbase: return URL(string: "https://api.coinbase.com")!
         case .kraken: return URL(string: "https://api.kraken.com")!
         case .kucoin: return URL(string: "https://api.kucoin.com")!
         case .bybit: return URL(string: "https://api.bybit.com")!
@@ -321,9 +321,9 @@ public final class TradingCredentialsManager {
     /// Get the default/preferred exchange for trading
     public var defaultExchange: TradingExchange? {
         let connected = getConnectedExchanges()
-        // Prefer US exchange for US users
+        // Prefer US-available exchange for US users
+        // Note: Binance.US is shut down, so skip it
         if ComplianceManager.shared.isUSUser {
-            if connected.contains(.binanceUS) { return .binanceUS }
             if connected.contains(.coinbase) { return .coinbase }
         }
         return connected.first
@@ -975,12 +975,12 @@ public actor TradingExecutionService {
             params.append(("price", formatPrice(price)))
             params.append(("timeInForce", "GTC"))
         }
-        
+
         let queryString = params.map { "\($0.0)=\($0.1)" }.joined(separator: "&")
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
-        
-        let url = credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/order")
+
+        let url = credentials.exchange.restBaseURL.appendingPathComponent("api/v3/order")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = signedQuery.data(using: .utf8)
@@ -1029,8 +1029,8 @@ public actor TradingExecutionService {
         let queryString = "timestamp=\(timestamp)"
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
-        
-        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/account"), resolvingAgainstBaseURL: false)!
+
+        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/account"), resolvingAgainstBaseURL: false)!
         components.query = signedQuery
         
         guard let url = components.url else {
@@ -1070,11 +1070,12 @@ public actor TradingExecutionService {
         let queryString = "timestamp=\(timestamp)"
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
-        
-        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/account"), resolvingAgainstBaseURL: false)!
+
+        guard var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/account"), resolvingAgainstBaseURL: false) else { return false }
         components.query = signedQuery
-        
-        var request = URLRequest(url: components.url!)
+
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-MBX-APIKEY")
         
@@ -1097,7 +1098,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256(message: queryParams, key: credentials.apiSecret)
         let signedQuery = queryParams + "&signature=\(signature)"
         
-        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/openOrders"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/openOrders"), resolvingAgainstBaseURL: false)!
         components.query = signedQuery
         
         guard let url = components.url else {
@@ -1155,7 +1156,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256(message: queryParams, key: credentials.apiSecret)
         let signedQuery = queryParams + "&signature=\(signature)"
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/order")
+        let url = credentials.exchange.restBaseURL.appendingPathComponent("api/v3/order")
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.httpBody = signedQuery.data(using: .utf8)
@@ -1211,12 +1212,12 @@ public actor TradingExecutionService {
             params.append(("price", formatPrice(limitPrice)))
             params.append(("timeInForce", "GTC"))
         }
-        
+
         let queryString = params.map { "\($0.0)=\($0.1)" }.joined(separator: "&")
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
-        
-        let url = credentials.exchange.restBaseURL.appendingPathComponent("/api/v3/order")
+
+        let url = credentials.exchange.restBaseURL.appendingPathComponent("api/v3/order")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = signedQuery.data(using: .utf8)
@@ -1322,7 +1323,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -1378,7 +1379,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1419,7 +1420,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1440,16 +1441,16 @@ public actor TradingExecutionService {
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "GET"
         var path = "/orders?status=open&status=pending"
-        
+
         if let symbol = symbol {
             let productId = normalizeCoinbaseProductId(symbol)
             path += "&product_id=\(productId)"
         }
-        
+
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1512,7 +1513,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
@@ -1582,7 +1583,7 @@ public actor TradingExecutionService {
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -1653,7 +1654,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postString.data(using: .utf8)
@@ -1708,7 +1709,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1747,7 +1748,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1784,7 +1785,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1862,7 +1863,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData.data(using: .utf8)
@@ -1943,7 +1944,7 @@ public actor TradingExecutionService {
             secret: credentials.apiSecret
         )
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postString.data(using: .utf8)
@@ -2021,7 +2022,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData
@@ -2066,7 +2067,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2119,7 +2120,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2147,18 +2148,18 @@ public actor TradingExecutionService {
     private func fetchKuCoinOpenOrders(credentials: TradingCredentials, symbol: String?) async throws -> [OpenOrder] {
         let timestamp = String(Int64(Date().timeIntervalSince1970 * 1000))
         var path = "/api/v1/orders?status=active"
-        
+
         if let symbol = symbol {
             let kucoinSymbol = normalizeKuCoinSymbol(symbol)
             path += "&symbol=\(kucoinSymbol)"
         }
-        
+
         let method = "GET"
         let message = timestamp + method + path
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
-        
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2219,7 +2220,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "KC-API-KEY")
@@ -2287,7 +2288,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256Base64KuCoin(message: message, key: credentials.apiSecret)
         let passphrase = hmacSHA256Base64KuCoin(message: credentials.passphrase ?? "", key: credentials.apiSecret)
         
-        let url = credentials.exchange.restBaseURL.appendingPathComponent(path)
+        let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path)!
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = bodyData

@@ -400,14 +400,17 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
             components.queryItems?.append(URLQueryItem(name: "apikey", value: apiKey))
         }
         
-        let request = URLRequest(url: components.url!)
+        guard let url = components.url else {
+            throw ConnectionError.unknown("Failed to construct URL")
+        }
+        let request = URLRequest(url: url)
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
             throw ConnectionError.serverError((response as? HTTPURLResponse)?.statusCode ?? 0)
         }
-        
+
         struct EtherscanResponse: Codable {
             let status: String
             let message: String?
@@ -591,10 +594,13 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
                 chain: "ETH"
             )
         } catch {
+            #if DEBUG
+            print("[BlockchainConnectionProvider] error: \(error)")
+            #endif
             return nil
         }
     }
-    
+
     // MARK: - Bitcoin via Blockchain.com
     
     private func fetchBitcoinBalances(address: String) async throws -> [PortfolioBalance] {
@@ -720,14 +726,17 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
             components.queryItems?.append(URLQueryItem(name: "apikey", value: apiKey))
         }
         
-        let request = URLRequest(url: components.url!)
+        guard let url = components.url else {
+            throw ConnectionError.unknown("Failed to construct URL")
+        }
+        let request = URLRequest(url: url)
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
             throw ConnectionError.serverError((response as? HTTPURLResponse)?.statusCode ?? 0)
         }
-        
+
         struct EVMScanResponse: Codable {
             let status: String
             let message: String?
@@ -915,10 +924,13 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
                 chain: config.chain
             )
         } catch {
+            #if DEBUG
+            print("[BlockchainConnectionProvider] error: \(error)")
+            #endif
             return nil
         }
     }
-    
+
     // MARK: - Storage
     
     private let storageKey = "CryptoSage.WalletAddresses"

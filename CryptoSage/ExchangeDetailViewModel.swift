@@ -40,7 +40,7 @@ class ExchangeDetailViewModel: ObservableObject {
 // MARK: - Exchange Detail View
 
 struct ExchangeDetailView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     let exchange: ExchangeItem
     
     // Use the view model to handle connection logic
@@ -57,7 +57,7 @@ struct ExchangeDetailView: View {
                 HStack {
                     CSNavButton(
                         icon: "chevron.left",
-                        action: { presentationMode.wrappedValue.dismiss() }
+                        action: { dismiss() }
                     )
                     
                     Spacer()
@@ -110,7 +110,7 @@ struct ExchangeDetailView: View {
         .navigationBarBackButtonHidden(true)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
 }
 
@@ -118,7 +118,7 @@ struct ExchangeDetailView: View {
 
 struct ExchangeDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             // For preview, using a sample exchange item.
             ExchangeDetailView(exchange: ExchangeItem(name: "Binance", type: .exchange))
         }

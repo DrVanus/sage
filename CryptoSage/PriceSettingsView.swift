@@ -6,7 +6,7 @@ struct PriceSettingsView: View {
     @State private var allowedExchangesText: String = AppSettings.compositeAllowedExchanges()?.joined(separator: ",") ?? ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Live Price Source")) {
                     Picker("Source", selection: $selectedSource) {
@@ -48,7 +48,6 @@ struct PriceSettingsView: View {
             .enableInteractivePopGesture()
             .edgeSwipeToDismiss(onDismiss: { dismiss() })
         }
-        .navigationViewStyle(.stack)
     }
 
     private func parseIDs(_ text: String) -> [String]? {

@@ -498,10 +498,6 @@ struct PortfolioCoinRow: View {
                 }
             } label: { Label("Delete", systemImage: "trash") }
             
-            Button {
-                // TODO: Navigate to TradeView for this symbol
-            } label: { Label("Trade", systemImage: "arrow.left.arrow.right") }
-            .tint(Color.gold)
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             // View Details action
@@ -511,7 +507,7 @@ struct PortfolioCoinRow: View {
             .tint(isSecuritiesHolding ? .blue : .orange)
         }
         // NOTE: Context menu is applied by PortfolioView to avoid conflicts
-        .accessibilityHint("Swipe for actions like Add Transaction and Trade")
+        .accessibilityHint("Swipe for actions like Delete and Details")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: Text("Toggle details")) {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {

@@ -44,6 +44,7 @@ enum ChartViewType: String, CaseIterable, Identifiable {
 // Assuming ChartPoint is defined somewhere else, as per instruction
 // struct ChartPoint { let date: Date; let value: Double }
 
+@MainActor
 class PortfolioChartViewModel: ObservableObject {
     @Published var dataPoints: [PortfolioDataPoint] = []
     @Published var selectedRange: TimeRange = .all

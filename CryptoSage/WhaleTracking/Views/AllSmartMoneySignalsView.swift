@@ -191,7 +191,7 @@ struct AllSmartMoneySignalsView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(
@@ -630,7 +630,7 @@ struct ExpandedSmartMoneySignalRow: View {
             .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

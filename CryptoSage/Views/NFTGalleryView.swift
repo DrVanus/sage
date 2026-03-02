@@ -444,7 +444,7 @@ struct NFTGalleryView: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial)
+        .background(DS.Adaptive.cardBackground)
     }
     
     // MARK: - Actions

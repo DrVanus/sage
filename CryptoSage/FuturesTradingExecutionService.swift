@@ -1027,10 +1027,11 @@ public actor FuturesTradingExecutionService {
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
         
-        var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/account"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/account"), resolvingAgainstBaseURL: false) else { return false }
         components.query = signedQuery
-        
-        var request = URLRequest(url: components.url!)
+
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-MBX-APIKEY")
         

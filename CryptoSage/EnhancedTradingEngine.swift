@@ -82,13 +82,11 @@ public final class EnhancedTradingEngine: ObservableObject {
 
         // Calculate portfolio metrics
         $accounts
+            .receive(on: DispatchQueue.main)
             .map { accounts in
                 accounts.reduce(0) { total, account in
                     let balance = account.totalBalance
-                    // Get price from LivePriceManager
-                    let price = MainActor.assumeIsolated {
-                        MarketViewModel.shared.bestPrice(forSymbol: account.currency) ?? 0
-                    }
+                    let price = MarketViewModel.shared.bestPrice(forSymbol: account.currency) ?? 0
                     return total + (balance * price)
                 }
             }
@@ -210,6 +208,7 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
+        if recentTrades.count > 200 { recentTrades = Array(recentTrades.prefix(200)) }
     }
 
     /// Place a limit order
@@ -243,6 +242,7 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
+        if recentTrades.count > 200 { recentTrades = Array(recentTrades.prefix(200)) }
     }
 
     /// Place a stop-loss order
@@ -278,6 +278,7 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
+        if recentTrades.count > 200 { recentTrades = Array(recentTrades.prefix(200)) }
 
         return response
     }
@@ -317,6 +318,7 @@ public final class EnhancedTradingEngine: ObservableObject {
             isPaperTrade: isPaperTrading
         )
         recentTrades.insert(trade, at: 0)
+        if recentTrades.count > 200 { recentTrades = Array(recentTrades.prefix(200)) }
 
         return response
     }

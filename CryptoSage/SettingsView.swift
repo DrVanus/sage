@@ -251,10 +251,13 @@ struct SettingsView: View {
                                         .foregroundColor(DS.Adaptive.textTertiary)
                                 }
                                 .padding(.vertical, 4)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("\(subscriptionButtonTitle), \(subscriptionSubtitle)")
+                                .accessibilityAddTraits(.isButton)
                             }
                             .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
                         }
-                        
+
                         // MARK: - AI Agent
                         SettingsSection(title: "AI AGENT") {
                             NavigationLink(destination: AgentSettingsView()) {
@@ -2601,7 +2604,7 @@ struct HelpView: View {
     // MARK: - Feedback Sheet
     
     private var feedbackSheet: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 // Feedback Type Picker
                 VStack(alignment: .leading, spacing: 8) {
@@ -4262,7 +4265,7 @@ private struct LinkedAccountActionMenu: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             LinearGradient(colors: [Color.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

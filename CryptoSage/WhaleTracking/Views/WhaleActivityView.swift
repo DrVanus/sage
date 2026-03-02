@@ -67,7 +67,9 @@ struct WhaleActivityView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.blue)
                     }
-                    
+                    .accessibilityLabel("Watched wallets")
+                    .accessibilityHint("View and manage your watched whale wallets")
+
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         showSettings = true
@@ -76,6 +78,8 @@ struct WhaleActivityView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(DS.Adaptive.textSecondary)
                     }
+                    .accessibilityLabel("Whale tracking settings")
+                    .accessibilityHint("Configure whale tracking preferences")
                 }
             }
             
@@ -590,7 +594,7 @@ struct WhaleActivityView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -655,7 +659,7 @@ struct WhaleActivityView: View {
         .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -808,7 +812,7 @@ struct WhaleActivityView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -958,7 +962,7 @@ struct WhaleActivityView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(
@@ -1984,7 +1988,7 @@ struct EnhancedWhaleTransactionRow: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DS.Adaptive.cardBackground)
                     .overlay(
                         // Subtle size-based background tint
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -2284,7 +2288,7 @@ struct WhaleTransactionDetailView: View {
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                            .fill(DS.Adaptive.cardBackground)
                     )
                     
                     if transaction.blockchain.explorerURL(forAddress: transaction.fromAddress) != nil || transaction.blockchain.explorerURL(forAddress: transaction.toAddress) != nil {
@@ -2697,7 +2701,7 @@ struct WhaleVolumeSparkline: View {
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                            .fill(DS.Adaptive.cardBackground)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)

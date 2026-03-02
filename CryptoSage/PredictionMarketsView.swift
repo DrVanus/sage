@@ -19,7 +19,6 @@ struct PredictionMarketsView: View {
     
     // Detail sheet state
     @State private var selectedMarket: PredictionMarketEvent?
-    @State private var showDetailSheet = false
     @State private var showPredictionBot = false
     
     init(sourceFilter: PredictionMarketSource? = nil) {
@@ -83,20 +82,18 @@ struct PredictionMarketsView: View {
         .task {
             await viewModel.loadMarkets()
         }
-        .sheet(isPresented: $showDetailSheet) {
-            if let market = selectedMarket {
-                MarketDetailSheet(
-                    market: market,
-                    onTrackWithBot: {
-                        showDetailSheet = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showPredictionBot = true
-                        }
+        .sheet(item: $selectedMarket) { market in
+            MarketDetailSheet(
+                market: market,
+                onTrackWithBot: {
+                    selectedMarket = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showPredictionBot = true
                     }
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .navigationDestination(isPresented: $showPredictionBot) {
             PredictionBotView()
@@ -290,7 +287,6 @@ struct PredictionMarketsView: View {
                         market: market,
                         onTap: {
                             selectedMarket = market
-                            showDetailSheet = true
                             #if os(iOS)
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             #endif

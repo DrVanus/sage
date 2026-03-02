@@ -1401,7 +1401,7 @@ private struct FormSection<Content: View>: View {
                     .padding(16)
                     .background(
                         RoundedRectangle(cornerRadius: AddAlertDesign.sectionCornerRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                            .fill(DS.Adaptive.cardBackground)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: AddAlertDesign.sectionCornerRadius, style: .continuous)
@@ -1670,7 +1670,7 @@ private struct AIFeatureInfoPopover: View {
         }
         .padding(16)
         .frame(maxWidth: 300)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(

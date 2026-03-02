@@ -126,7 +126,8 @@ public final class LiveChangeService {
                 }
                 guard let prevEntry = foundEntry else { return }
                 let prev = prevEntry.price
-                let curr = capturedLivePrice ?? entries.last!.price
+                guard let entriesLast = entries.last else { return }
+                let curr = capturedLivePrice ?? entriesLast.price
                 guard prev > 0, curr.isFinite, curr > 0 else { return }
                 let computed = ((curr - prev) / prev) * 100.0
                 self.cacheQueue.async(flags: .barrier) {
@@ -151,9 +152,10 @@ public final class LiveChangeService {
                     break
                 }
             }
-            guard let prevEntry = foundEntry else { return nil }
+            guard let prevEntry = foundEntry,
+                  let entriesLast = entries.last else { return nil }
             let prev = prevEntry.price
-            let curr = livePrice ?? entries.last!.price
+            let curr = livePrice ?? entriesLast.price
             guard prev > 0, curr.isFinite, curr > 0 else { return nil }
             return ((curr - prev) / prev) * 100.0
         }
@@ -200,9 +202,9 @@ public final class LiveChangeService {
         if Thread.isMainThread {
             queue.async { [weak self] in
                 guard let self = self else { return }
-                guard let entries = self.history[sym], entries.count >= 2 else { return }
-                let first = entries.first!
-                let last = entries.last!
+                guard let entries = self.history[sym], entries.count >= 2,
+                      let first = entries.first,
+                      let last = entries.last else { return }
                 let spanMinutes = last.minute - first.minute + 1
                 let requiredMinutes = Int(Double(hours) * 60.0 * 0.8)
                 let computed = spanMinutes >= requiredMinutes
@@ -218,9 +220,9 @@ public final class LiveChangeService {
         
         // Background thread path: blocking is acceptable
         let result = queue.sync { () -> Bool in
-            guard let entries = history[sym], entries.count >= 2 else { return false }
-            let first = entries.first!
-            let last = entries.last!
+            guard let entries = history[sym], entries.count >= 2,
+                  let first = entries.first,
+                  let last = entries.last else { return false }
             let spanMinutes = last.minute - first.minute + 1
             let requiredMinutes = Int(Double(hours) * 60.0 * 0.8)
             return spanMinutes >= requiredMinutes
@@ -283,7 +285,10 @@ public final class LiveChangeService {
             var map: [Int: Double] = [:]
             for e in arr { map[e.minute] = e.price }
             for e in seeded { map[e.minute] = e.price }
-            var merged: [MinuteEntry] = map.keys.sorted().map { MinuteEntry(minute: $0, price: map[$0]!) }
+            var merged: [MinuteEntry] = map.keys.sorted().compactMap { key in
+                guard let price = map[key] else { return nil }
+                return MinuteEntry(minute: key, price: price)
+            }
 
             // Trim to retention window
             let minAllowed = currentMinute - self.maxMinutes

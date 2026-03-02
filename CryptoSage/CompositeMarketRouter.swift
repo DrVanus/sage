@@ -95,7 +95,14 @@ public actor CompositeMarketRouter {
                 let sub = pairs.filter { $0.exchangeID == adapter.id }
                 if sub.isEmpty { continue }
                 group.addTask {
-                    do { return try await adapter.fetchTickers(for: sub) } catch { return [] }
+                    do {
+                        return try await adapter.fetchTickers(for: sub)
+                    } catch {
+                        #if DEBUG
+                        print("[CompositeMarketRouter] fetchTickers error: \(error)")
+                        #endif
+                        return []
+                    }
                 }
             }
             var out: [MMETicker] = []
@@ -178,14 +185,21 @@ public actor CompositeMarketRouter {
                 let sub = pairs.filter { $0.exchangeID == adapter.id }
                 if sub.isEmpty { continue }
                 group.addTask {
-                    do { return try await adapter.fetchTickers(for: sub) } catch { return [] }
+                    do {
+                        return try await adapter.fetchTickers(for: sub)
+                    } catch {
+                        #if DEBUG
+                        print("[CompositeMarketRouter] fetchTickers error: \(error)")
+                        #endif
+                        return []
+                    }
                 }
             }
             var out: [MMETicker] = []
             for await arr in group { out.append(contentsOf: arr) }
             return out
         }
-        
+
         // Convert to USD
         var rows: [(pair: MMEMarketPair, lastUSD: Double, vol: Double?, ts: TimeInterval)] = []
         for t in tickers {

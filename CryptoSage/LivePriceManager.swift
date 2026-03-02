@@ -1209,10 +1209,14 @@ final class LivePriceManager {
         #if targetEnvironment(simulator)
         if AppSettings.isSimulatorLimitedDataMode {
             // Limited simulator profile uses throttled HTTP overlay/polling only.
+            #if DEBUG
             print("🧪 [LivePriceManager] Simulator limited profile: skipping Firestore subscriptions")
+            #endif
         } else {
             setupFirestoreSubscription()
+            #if DEBUG
             print("🧪 [LivePriceManager] Simulator full-data profile: Firestore subscriptions enabled")
+            #endif
         }
         #else
         setupFirestoreSubscription()
@@ -1326,6 +1330,10 @@ final class LivePriceManager {
     /// Called once during initialization - Firestore listener itself is started at app level
     /// This prevents the listener from being stopped/started on every tab switch
     private func setupFirestoreSubscription() {
+        // Guard against duplicate subscriptions — clear existing before re-subscribing
+        if !firestoreCancellables.isEmpty {
+            firestoreCancellables.removeAll()
+        }
         // Subscribe to Firestore ticker updates with coalescing (Binance heatmap data)
         // MEMORY FIX v7: Use DispatchQueue.main.async instead of Task { @MainActor in }.
         // Task creates new entries on Swift Concurrency's cooperative queue. When Firestore

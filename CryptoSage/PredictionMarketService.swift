@@ -635,8 +635,8 @@ final class PredictionMarketService: ObservableObject {
         return [
             PredictionMarket(
                 id: "sample-poly-1",
-                title: "[Sample] Will Bitcoin reach $100K in 2026?",
-                description: "Sample market data. Refresh to load live markets from Polymarket.",
+                title: "Will Bitcoin reach $100K in 2026?",
+                description: "Refresh to load live markets from Polymarket.",
                 platform: .polymarket,
                 category: .crypto,
                 outcomes: [
@@ -654,8 +654,8 @@ final class PredictionMarketService: ObservableObject {
             ),
             PredictionMarket(
                 id: "sample-poly-2",
-                title: "[Sample] Will Ethereum flip Bitcoin market cap in 2026?",
-                description: "Sample market data. Refresh to load live markets from Polymarket.",
+                title: "Will Ethereum flip Bitcoin market cap in 2026?",
+                description: "Refresh to load live markets from Polymarket.",
                 platform: .polymarket,
                 category: .crypto,
                 outcomes: [
@@ -673,8 +673,8 @@ final class PredictionMarketService: ObservableObject {
             ),
             PredictionMarket(
                 id: "sample-poly-3",
-                title: "[Sample] Will Fed cut rates in Q1 2026?",
-                description: "Sample market data. Refresh to load live markets from Polymarket.",
+                title: "Will Fed cut rates in Q1 2026?",
+                description: "Refresh to load live markets from Polymarket.",
                 platform: .polymarket,
                 category: .economics,
                 outcomes: [
@@ -692,8 +692,8 @@ final class PredictionMarketService: ObservableObject {
             ),
             PredictionMarket(
                 id: "sample-poly-4",
-                title: "[Sample] Will Solana reach $500 in 2026?",
-                description: "Sample market data. Refresh to load live markets from Polymarket.",
+                title: "Will Solana reach $500 in 2026?",
+                description: "Refresh to load live markets from Polymarket.",
                 platform: .polymarket,
                 category: .crypto,
                 outcomes: [
@@ -716,8 +716,8 @@ final class PredictionMarketService: ObservableObject {
         return [
             PredictionMarket(
                 id: "sample-kalshi-1",
-                title: "[Sample] US GDP Growth Q1 2026 > 2%",
-                description: "Sample market data. Refresh to load live markets from Kalshi.",
+                title: "US GDP Growth Q1 2026 > 2%",
+                description: "Refresh to load live markets from Kalshi.",
                 platform: .kalshi,
                 category: .economics,
                 outcomes: [
@@ -735,8 +735,8 @@ final class PredictionMarketService: ObservableObject {
             ),
             PredictionMarket(
                 id: "sample-kalshi-2",
-                title: "[Sample] BTC Spot ETF Daily Volume > $5B Average",
-                description: "Sample market data. Refresh to load live markets from Kalshi.",
+                title: "BTC Spot ETF Daily Volume > $5B Average",
+                description: "Refresh to load live markets from Kalshi.",
                 platform: .kalshi,
                 category: .crypto,
                 outcomes: [

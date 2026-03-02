@@ -38,7 +38,7 @@ public struct SocialOnboardingView: View {
     }
     
     public var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 (isDark ? Color.black : Color(UIColor.systemBackground))

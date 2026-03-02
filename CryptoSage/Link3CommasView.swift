@@ -5,7 +5,7 @@ import UIKit
 private let threeCommasColor = Color(red: 0.078, green: 0.784, blue: 0.737)
 
 struct Link3CommasView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var accountsManager = ConnectedAccountsManager.shared
 
@@ -37,7 +37,7 @@ struct Link3CommasView: View {
             VStack(spacing: 0) {
                 // Custom top bar
                 CSPageHeader(title: "3Commas", leadingAction: {
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 })
                 
                 ScrollView(showsIndicators: false) {
@@ -67,7 +67,7 @@ struct Link3CommasView: View {
         .navigationBarBackButtonHidden(true)
         .alert("Connected Successfully", isPresented: $showSuccessAlert) {
             Button("Done") {
-                presentationMode.wrappedValue.dismiss()
+                dismiss()
             }
         } message: {
             Text("Your 3Commas account has been linked successfully.")
@@ -79,7 +79,7 @@ struct Link3CommasView: View {
         }
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
     
     // MARK: - Header Section
@@ -305,7 +305,7 @@ struct Link3CommasView: View {
 
 struct Link3CommasView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             Link3CommasView()
         }
     }

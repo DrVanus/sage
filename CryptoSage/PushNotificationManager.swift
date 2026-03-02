@@ -49,17 +49,23 @@ final class PushNotificationManager: NSObject, ObservableObject {
             }
 
             if granted {
+                #if DEBUG
                 print("✅ Push notification permission granted")
+                #endif
 
                 // Register for remote notifications on main thread
                 await MainActor.run {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
             } else {
+                #if DEBUG
                 print("❌ Push notification permission denied")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("❌ Error requesting notification permission: \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -67,7 +73,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
     func didRegisterForRemoteNotifications(deviceToken: Data) {
         let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }
         let token = tokenParts.joined()
+        #if DEBUG
         print("📱 APNs Device Token: \(token)")
+        #endif
 
         // Set APNs token for FCM
         Messaging.messaging().apnsToken = deviceToken
@@ -75,7 +83,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     /// Called when device token registration fails
     func didFailToRegisterForRemoteNotifications(error: Error) {
+        #if DEBUG
         print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
+        #endif
 
         DispatchQueue.main.async {
             self.isRegistered = false
@@ -87,7 +97,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
     /// Upload FCM token to Firestore for the current user
     func uploadFCMTokenToFirestore(_ token: String) {
         guard let userId = Auth.auth().currentUser?.uid else {
+            #if DEBUG
             print("⚠️ No authenticated user, skipping FCM token upload")
+            #endif
             return
         }
 
@@ -107,9 +119,13 @@ final class PushNotificationManager: NSObject, ObservableObject {
             .document(token)
             .setData(tokenData, merge: true) { error in
                 if let error = error {
+                    #if DEBUG
                     print("❌ Error uploading FCM token: \(error.localizedDescription)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("✅ FCM token uploaded to Firestore for user: \(userId)")
+                    #endif
                     DispatchQueue.main.async {
                         self.isRegistered = true
                     }
@@ -127,9 +143,13 @@ final class PushNotificationManager: NSObject, ObservableObject {
             .document(token)
             .updateData(["active": false]) { error in
                 if let error = error {
+                    #if DEBUG
                     print("❌ Error deactivating FCM token: \(error.localizedDescription)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("✅ FCM token deactivated")
+                    #endif
                 }
             }
     }
@@ -138,11 +158,15 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     /// Handle incoming remote notification
     func handleRemoteNotification(_ userInfo: [AnyHashable: Any]) {
+        #if DEBUG
         print("📬 Received remote notification: \(userInfo)")
+        #endif
 
         // Extract notification type and data
         guard let notificationType = userInfo["type"] as? String else {
+            #if DEBUG
             print("⚠️ No notification type found")
+            #endif
             return
         }
 
@@ -183,7 +207,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
             }
 
         default:
+            #if DEBUG
             print("⚠️ Unknown notification type: \(notificationType)")
+            #endif
         }
     }
 }
@@ -193,7 +219,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
 extension PushNotificationManager: MessagingDelegate {
     /// Called when FCM registration token is received or refreshed
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        #if DEBUG
         print("🔑 FCM Registration Token: \(fcmToken ?? "nil")")
+        #endif
 
         guard let token = fcmToken else { return }
 

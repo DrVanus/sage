@@ -13,6 +13,7 @@ import Foundation
 /// BookmarksView) set `inputText` to pre-fill the AI chat when navigating to the
 /// AI tab. The actual conversation management, message history, and AI service
 /// calls are handled by `AITabView` directly.
+@MainActor
 final class ChatViewModel: ObservableObject {
     /// The current user input text bound to the chat text field.
     /// Other views can set this to pre-fill the AI chat input before switching tabs.

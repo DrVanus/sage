@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AIInsightView: View {
     @StateObject private var vm = AIInsightViewModel()
-    @StateObject private var portfolioVM = PortfolioViewModel(repository: PortfolioRepository.shared)
+    @EnvironmentObject var portfolioVM: PortfolioViewModel
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showUpgradePrompt = false
     

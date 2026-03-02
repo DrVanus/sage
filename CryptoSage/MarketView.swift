@@ -1131,7 +1131,9 @@ struct MarketView: View {
     // PERFORMANCE FIX: Increased interval from 0.3s to 1.0s to reduce main thread work
     private func startFavDragWatchdog() {
         favDragWatchTimer?.invalidate()
-        let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            // SAFETY: Exit early if timer was invalidated (e.g., onDisappear didn't fire)
+            guard timer.isValid else { return }
             // Check if still dragging and if heartbeat is stale
             guard favIsDragging else { return }
             let gap = Date().timeIntervalSince(favDragHeartbeat)
@@ -1411,6 +1413,11 @@ struct MarketView: View {
             stopPollingIfNeeded()
             filterDebounceTask?.cancel()
             filterDebounceTask = nil
+            // TIMER LEAK FIX: Also invalidate favDragWatchTimer here.
+            // The inner onDisappear (on the favorites section) may not fire
+            // during tab switches or sheet dismissals, so this outer onDisappear
+            // acts as a safety net to prevent the 1s repeating timer from leaking.
+            stopFavDragWatchdog()
         }
         // Derived usage publisher handler removed - banner was causing visual noise
         // .onReceive(LivePriceManager.shared.derivedUsagePublisher) { ... }

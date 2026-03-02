@@ -130,7 +130,7 @@ struct CoinDetailView: View {
         .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
 
     @Environment(\.colorScheme) var colorScheme
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var marketVM: MarketViewModel
     
     private var isDark: Bool { colorScheme == .dark }
@@ -747,7 +747,7 @@ struct CoinDetailView: View {
         .tint(.yellow)
         // NAVIGATION: Enable both native iOS pop gesture AND custom edge swipe with visual feedback
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
 
     // MARK: - Lightweight fallback stats cache
@@ -2230,7 +2230,7 @@ struct CoinDetailView: View {
             HStack {
                 CSNavButton(
                     icon: "chevron.left",
-                    action: { presentationMode.wrappedValue.dismiss() }
+                    action: { dismiss() }
                 )
                 
                 Spacer(minLength: 0)

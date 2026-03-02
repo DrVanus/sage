@@ -269,6 +269,8 @@ struct AllCryptoNewsView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(DS.Adaptive.textSecondary)
                     }
+                    .accessibilityLabel("Filter news")
+                    .accessibilityHint("Open news source and category filters")
 
                     Button {
                         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
@@ -292,12 +294,17 @@ struct AllCryptoNewsView: View {
                             .foregroundStyle(showSearchBar ? DS.Adaptive.gold : DS.Adaptive.textSecondary)
                             .frame(width: 32, height: 32)
                     }
+                    .accessibilityLabel("Search news")
+                    .accessibilityValue(showSearchBar ? "Search bar visible" : "Search bar hidden")
+                    .accessibilityHint("Toggle the search bar")
 
                     NavigationLink(destination: BookmarksView().environmentObject(vm)) {
                         Image(systemName: "bookmark")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(DS.Adaptive.textSecondary)
                     }
+                    .accessibilityLabel("Bookmarked articles")
+                    .accessibilityHint("View your saved articles")
                 }
             }
             
@@ -473,7 +480,7 @@ struct FiltersSheet: View {
     private var categories: [NewsCategory] { NewsCategory.allCases }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Categories").font(.headline)

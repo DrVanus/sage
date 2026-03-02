@@ -1301,7 +1301,7 @@ struct TradeView: View {
     
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
     // UI states
@@ -2740,7 +2740,7 @@ struct TradeView: View {
             // Native iOS pop gesture (always enabled for navigation consistency)
             .enableInteractivePopGesture()
             // Edge swipe to dismiss when presented as subpage (with back button)
-            .edgeSwipeToDismissIf(showBackButton, onDismiss: { presentationMode.wrappedValue.dismiss() })
+            .edgeSwipeToDismissIf(showBackButton, onDismiss: { dismiss() })
     }
     
     // MARK: - Order Confirmation Helpers
@@ -2873,7 +2873,7 @@ private var navBar: some View {
                 if showBackButton {
                     CSNavButton(
                         icon: "chevron.left",
-                        action: { presentationMode.wrappedValue.dismiss() },
+                        action: { dismiss() },
                         compact: isCompact
                     )
                 }
@@ -3401,7 +3401,7 @@ private var botsButton: some View {
         let overlayStroke = colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
 
         return RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .fill(DS.Adaptive.cardBackground)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(overlayFill)

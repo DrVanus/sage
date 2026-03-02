@@ -298,14 +298,18 @@ public final class WhaleTrackingService: ObservableObject {
             let firebaseTransactions = firebaseResult.transactions
             if !firebaseTransactions.isEmpty {
                 allTransactions = firebaseTransactions
+                #if DEBUG
                 print("[WhaleTrackingService] Fetched \(firebaseTransactions.count) transactions from Firebase proxy")
+                #endif
             }
         }
         
         // FALLBACK: Only run direct APIs when Firebase is unavailable/failed.
         // If Firebase succeeds with zero results, treat that as valid "no activity".
         if allTransactions.isEmpty && (!FirebaseService.shared.shouldUseFirebase || !firebaseFetchSucceeded) {
+            #if DEBUG
             print("[WhaleTrackingService] Falling back to direct API calls")
+            #endif
             
             // Fetch from multiple sources in parallel for comprehensive coverage
             await withTaskGroup(of: (String, [WhaleTransaction]).self) { group in
@@ -342,7 +346,9 @@ public final class WhaleTrackingService: ObservableObject {
                 for await (source, transactions) in group {
                     if !transactions.isEmpty {
                         allTransactions.append(contentsOf: transactions)
+                        #if DEBUG
                         print("[WhaleTrackingService] Fetched \(transactions.count) transactions from \(source)")
+                        #endif
                     }
                 }
             }
@@ -361,9 +367,11 @@ public final class WhaleTrackingService: ObservableObject {
         allTransactions = deduplicateTransactions(allTransactions)
         let afterDedup = allTransactions.count
         
+        #if DEBUG
         if beforeDedup != afterDedup {
             print("[WhaleTrackingService] Deduplication: \(beforeDedup) → \(afterDedup) transactions (removed \(beforeDedup - afterDedup) duplicates)")
         }
+        #endif
         
         activeDataProviders = Array(Set(allTransactions.map { $0.dataSource.rawValue })).sorted()
         
@@ -373,15 +381,19 @@ public final class WhaleTrackingService: ObservableObject {
         
         if allTransactions.isEmpty {
             // No live data available - show empty state (handled by UI)
+            #if DEBUG
             if !recentTransactions.isEmpty {
                 print("[WhaleTrackingService] No new live whale transactions found (retaining cached history)")
             } else {
                 print("[WhaleTrackingService] No live whale transactions found")
             }
+            #endif
             dataSourceStatus = .success(source: "No recent whale transfers")
         } else {
             // We have live blockchain data
+            #if DEBUG
             print("[WhaleTrackingService] Found \(liveTransactionCount) unique whale transactions")
+            #endif
             dataSourceStatus = .success(source: "Live • \(liveTransactionCount) transactions")
         }
         
@@ -547,7 +559,9 @@ public final class WhaleTrackingService: ObservableObject {
                 parseProxyUpdatedAt(response.updatedAt)
             )
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Firebase proxy error: \(error.localizedDescription)")
+            #endif
             return ([], false, false, false, nil)
         }
     }
@@ -905,7 +919,9 @@ public final class WhaleTrackingService: ObservableObject {
             }
             
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Blockchair error: \(error.localizedDescription)")
+            #endif
             // Fallback to blockchain.info
             return await fetchBitcoinWhalesBlockchainInfo()
         }
@@ -959,7 +975,9 @@ public final class WhaleTrackingService: ObservableObject {
             }
             
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Blockchain.info error: \(error.localizedDescription)")
+            #endif
         }
         
         return transactions
@@ -990,7 +1008,9 @@ public final class WhaleTrackingService: ObservableObject {
         for address in solanaWhaleAddresses.prefix(8) {
             // Short-circuit if Solscan API is returning 404s consistently
             if consecutive404s >= 2 {
+                #if DEBUG
                 print("[WhaleTrackingService] Solscan API returning 404s - skipping remaining addresses")
+                #endif
                 break
             }
             let txs = await fetchSolscanTransactions(address: address, solPrice: solPrice)
@@ -1006,11 +1026,13 @@ public final class WhaleTrackingService: ObservableObject {
         }
         
         // LIVE DATA ONLY - No fallback to demo data
+        #if DEBUG
         if transactions.isEmpty {
             print("[WhaleTrackingService] Solscan API returned no whale transactions")
         } else {
             print("[WhaleTrackingService] Fetched \(transactions.count) live Solana transactions from Solscan")
         }
+        #endif
         return transactions
     }
     
@@ -1082,7 +1104,9 @@ public final class WhaleTrackingService: ObservableObject {
             }
             
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Solscan error for \(address.prefix(8))...: \(error.localizedDescription)")
+            #endif
         }
         
         return transactions
@@ -1166,7 +1190,9 @@ public final class WhaleTrackingService: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                #if DEBUG
                 print("[WhaleTrackingService] Ethplorer API returned status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                #endif
                 return []
             }
             
@@ -1231,10 +1257,14 @@ public final class WhaleTrackingService: ObservableObject {
             }
             
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Ethplorer error: \(error.localizedDescription)")
+            #endif
         }
-        
+
+        #if DEBUG
         print("[WhaleTrackingService] Ethplorer returned \(transactions.count) whale transactions")
+        #endif
         return transactions
     }
     
@@ -1350,11 +1380,15 @@ public final class WhaleTrackingService: ObservableObject {
                 try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
                 
             } catch {
+                #if DEBUG
                 print("[WhaleTrackingService] Helius/Solana RPC error: \(error.localizedDescription)")
+                #endif
             }
         }
-        
+
+        #if DEBUG
         print("[WhaleTrackingService] Helius returned \(transactions.count) whale transactions")
+        #endif
         return transactions
     }
     
@@ -1396,7 +1430,9 @@ public final class WhaleTrackingService: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                #if DEBUG
                 print("[WhaleTrackingService] Whale Alert API returned status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                #endif
                 return []
             }
             
@@ -1422,10 +1458,14 @@ public final class WhaleTrackingService: ObservableObject {
                 transactions.append(transaction)
             }
             
+            #if DEBUG
             print("[WhaleTrackingService] Fetched \(transactions.count) from Whale Alert")
-            
+            #endif
+
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Whale Alert error: \(error.localizedDescription)")
+            #endif
         }
         
         return transactions
@@ -1476,7 +1516,9 @@ public final class WhaleTrackingService: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                #if DEBUG
                 print("[WhaleTrackingService] Arkham API returned status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                #endif
                 return []
             }
             
@@ -1507,10 +1549,14 @@ public final class WhaleTrackingService: ObservableObject {
                 transactions.append(transaction)
             }
             
+            #if DEBUG
             print("[WhaleTrackingService] Fetched \(transactions.count) from Arkham")
-            
+            #endif
+
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Arkham error: \(error.localizedDescription)")
+            #endif
         }
         
         return transactions
@@ -1647,7 +1693,9 @@ public final class WhaleTrackingService: ObservableObject {
                 return price
             }
         } catch {
+            #if DEBUG
             print("[WhaleTrackingService] Failed to fetch \(coinId) price: \(error.localizedDescription)")
+            #endif
         }
         
         // NO FAKE FALLBACKS - return 0 if no real data available

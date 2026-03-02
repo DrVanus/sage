@@ -397,7 +397,7 @@ struct LivePredictionBotDetailSheet: View {
     @State private var showDeleteConfirmation: Bool = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Market info

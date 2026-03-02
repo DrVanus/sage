@@ -132,7 +132,7 @@ struct BotDetailView: View {
 // Preview provider for testing in Xcode's canvas.
 struct BotManagementView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             BotManagementView()
         }
         .preferredColorScheme(.light)

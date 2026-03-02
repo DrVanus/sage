@@ -16,23 +16,20 @@ struct LockScreenView: View {
     @State private var glowOpacity: Double = 0.5
     @State private var showPINEntry = false
     
-    private let goldColor = Color(red: 0.831, green: 0.686, blue: 0.216)
-    private let backgroundColor = Color(red: 0.075, green: 0.067, blue: 0.063)
-    
     var body: some View {
         // LAYOUT FIX: Use GeometryReader to ensure full screen coverage
         // without interfering with underlying safe area calculations
         GeometryReader { geometry in
             ZStack {
                 // Background - explicit frame ensures no safe area interference
-                backgroundColor
+                DS.Adaptive.background
                     .frame(width: geometry.size.width, height: geometry.size.height)
                 
                 // Ambient glow
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        goldColor.opacity(glowOpacity * 0.4),
-                        goldColor.opacity(glowOpacity * 0.15),
+                        BrandColors.goldBase.opacity(glowOpacity * 0.4),
+                        BrandColors.goldBase.opacity(glowOpacity * 0.15),
                         Color.clear
                     ]),
                     center: .center,
@@ -61,6 +58,7 @@ struct LockScreenView: View {
         }
         // LAYOUT FIX: Ignore all safe areas to prevent interference with underlying views
         .ignoresSafeArea(.all)
+        .preferredColorScheme(.dark)
         .onAppear {
             startAnimations()
             // Auto-trigger biometric authentication on appear (only if biometric is available)
@@ -81,18 +79,21 @@ struct LockScreenView: View {
             // Lock icon with biometric type
             ZStack {
                 Circle()
-                    .fill(goldColor.opacity(0.15))
+                    .fill(BrandColors.goldBase.opacity(0.15))
                     .frame(width: 120, height: 120)
                 
                 Circle()
-                    .stroke(goldColor.opacity(0.4), lineWidth: 2)
+                    .stroke(BrandColors.goldBase.opacity(0.4), lineWidth: 2)
                     .frame(width: 120, height: 120)
                 
                 Image(systemName: authManager.biometricType.iconName)
                     .font(.system(size: 48, weight: .light))
-                    .foregroundColor(goldColor)
+                    .foregroundColor(BrandColors.goldBase)
                     .scaleEffect(logoScale)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("CryptoSage locked, \(authManager.biometricType.displayName) authentication")
+            .accessibilityAddTraits(.isImage)
             
             // Title
             VStack(spacing: 8) {
@@ -155,7 +156,7 @@ struct LockScreenView: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .fill(
                                     LinearGradient(
-                                        colors: [goldColor, goldColor.opacity(0.85)],
+                                        colors: [BrandColors.goldBase, BrandColors.goldBase.opacity(0.85)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
@@ -163,8 +164,10 @@ struct LockScreenView: View {
                         )
                     }
                     .disabled(isAuthenticating)
+                    .accessibilityLabel(isAuthenticating ? "Authenticating" : "Unlock with \(authManager.biometricType.displayName)")
+                    .accessibilityHint("Double tap to authenticate using \(authManager.biometricType.displayName)")
                 }
-                
+
                 // PIN fallback button (if PIN is set up)
                 if authManager.canUsePINFallback {
                     Button(action: {
@@ -176,14 +179,16 @@ struct LockScreenView: View {
                             Text("Use PIN")
                                 .font(.subheadline.weight(.medium))
                         }
-                        .foregroundColor(goldColor)
+                        .foregroundColor(BrandColors.goldBase)
                         .padding(.vertical, 12)
                         .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(goldColor.opacity(0.5), lineWidth: 1)
+                                .stroke(BrandColors.goldBase.opacity(0.5), lineWidth: 1)
                         )
                     }
+                    .accessibilityLabel("Use PIN")
+                    .accessibilityHint("Double tap to enter your PIN code")
                 }
             }
             .padding(.horizontal, 32)

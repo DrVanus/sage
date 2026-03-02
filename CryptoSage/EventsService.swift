@@ -363,10 +363,21 @@ actor EventsService {
         // Removed fake "Ethereum upgrade" and "Token unlock" placeholders
         // These would show incorrect dates to users
         
-        // Solana Breakpoint conference (annual, usually November) - real conference
-        // Only include if date is confirmed for the year
-        // TODO: Update with confirmed 2026 date when announced
-        
+        // Solana Breakpoint 2026 — confirmed Nov 15-17 in London
+        let breakpoint2026 = calendar.date(from: DateComponents(year: 2026, month: 11, day: 15))!
+        if breakpoint2026 > now {
+            events.append(CachedEventItem(
+                id: "solana_breakpoint_2026",
+                title: "Solana Breakpoint 2026",
+                date: breakpoint2026,
+                category: "conference",
+                impact: "medium",
+                subtitle: "Annual Solana conference — London, Olympia Convention Centre",
+                urlString: "https://solana.com/breakpoint",
+                coinSymbols: ["SOL"]
+            ))
+        }
+
         return events
     }
     

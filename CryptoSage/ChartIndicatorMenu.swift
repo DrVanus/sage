@@ -1112,7 +1112,7 @@ private struct MenuContainerModifier: ViewModifier {
             .padding(.top, 14)
             .padding(.bottom, 20)
             .background(backgroundLayer)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(DS.Adaptive.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(gradientOverlay)
             .overlay(borderOverlay)
             .tint(DS.Colors.gold)
@@ -1241,7 +1241,7 @@ private struct IndicatorPresetMenu: View {
         .frame(width: 200)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(DS.Adaptive.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(Color.white.opacity(0.18), lineWidth: 0.8)

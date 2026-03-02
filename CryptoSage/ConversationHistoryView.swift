@@ -48,7 +48,7 @@ struct ConversationHistoryView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Adaptive background gradient
                 backgroundGradient
@@ -140,10 +140,9 @@ struct ConversationHistoryView: View {
         .presentationDragIndicator(.visible)
         // LIGHT MODE FIX: Ensure navigation bar fully adapts to light/dark mode.
         // Previously the header appeared black in light mode because toolbarColorScheme was missing.
-        .toolbarBackground(colorScheme == .dark ? Color.black.opacity(0.9) : Color(red: 0.98, green: 0.98, blue: 0.97), for: .navigationBar)
+        .toolbarBackground(DS.Adaptive.background.opacity(0.9), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(colorScheme == .dark ? .dark : .light, for: .navigationBar)
-        .presentationBackground(colorScheme == .dark ? Color.black : Color(red: 0.98, green: 0.98, blue: 0.97))
+        .presentationBackground(DS.Adaptive.background)
         // Rename alert
         .alert("Rename Conversation",
                isPresented: Binding<Bool>(

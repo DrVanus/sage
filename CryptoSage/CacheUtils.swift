@@ -2,8 +2,10 @@ import Foundation
 
 private func documentsURL(for fileName: String) -> URL {
     let fileManager = FileManager.default
-    let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-    return documentsURL.appendingPathComponent(fileName)
+    // FIX: Avoid force unwrap; fall back to temporary directory if documents directory is unavailable.
+    let baseURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+        ?? fileManager.temporaryDirectory
+    return baseURL.appendingPathComponent(fileName)
 }
 
 /// Tracks which cache files we've already logged as missing to avoid log spam

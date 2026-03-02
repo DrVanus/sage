@@ -31,7 +31,7 @@ private struct PreviewPriceService: PriceService {
 struct ChartDetailView: View {
     @State private var chartMode: ChartViewType = .line
     @EnvironmentObject private var portfolioVM: PortfolioViewModel
-    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.dismiss) private var dismiss
     
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -45,7 +45,7 @@ struct ChartDetailView: View {
                 // Top bar with dismiss
                 HStack {
                     Button {
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     } label: {
                         Image(systemName: "chevron.down.circle.fill")
                             .font(.title2)
@@ -91,7 +91,7 @@ struct ChartDetailView: View {
         }
         .navigationBarHidden(true)
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
     }
 }
 

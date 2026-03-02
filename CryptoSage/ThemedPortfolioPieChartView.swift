@@ -2332,7 +2332,7 @@ extension ThemedPortfolioPieChartView {
     private var centerDiscMaterial: some View {
         Group {
             if colorScheme == .dark {
-                Circle().fill(.ultraThinMaterial)
+                Circle().fill(DS.Adaptive.cardBackground)
             } else {
                 Circle().fill(Color(UIColor.systemBackground))
             }
@@ -2450,7 +2450,7 @@ extension ThemedPortfolioPieChartView {
                 // Premium glassmorphic center disc - use solid background in light mode
                 Group {
                     if isDark {
-                        Circle().fill(.ultraThinMaterial)
+                        Circle().fill(DS.Adaptive.cardBackground)
                     } else {
                         Circle().fill(Color(UIColor.systemBackground))
                     }

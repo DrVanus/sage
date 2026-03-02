@@ -69,6 +69,7 @@ final class AIInsightService {
     // MARK: - Cache
     private var cachedInsight: AIInsight?
     private var cacheTimestamp: Date?
+    private var lastSageContextHash: String?
     // COST OPTIMIZATION: Portfolio only changes when user trades, so long cache is fine
     // 4 hours = ~6 API calls/day max per active user (down from 24/day with 1hr cache)
     // At $0.015/call (gpt-4o-mini), saves ~$0.27/user/day
@@ -485,13 +486,29 @@ extension AIInsightService {
         guard let consensus = sageConsensus, !consensus.isEmpty else {
             return try await fetchInsight(for: portfolio)
         }
-        
+
         // Check cache with Sage context
-        _ = buildSageContextHash(consensus)
+        let currentHash = buildSageContextHash(consensus)
         if let cached = cachedInsight,
            let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheValiditySeconds {
+           Date().timeIntervalSince(timestamp) < cacheValiditySeconds,
+           lastSageContextHash == currentHash {
             return cached
+        }
+
+        // Cooldown check: prevent rapid requests even if cache was cleared
+        if !SubscriptionManager.shared.isDeveloperMode {
+            if let lastRequest = lastRequestTimestamp,
+               Date().timeIntervalSince(lastRequest) < minimumCooldownSeconds {
+                AnalyticsService.shared.trackAICooldownTriggered(
+                    feature: .portfolioInsight,
+                    tier: SubscriptionManager.shared.effectiveTier
+                )
+                if let cached = cachedInsight {
+                    return cached
+                }
+                throw AIInsightError.aiServiceFailed("Please wait before refreshing again")
+            }
         }
         
         // Build enhanced prompt with Sage signals
@@ -527,14 +544,15 @@ extension AIInsightService {
             cachedInsight = insight
             cacheTimestamp = Date()
             lastRequestTimestamp = Date()
+            lastSageContextHash = currentHash
             saveCacheToDisk()
-            
+
             return insight
         } catch {
             throw AIInsightError.aiServiceFailed(error.localizedDescription)
         }
     }
-    
+
     /// Generate a standalone Sage signal explanation
     /// Used when user wants to understand an algorithm's recommendation
     func explainSageSignal(_ consensus: SageConsensus) async throws -> String {

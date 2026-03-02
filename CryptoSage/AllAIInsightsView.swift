@@ -850,7 +850,7 @@ private struct PremiumPerformanceChart: View {
 }
 
 struct AllAIInsightsView: View {
-    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = AIInsightViewModel()
     @EnvironmentObject var portfolioVM: PortfolioViewModel
@@ -1001,7 +1001,7 @@ struct AllAIInsightsView: View {
                 title: "AI Insights",
                 badge: modeBadgeText,
                 badgeColor: modeBadgeColor,
-                onDismiss: { presentationMode.wrappedValue.dismiss() }
+                onDismiss: { dismiss() }
             ) {
                 // Right side: Timestamp
                 Text(SubpageHeaderBar<EmptyView>.currentTimestamp())
@@ -1078,9 +1078,9 @@ struct AllAIInsightsView: View {
         .navigationBarHidden(true)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
-        .edgeSwipeToDismiss(onDismiss: { presentationMode.wrappedValue.dismiss() })
+        .edgeSwipeToDismiss(onDismiss: { dismiss() })
         .sheet(isPresented: $showUpgradeView) {
-            NavigationView {
+            NavigationStack {
                 SubscriptionPricingView()
             }
         }
