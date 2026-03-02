@@ -102,7 +102,9 @@ final class AIRiskInsightService {
             do {
                 cachedAnalysis = try JSONDecoder().decode(AIRiskAnalysis.self, from: data)
             } catch {
+                #if DEBUG
                 print("[AIRiskInsightService] Failed to load cached analysis: \(error)")
+                #endif
             }
         }
         
@@ -131,7 +133,9 @@ final class AIRiskInsightService {
                 let data = try JSONEncoder().encode(analysis)
                 defaults.set(data, forKey: cacheAnalysisKey)
             } catch {
+                #if DEBUG
                 print("[AIRiskInsightService] Failed to save cached analysis: \(error)")
+                #endif
             }
         } else {
             defaults.removeObject(forKey: cacheAnalysisKey)
@@ -195,9 +199,13 @@ final class AIRiskInsightService {
                 )
                 return analysis
             } catch FirebaseServiceError.authenticationRequired {
+                #if DEBUG
                 print("[AIRiskInsightService] Firebase auth required, falling back to direct API")
+                #endif
             } catch {
+                #if DEBUG
                 print("[AIRiskInsightService] Firebase error: \(error.localizedDescription), falling back to direct API")
+                #endif
             }
         }
         

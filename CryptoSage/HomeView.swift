@@ -822,7 +822,9 @@ struct HomeView: View {
             Task { @MainActor in
                 // Recompute with current phase but keep normal section progression intact.
                 cachedHomeSections = computeHomeSections()
+                #if DEBUG
                 print("⚠️ [HomeView] Memory emergency signal received — keeping normal section pipeline")
+                #endif
             }
         }
         .task {
@@ -856,7 +858,9 @@ struct HomeView: View {
                         if sectionLoadingPhase < 1 {
                             sectionLoadingPhase = 1
                             cachedHomeSections = computeHomeSections()
+                            #if DEBUG
                             print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
+                            #endif
                         }
                     }
 
@@ -864,9 +868,11 @@ struct HomeView: View {
                     await vm.loadDataProgressively(phase: 1)
                 } catch {
                     // Task was cancelled (user navigated away) - this is normal, don't log as error
+                    #if DEBUG
                     if !(error is CancellationError) {
                         print("⚠️ [HomeView] Phase 1 loading error: \(error.localizedDescription)")
                     }
+                    #endif
                     return
                 }
 
@@ -885,7 +891,9 @@ struct HomeView: View {
                                 sectionLoadingPhase = 2
                                 cachedHomeSections = computeHomeSections()
                             }
+                            #if DEBUG
                             print("📐 [HomeView] Phase 2 (simulator limited): +news +commodities +movers +sentiment — \(currentMemoryMB()) MB")
+                            #endif
                         }
                     }
                     // Load Phase 2 data
@@ -901,15 +909,19 @@ struct HomeView: View {
                                 sectionLoadingPhase = 3
                                 cachedHomeSections = computeHomeSections()
                             }
+                            #if DEBUG
                             print("📐 [HomeView] Phase 3 (simulator limited-lite): most sections — \(currentMemoryMB()) MB")
                             let visible = cachedHomeSections.map(\.rawValue).joined(separator: ",")
                             print("🧪 [HomeView] Simulator Phase 3-lite sections (\(cachedHomeSections.count)): \(visible)")
+                            #endif
                         }
                     }
                     
                     // Load Phase 3 data for simulator
                     await vm.loadDataProgressively(phase: 3)
+                    #if DEBUG
                     print("🧪 [HomeView] Simulator limited profile: Phase 3-lite enabled")
+                    #endif
                 } else {
                     // Real device (and simulator full mode): progressive loading to prevent UI blocking
                     // PERFORMANCE FIX: Don't jump to Phase 3 immediately - this causes all 16+ sections
@@ -923,7 +935,9 @@ struct HomeView: View {
                                 sectionLoadingPhase = 2
                                 cachedHomeSections = computeHomeSections()
                             }
+                            #if DEBUG
                             print("📐 [HomeView] Phase 2: +news +commodities +trending +sentiment — \(currentMemoryMB()) MB")
+                            #endif
                         }
                     }
                     
@@ -938,7 +952,9 @@ struct HomeView: View {
                                 sectionLoadingPhase = 3
                                 cachedHomeSections = computeHomeSections()
                             }
+                            #if DEBUG
                             print("📐 [HomeView] Phase 3: Full layout complete — \(currentMemoryMB()) MB")
+                            #endif
                         }
                     }
                     
@@ -1470,7 +1486,9 @@ struct HomeView: View {
                 result.aiRecommendations = aiAnalysis.recommendations.map { $0.text }
             } catch {
                 // AI failed - continue with algorithmic recommendations only
+                #if DEBUG
                 print("[HomeView] AI risk analysis failed: \(error.localizedDescription)")
+                #endif
             }
         }
         

@@ -1527,7 +1527,9 @@ class AiChatViewModel: ObservableObject {
             let data = try JSONEncoder().encode(limitedMessages)
             UserDefaults.standard.set(data, forKey: storageKey)
         } catch {
+            #if DEBUG
             print("[AiChatViewModel] Failed to save messages: \(error)")
+            #endif
         }
     }
     
@@ -1541,7 +1543,9 @@ class AiChatViewModel: ObservableObject {
                 messages = loadedMessages
             }
         } catch {
+            #if DEBUG
             print("[AiChatViewModel] Failed to load messages: \(error)")
+            #endif
         }
     }
     
@@ -2227,7 +2231,9 @@ extension TradingBotView {
             // Live mode - check if exchange is connected
             // For now, show alert that exchange connection is needed
             showNeedExchangeAlert = true
+            #if DEBUG
             print("[Live Mode] DCA Bot creation requires exchange connection: \(botName), Exchange: \(selectedExchange)")
+            #endif
         }
     }
 }
@@ -2362,7 +2368,9 @@ extension TradingBotView {
         } else {
             // Live mode - check if exchange is connected
             showNeedExchangeAlert = true
+            #if DEBUG
             print("[Live Mode] Grid Bot creation requires exchange connection: \(gridBotName), Exchange: \(gridSelectedExchange)")
+            #endif
         }
     }
 }
@@ -2494,7 +2502,9 @@ extension TradingBotView {
         } else {
             // Live mode - check if exchange is connected
             showNeedExchangeAlert = true
+            #if DEBUG
             print("[Live Mode] Signal Bot creation requires exchange connection: \(signalBotName), Exchange: \(signalSelectedExchange)")
+            #endif
         }
     }
 }

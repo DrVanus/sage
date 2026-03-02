@@ -26,7 +26,7 @@ struct WelcomeOnboardingView: View {
     var body: some View {
         ZStack {
             DS.Adaptive.background.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {
                     brandPage.tag(0)
@@ -35,10 +35,12 @@ struct WelcomeOnboardingView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentPage)
-                
+
                 bottomControls
             }
         }
+        // Force dark appearance — onboarding is designed as premium gold-on-black
+        .environment(\.colorScheme, .dark)
         .onAppear {
             withAnimation(.easeOut(duration: 0.6).delay(0.15)) {
                 appeared = true
@@ -510,7 +512,9 @@ struct WelcomeOnboardingView: View {
             if let error = error {
                 let nsError = error as NSError
                 if nsError.code == GIDSignInError.canceled.rawValue { return }
+                #if DEBUG
                 print("[Onboarding] Google sign-in error: \(error.localizedDescription)")
+                #endif
                 return
             }
             
@@ -527,7 +531,9 @@ struct WelcomeOnboardingView: View {
                     )
                     await MainActor.run { dismissOnboarding() }
                 } catch {
+                    #if DEBUG
                     print("[Onboarding] Google Firebase auth failed: \(error.localizedDescription)")
+                    #endif
                 }
             }
         }

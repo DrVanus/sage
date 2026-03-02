@@ -373,7 +373,9 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
                 account: exchangeId
             )
         } catch {
+            #if DEBUG
             print("❌ Failed to save API credentials: \(error)")
+            #endif
         }
     }
     

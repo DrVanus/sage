@@ -602,7 +602,9 @@ class DerivativesBotViewModel: ObservableObject {
             isRunning = true
             showBotCreatedAlert = true
             
+            #if DEBUG
             print("[Paper Trading] Derivatives Bot created and started: \(bot.name), ID: \(bot.id)")
+            #endif
         } else {
             // Live mode - use existing API flow
             let config = DerivativesBotConfig(exchange: ex,
@@ -613,7 +615,9 @@ class DerivativesBotViewModel: ObservableObject {
                 .receive(on: DispatchQueue.main)
                 .sink(receiveCompletion: { completion in
                     if case .failure(let err) = completion {
+                        #if DEBUG
                         print("Failed to start derivatives bot: \(err)")
+                        #endif
                     }
                 }, receiveValue: { [weak self] in
                     self?.isRunning = true
@@ -630,7 +634,9 @@ class DerivativesBotViewModel: ObservableObject {
             currentPaperBotId = nil
             isRunning = false
             
+            #if DEBUG
             print("[Paper Trading] Derivatives Bot stopped")
+            #endif
         } else {
             // Live mode - use existing API flow
             botService.stopBot()
@@ -710,7 +716,9 @@ class DerivativesBotViewModel: ObservableObject {
         } catch {
             await MainActor.run {
                 self.isLoadingPositions = false
+                #if DEBUG
                 print("[DerivativesBotViewModel] Failed to fetch positions: \(error)")
+                #endif
             }
         }
     }
@@ -743,7 +751,9 @@ class DerivativesBotViewModel: ObservableObject {
                 }
             }
         } catch {
+            #if DEBUG
             print("[DerivativesBotViewModel] Failed to fetch balance: \(error)")
+            #endif
         }
     }
     
@@ -765,7 +775,9 @@ class DerivativesBotViewModel: ObservableObject {
                 self.fundingRate = rate
             }
         } catch {
+            #if DEBUG
             print("[DerivativesBotViewModel] Failed to fetch funding rate: \(error)")
+            #endif
         }
     }
     

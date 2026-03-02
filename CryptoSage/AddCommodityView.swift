@@ -660,7 +660,9 @@ struct AddCommodityView: View {
 
 #Preview("Add Commodity") {
     AddCommodityView { holding in
+        #if DEBUG
         print("Added commodity: \(holding.coinName)")
+        #endif
     }
     .preferredColorScheme(.dark)
 }

@@ -64,8 +64,8 @@ struct EnhancedPaymentMethodPickerView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Dark background
-                Color.black.ignoresSafeArea()
+                // Background
+                DS.Adaptive.background.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // SEARCH BAR

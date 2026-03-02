@@ -287,28 +287,30 @@ extension ExchangeAffiliateManager {
     
     /// Print all setup instructions (for developer reference)
     static func printAllSetupInstructions() {
+        #if DEBUG
         print("""
         ===============================================
         EXCHANGE AFFILIATE PROGRAM SETUP INSTRUCTIONS
         ===============================================
-        
+
         To monetize exchange signups through CryptoSage:
-        
+
         1. BINANCE
         \(setupInstructions(for: "binance"))
-        
+
         2. COINBASE
         \(setupInstructions(for: "coinbase"))
-        
+
         3. BYBIT
         \(setupInstructions(for: "bybit"))
-        
+
         4. KUCOIN
         \(setupInstructions(for: "kucoin"))
-        
+
         After getting your referral codes, update the
         referralURLs dictionary in ExchangeAffiliateManager.swift
         ===============================================
         """)
+        #endif
     }
 }

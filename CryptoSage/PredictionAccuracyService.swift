@@ -156,7 +156,9 @@ public final class PlaceholderCloudSyncProvider: AccuracyCloudSyncProvider {
     
     public func uploadLocalMetrics(_ metrics: AnonymizedAccuracyData) async throws {
         // No-op - cloud sync not implemented
+        #if DEBUG
         print("[CloudSync] Upload skipped - cloud sync not enabled")
+        #endif
     }
 }
 
@@ -608,7 +610,9 @@ public final class PredictionAccuracyService: ObservableObject {
         saveToStorage()
         
         let modelTag = modelProvider ?? "unknown"
+        #if DEBUG
         print("[PredictionAccuracy] Stored prediction for \(prediction.coinSymbol) (\(prediction.timeframe.displayName)) [model: \(modelTag)]")
+        #endif
         
         // Push to Firestore for cross-device sync (debounced)
         debouncedPushToFirestore()
@@ -634,7 +638,9 @@ public final class PredictionAccuracyService: ObservableObject {
         // Longer predictions rely on app launch evaluation passes
         let maxAutoScheduleDelay: TimeInterval = 4 * 3600 + 60 // 4h + 1min buffer
         guard delay < maxAutoScheduleDelay else {
+            #if DEBUG
             print("[PredictionAccuracy] Prediction for \(prediction.coinSymbol) expires in \(Int(delay/3600))h — will evaluate on next app launch")
+            #endif
             return
         }
         
@@ -643,7 +649,9 @@ public final class PredictionAccuracyService: ObservableObject {
         scheduledEvaluationTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(evaluationDelay * 1_000_000_000))
             guard !Task.isCancelled else { return }
+            #if DEBUG
             print("[PredictionAccuracy] Auto-evaluating expired prediction for \(prediction.coinSymbol)")
+            #endif
             await evaluatePendingPredictions()
         }
     }
@@ -670,7 +678,9 @@ public final class PredictionAccuracyService: ObservableObject {
             return
         }
         
+        #if DEBUG
         print("[PredictionAccuracy] Evaluating \(pendingPredictions.count) pending predictions (attempt \(evaluationRetryCount + 1))")
+        #endif
         
         var evaluatedCount = 0
         for prediction in pendingPredictions {
@@ -689,21 +699,27 @@ public final class PredictionAccuracyService: ObservableObject {
         // Save to storage
         saveToStorage()
         
+        #if DEBUG
         print("[PredictionAccuracy] Evaluated \(evaluatedCount)/\(pendingPredictions.count) predictions successfully")
+        #endif
         
         // If some failed and we haven't exceeded retry limit, schedule a retry with backoff
         let stillPending = storedPredictions.filter { $0.isReadyForEvaluation }.count
         if stillPending > 0 && evaluationRetryCount < maxEvaluationRetries {
             evaluationRetryCount += 1
             let backoffSeconds = min(120 * evaluationRetryCount, 600) // 2min, 4min, 6min, 8min, 10min max
+            #if DEBUG
             print("[PredictionAccuracy] \(stillPending) still pending — retry \(evaluationRetryCount)/\(maxEvaluationRetries) in \(backoffSeconds)s")
+            #endif
             Task {
                 try? await Task.sleep(nanoseconds: UInt64(backoffSeconds) * 1_000_000_000)
                 guard !Task.isCancelled else { return }
                 await self.evaluatePendingPredictions()
             }
         } else if stillPending > 0 {
+            #if DEBUG
             print("[PredictionAccuracy] \(stillPending) still pending but max retries reached — will retry on next app launch")
+            #endif
             evaluationRetryCount = 0
         } else {
             evaluationRetryCount = 0
@@ -738,15 +754,21 @@ public final class PredictionAccuracyService: ObservableObject {
                 let price = try await CryptoAPIService.shared.fetchSpotPrice(coin: prediction.coinSymbol)
                 if price > 0 {
                     actualPrice = price
+                    #if DEBUG
                     print("[PredictionAccuracy] Fetched price via API for \(prediction.coinSymbol): $\(String(format: "%.2f", price))")
+                    #endif
                 }
             } catch {
+                #if DEBUG
                 print("[PredictionAccuracy] API price fetch failed for \(prediction.coinSymbol): \(error.localizedDescription)")
+                #endif
             }
         }
         
         guard let price = actualPrice, price > 0 else {
+            #if DEBUG
             print("[PredictionAccuracy] Could not get price for \(prediction.coinSymbol) - will retry later")
+            #endif
             return
         }
         
@@ -755,7 +777,9 @@ public final class PredictionAccuracyService: ObservableObject {
             storedPredictions[index].evaluate(actualPrice: price)
             
             let result = storedPredictions[index]
+            #if DEBUG
             print("[PredictionAccuracy] Evaluated \(prediction.coinSymbol): direction=\(result.directionCorrect ?? false), inRange=\(result.withinPriceRange ?? false), error=\(String(format: "%.2f", result.priceError ?? 0))%")
+            #endif
             
             // Record evaluation to Firebase for global tracking
             await recordEvaluationToFirebase(result)
@@ -805,7 +829,9 @@ public final class PredictionAccuracyService: ObservableObject {
         recalculateMetrics()
         saveToStorage()
         
+        #if DEBUG
         print("[PredictionAccuracy] Cleared \(removed) legacy predictions, \(storedPredictions.count) remaining")
+        #endif
     }
     
     /// Get metrics filtered to only DeepSeek (current model) predictions
@@ -875,7 +901,9 @@ public final class PredictionAccuracyService: ObservableObject {
         
         // Check if we have enough data
         guard metrics.evaluatedPredictions >= 5 else {
+            #if DEBUG
             print("[PredictionAccuracy] Insufficient data for confidence adjustment (need 5, have \(metrics.evaluatedPredictions))")
+            #endif
             return 1.0
         }
         
@@ -884,7 +912,9 @@ public final class PredictionAccuracyService: ObservableObject {
         if metrics.directionAccuracyPercent < 40 {
             let globalPenalty = (40 - metrics.directionAccuracyPercent) / 100  // Up to -0.4
             multiplier -= globalPenalty
+            #if DEBUG
             print("[PredictionAccuracy] Global accuracy penalty: \(String(format: "%.2f", -globalPenalty)) (overall accuracy: \(String(format: "%.0f", metrics.directionAccuracyPercent))%)")
+            #endif
         }
         
         // Timeframe adjustment - more aggressive for poor performers
@@ -895,12 +925,16 @@ public final class PredictionAccuracyService: ObservableObject {
             if tfAccuracy < 35 {
                 let tfPenalty = (35 - tfAccuracy) / 70  // Up to -0.5 for 0% accuracy
                 multiplier -= tfPenalty
+                #if DEBUG
                 print("[PredictionAccuracy] Timeframe \(timeframe.displayName) PENALTY: \(String(format: "%.2f", -tfPenalty)) (accuracy: \(String(format: "%.0f", tfAccuracy))%)")
+                #endif
             } else {
                 // Normal adjustment for decent performers
                 let tfAdjustment = (tfAccuracy - 50) / 200  // Range: -0.25 to +0.25
                 multiplier += tfAdjustment
+                #if DEBUG
                 print("[PredictionAccuracy] Timeframe \(timeframe.displayName) accuracy: \(String(format: "%.0f", tfAccuracy))%, adjustment: \(String(format: "%+.2f", tfAdjustment))")
+                #endif
             }
         }
         
@@ -928,11 +962,15 @@ public final class PredictionAccuracyService: ObservableObject {
             if directionAccuracy < 30 {
                 let dirPenalty = (30 - directionAccuracy) / 60  // Up to -0.5 for 0% accuracy
                 multiplier -= dirPenalty
+                #if DEBUG
                 print("[PredictionAccuracy] Direction \(direction.displayName) PENALTY: \(String(format: "%.2f", -dirPenalty)) (accuracy: \(String(format: "%.0f", directionAccuracy))%)")
+                #endif
             } else {
                 let dirAdjustment = (directionAccuracy - 50) / 200  // Range: -0.25 to +0.25
                 multiplier += dirAdjustment
+                #if DEBUG
                 print("[PredictionAccuracy] Direction \(direction.displayName) accuracy: \(String(format: "%.0f", directionAccuracy))%, adjustment: \(String(format: "%+.2f", dirAdjustment))")
+                #endif
             }
         }
         
@@ -943,7 +981,9 @@ public final class PredictionAccuracyService: ObservableObject {
             let coinAdjustment = (coinAccuracy - 50) / 400  // Range: -0.125 to +0.125
             multiplier += coinAdjustment
             
+            #if DEBUG
             print("[PredictionAccuracy] Coin \(sym) accuracy: \(String(format: "%.0f", coinAccuracy))%, adjustment: \(String(format: "%+.2f", coinAdjustment))")
+            #endif
         }
         
         // Confidence calibration check - penalize if high confidence predictions are failing
@@ -952,13 +992,17 @@ public final class PredictionAccuracyService: ObservableObject {
             // If they're not, apply a penalty to all predictions
             let calibrationPenalty = (50 - highConfAcc) / 200  // Up to -0.25
             multiplier -= calibrationPenalty
+            #if DEBUG
             print("[PredictionAccuracy] Confidence calibration penalty: \(String(format: "%.2f", -calibrationPenalty)) (high conf accuracy: \(String(format: "%.0f", highConfAcc))%)")
+            #endif
         }
         
         // Clamp to reasonable range - allow lower floor for poor performers
         multiplier = max(0.5, min(1.2, multiplier))
         
+        #if DEBUG
         print("[PredictionAccuracy] Final confidence multiplier: \(String(format: "%.2f", multiplier))")
+        #endif
         
         return multiplier
     }
@@ -981,7 +1025,9 @@ public final class PredictionAccuracyService: ObservableObject {
         let clamped = max(10, min(95, Int(adjusted)))  // Keep between 10-95
         
         if clamped != rawConfidence {
+            #if DEBUG
             print("[PredictionAccuracy] Adjusted confidence: \(rawConfidence) -> \(clamped) (multiplier: \(String(format: "%.2f", multiplier)))")
+            #endif
         }
         
         return clamped
@@ -1243,7 +1289,9 @@ public final class PredictionAccuracyService: ObservableObject {
     /// Start listening to Firestore for prediction data (cross-device sync)
     public func startFirestoreSyncIfAuthenticated() {
         guard let userId = FirebaseService.shared.currentUserId, !userId.isEmpty else {
+            #if DEBUG
             print("[PredictionAccuracy] No authenticated user - using local storage only")
+            #endif
             return
         }
         
@@ -1257,7 +1305,9 @@ public final class PredictionAccuracyService: ObservableObject {
             
             if let error = error {
                 if error.localizedDescription.contains("Missing or insufficient permissions") {
+                    #if DEBUG
                     print("[PredictionAccuracy] Firestore permissions not configured — using local storage only")
+                    #endif
                     self.firestoreListener?.remove()
                     self.firestoreListener = nil
                     // Cache the denial to avoid retrying on next launch
@@ -1266,7 +1316,9 @@ public final class PredictionAccuracyService: ObservableObject {
                         "at": Date().timeIntervalSince1970
                     ], forKey: Self.permDeniedKey)
                 } else {
+                    #if DEBUG
                     print("[PredictionAccuracy] Firestore listener error: \(error.localizedDescription)")
+                    #endif
                 }
                 return
             }
@@ -1394,7 +1446,9 @@ public final class PredictionAccuracyService: ObservableObject {
             pruneOldPredictions()
             recalculateMetrics()
             saveToStorage()
+            #if DEBUG
             print("[PredictionAccuracy] Merged Firestore data — now have \(storedPredictions.count) predictions")
+            #endif
         }
     }
     
@@ -1427,9 +1481,13 @@ public final class PredictionAccuracyService: ObservableObject {
         
         do {
             try await db.collection("prediction_evaluations").addDocument(data: evaluationData)
+            #if DEBUG
             print("[PredictionAccuracy] Recorded evaluation to global Firebase collection")
+            #endif
         } catch {
+            #if DEBUG
             print("[PredictionAccuracy] Failed to record evaluation to Firebase: \(error.localizedDescription)")
+            #endif
         }
         
         // Update per-user accuracy summary in Firestore
@@ -1462,7 +1520,9 @@ public final class PredictionAccuracyService: ObservableObject {
                 .collection("prediction_tracking").document("summary")
                 .setData(summaryData, merge: true)
         } catch {
+            #if DEBUG
             print("[PredictionAccuracy] Failed to update accuracy summary: \(error.localizedDescription)")
+            #endif
         }
     }
     
@@ -1493,7 +1553,9 @@ public final class PredictionAccuracyService: ObservableObject {
             recalculateMetrics()
         }
         
+        #if DEBUG
         print("[PredictionAccuracy] Loaded \(storedPredictions.count) predictions, \(metrics.evaluatedPredictions) evaluated")
+        #endif
     }
     
     private func saveToStorage() {
@@ -1591,7 +1653,9 @@ public final class PredictionAccuracyService: ObservableObject {
         storedPredictions.sort { $0.generatedAt > $1.generatedAt }
         storedPredictions = Array(storedPredictions.prefix(maxStoredPredictions))
         
+        #if DEBUG
         print("[PredictionAccuracy] Pruned to \(storedPredictions.count) predictions")
+        #endif
     }
     
     // MARK: - Cloud Sync (Future Implementation)
@@ -1651,9 +1715,13 @@ public final class PredictionAccuracyService: ObservableObject {
             await MainActor.run {
                 self.globalMetrics = global
             }
+            #if DEBUG
             print("[PredictionAccuracy] Fetched global metrics: \(global.totalPredictions) total predictions")
+            #endif
         } catch {
+            #if DEBUG
             print("[PredictionAccuracy] Failed to fetch global metrics: \(error)")
+            #endif
         }
     }
     
@@ -1661,7 +1729,9 @@ public final class PredictionAccuracyService: ObservableObject {
     public func contributeToGlobalLearning() async {
         guard cloudSyncProvider.isEnabled else { return }
         guard metrics.evaluatedPredictions >= 10 else {
+            #if DEBUG
             print("[PredictionAccuracy] Not enough local data to contribute (need 10+)")
+            #endif
             return
         }
         
@@ -1669,9 +1739,13 @@ public final class PredictionAccuracyService: ObservableObject {
         
         do {
             try await cloudSyncProvider.uploadLocalMetrics(contribution)
+            #if DEBUG
             print("[PredictionAccuracy] Contributed local metrics to global learning")
+            #endif
         } catch {
+            #if DEBUG
             print("[PredictionAccuracy] Failed to upload metrics: \(error)")
+            #endif
         }
     }
     

@@ -404,7 +404,9 @@ public final class PaperTradingManager: ObservableObject {
         // NaN GUARD: In Swift, max(0, NaN) returns NaN, silently corrupting the balance.
         // This would persist to UserDefaults and permanently break the portfolio.
         guard amount.isFinite else {
+            #if DEBUG
             print("⚠️ [PaperTrading] Blocked NaN/Inf updateBalance for \(asset): \(amount)")
+            #endif
             return
         }
         paperBalances[asset.uppercased()] = max(0, amount)
@@ -414,7 +416,9 @@ public final class PaperTradingManager: ObservableObject {
     public func addToBalance(asset: String, amount: Double) {
         // NaN GUARD: Prevent corrupted amounts from poisoning the balance
         guard amount.isFinite else {
+            #if DEBUG
             print("⚠️ [PaperTrading] Blocked NaN/Inf addToBalance for \(asset): \(amount)")
+            #endif
             return
         }
         let current = balance(for: asset)
@@ -545,10 +549,12 @@ public final class PaperTradingManager: ObservableObject {
     @discardableResult
     public func resetPaperTrading() -> Bool {
         guard canReset else {
+            #if DEBUG
             print("[PaperTrading] Reset blocked — limit reached for current tier")
+            #endif
             return false
         }
-        
+
         paperBalances = [Self.defaultQuoteCurrency: startingBalance]
         paperTradeHistory = []
         pendingOrders = []
@@ -567,10 +573,12 @@ public final class PaperTradingManager: ObservableObject {
     @discardableResult
     public func resetPaperTrading(withBalance balance: Double) -> Bool {
         guard canReset else {
+            #if DEBUG
             print("[PaperTrading] Reset blocked — limit reached for current tier")
+            #endif
             return false
         }
-        
+
         startingBalance = balance
         paperBalances = [Self.defaultQuoteCurrency: balance]
         paperTradeHistory = []
@@ -679,7 +687,9 @@ public final class PaperTradingManager: ObservableObject {
         resetTimestamps = resetTimestamps.filter { $0 > pruneCutoff }
         
         saveResetTracking()
+        #if DEBUG
         print("[PaperTrading] Reset recorded. Total: \(totalResetCount), In window: \(resetsUsedInCurrentWindow), Remaining: \(resetsRemaining)")
+        #endif
     }
     
     private func loadResetTracking() {
@@ -1330,7 +1340,9 @@ public final class PaperTradingManager: ObservableObject {
                 let actualDeduction = min(shortfall, availableQuote)
                 paperBalances[quote, default: 0] -= actualDeduction
                 if shortfall > availableQuote {
+                    #if DEBUG
                     print("⚠️ [PaperTrading] Stop order fill for \(order.symbol): insufficient funds for price slippage. Shortfall: \(formatCurrency(shortfall - actualDeduction))")
+                    #endif
                 }
             }
         } else {

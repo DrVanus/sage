@@ -23,9 +23,13 @@ extension PortfolioViewModel {
             // Reload holdings
             await refreshHoldings()
 
+            #if DEBUG
             print("✅ Coinbase portfolio synced successfully")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ Coinbase sync failed: \(error.localizedDescription)")
+            #endif
         }
 
         isRefreshing = false
@@ -35,7 +39,9 @@ extension PortfolioViewModel {
     public func startCoinbaseAutoSync() async {
         // Check if Coinbase credentials exist
         guard TradingCredentialsManager.shared.hasCredentials(for: .coinbase) else {
+            #if DEBUG
             print("⚠️ No Coinbase credentials found. Skipping auto-sync.")
+            #endif
             return
         }
 
@@ -45,13 +51,17 @@ extension PortfolioViewModel {
         // Setup notification listener for sync updates
         setupCoinbaseSyncListener()
 
+        #if DEBUG
         print("✅ Coinbase auto-sync enabled")
+        #endif
     }
 
     /// Stop automatic Coinbase sync
     public func stopCoinbaseAutoSync() async {
         await CoinbasePortfolioSyncService.shared.stopPolling()
+        #if DEBUG
         print("🔌 Coinbase auto-sync stopped")
+        #endif
     }
 
     // MARK: - Private Helpers

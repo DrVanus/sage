@@ -405,15 +405,19 @@ final class LivePortfolioDataService: PortfolioDataService {
         localTransactions = secureDataManager.loadTransactions()
         transactionsSubject.send(localTransactions)
         
+        #if DEBUG
         if !localTransactions.isEmpty {
             print("🔐 Loaded \(localTransactions.count) transactions from encrypted storage")
         }
+        #endif
     }
     
     private func saveLocalTransactions() {
         // Save to secure encrypted storage
         secureDataManager.saveTransactions(localTransactions)
+        #if DEBUG
         print("🔐 Saved \(localTransactions.count) transactions to encrypted storage")
+        #endif
     }
     
     // MARK: - Transaction Management

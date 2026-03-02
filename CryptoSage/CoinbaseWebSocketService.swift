@@ -90,7 +90,9 @@ public actor CoinbaseWebSocketService {
             await receiveMessages()
         }
 
+        #if DEBUG
         print("✅ WebSocket connected to Coinbase Advanced Trade")
+        #endif
     }
 
     /// Disconnect from WebSocket
@@ -98,18 +100,24 @@ public actor CoinbaseWebSocketService {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         isConnected = false
         reconnectAttempts = 0
+        #if DEBUG
         print("🔌 WebSocket disconnected")
+        #endif
     }
 
     /// Reconnect after failure
     private func reconnect(products: [String], feeds: [CoinbaseWSFeed]) async {
         guard reconnectAttempts < maxReconnectAttempts else {
+            #if DEBUG
             print("❌ WebSocket max reconnect attempts reached")
+            #endif
             return
         }
 
         reconnectAttempts += 1
+        #if DEBUG
         print("🔄 WebSocket reconnecting... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
+        #endif
 
         // Exponential backoff
         let delay = UInt64(pow(2.0, Double(reconnectAttempts)) * 1_000_000_000)
@@ -118,7 +126,9 @@ public actor CoinbaseWebSocketService {
         do {
             try await connect(products: products, feeds: feeds)
         } catch {
+            #if DEBUG
             print("❌ WebSocket reconnect failed: \(error)")
+            #endif
         }
     }
 
@@ -143,7 +153,9 @@ public actor CoinbaseWebSocketService {
                     break
                 }
             } catch {
+                #if DEBUG
                 print("WebSocket receive error: \(error)")
+                #endif
                 isConnected = false
 
                 // Attempt reconnect

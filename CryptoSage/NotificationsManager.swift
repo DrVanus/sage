@@ -1516,7 +1516,9 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
         if alert.enablePush {
             sendLocalNotification(for: alert, currentPrice: currentPrice, aiReason: aiReason)
         } else {
+            #if DEBUG
             print("[NotificationsManager] ⚠️ Alert triggered for \(alert.symbol) but push notifications are disabled for this alert")
+            #endif
         }
         
         // Post notification for in-app handling

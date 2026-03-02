@@ -94,7 +94,9 @@ public actor CoinbaseDCAService {
         await saveStrategies()
         strategiesSubject.send(activeStrategies)
         await startExecutionTimer()
+        #if DEBUG
         print("✅ DCA strategy added: \(strategy.productId) - $\(strategy.amountUSD) \(strategy.frequency.rawValue)")
+        #endif
     }
 
     /// Remove a DCA strategy
@@ -102,7 +104,9 @@ public actor CoinbaseDCAService {
         activeStrategies.removeAll { $0.id == id }
         await saveStrategies()
         strategiesSubject.send(activeStrategies)
+        #if DEBUG
         print("🗑️ DCA strategy removed")
+        #endif
     }
 
     /// Update strategy (activate/deactivate)
@@ -129,7 +133,9 @@ public actor CoinbaseDCAService {
             if strategy.nextExecutionDate <= now {
                 do {
                     // Execute market buy order
+                    #if DEBUG
                     print("🔄 Executing DCA order: \(strategy.productId) - $\(strategy.amountUSD)")
+                    #endif
 
                     let response = try await coinbaseService.placeMarketOrder(
                         productId: strategy.productId,
@@ -139,7 +145,9 @@ public actor CoinbaseDCAService {
                     )
 
                     if response.success {
+                        #if DEBUG
                         print("✅ DCA order executed: \(strategy.productId) - $\(strategy.amountUSD)")
+                        #endif
 
                         // Update strategy stats
                         strategy.lastExecutionDate = now
@@ -158,10 +166,14 @@ public actor CoinbaseDCAService {
                         // Send notification
                         await sendExecutionNotification(strategy: strategy)
                     } else {
+                        #if DEBUG
                         print("❌ DCA order failed: \(response.errorResponse?.message ?? "Unknown error")")
+                        #endif
                     }
                 } catch {
+                    #if DEBUG
                     print("❌ DCA order error: \(error.localizedDescription)")
+                    #endif
 
                     // Retry on next check (don't update nextExecutionDate)
                     // This allows retry on next execution cycle
@@ -194,7 +206,9 @@ public actor CoinbaseDCAService {
             throw DCAError.executionFailed(response.errorResponse?.message ?? "Unknown error")
         }
 
+        #if DEBUG
         print("✅ Manual DCA execution successful")
+        #endif
     }
 
     // MARK: - Helpers
@@ -225,7 +239,9 @@ public actor CoinbaseDCAService {
             }
         }
 
+        #if DEBUG
         print("⏰ DCA execution timer started (checking every hour)")
+        #endif
     }
 
     private func saveStrategies() async {
@@ -233,7 +249,9 @@ public actor CoinbaseDCAService {
             let encoded = try JSONEncoder().encode(activeStrategies)
             UserDefaults.standard.set(encoded, forKey: storageKey)
         } catch {
+            #if DEBUG
             print("❌ Failed to save DCA strategies: \(error)")
+            #endif
         }
     }
 
@@ -242,7 +260,9 @@ public actor CoinbaseDCAService {
            let decoded = try? JSONDecoder().decode([DCAStrategy].self, from: data) {
             activeStrategies = decoded
             strategiesSubject.send(activeStrategies)
+            #if DEBUG
             print("✅ Loaded \(activeStrategies.count) DCA strategies")
+            #endif
         }
     }
 

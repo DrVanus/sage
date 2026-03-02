@@ -31,7 +31,9 @@ final class MarketCacheManager {
                 return Date().timeIntervalSince(modDate)
             }
         } catch {
+            #if DEBUG
             print("⚠️ [MarketCacheManager] Failed to get cache age: \(error)")
+            #endif
         }
         return nil
     }
@@ -55,9 +57,13 @@ final class MarketCacheManager {
         
         do {
             try fm.removeItem(at: cacheURL)
+            #if DEBUG
             print("🗑️ [MarketCacheManager] Cache cleared")
+            #endif
         } catch {
+            #if DEBUG
             print("🔴 [MarketCacheManager] Failed to clear cache: \(error)")
+            #endif
         }
     }
     
@@ -82,9 +88,13 @@ final class MarketCacheManager {
         do {
             let data = try JSONEncoder().encode(coins)
             try data.write(to: cacheURL, options: [.atomic])
+            #if DEBUG
             print("🟢 [MarketCacheManager] Saved \(coins.count) coins to cache")
+            #endif
         } catch {
+            #if DEBUG
             print("🔴 [MarketCacheManager] Cache Save Error: \(error)")
+            #endif
         }
     }
 
@@ -96,7 +106,9 @@ final class MarketCacheManager {
         if isCacheExpired() {
             if let age = cacheAge() {
                 let hours = Int(age / 3600)
+                #if DEBUG
                 print("⚠️ [MarketCacheManager] Cache expired (\(hours)h old) - clearing stale data")
+                #endif
             }
             clearCache()
             return nil
@@ -107,6 +119,7 @@ final class MarketCacheManager {
             let coins = try JSONDecoder().decode([MarketCoin].self, from: data)
             
             // Log warning if cache is stale but still usable
+            #if DEBUG
             if isCacheStale(), let ageDesc = cacheAgeDescription() {
                 print("⚠️ [MarketCacheManager] Cache is stale (\(ageDesc)) - will refresh soon")
             } else if let ageDesc = cacheAgeDescription() {
@@ -114,10 +127,13 @@ final class MarketCacheManager {
             } else {
                 print("🟢 [MarketCacheManager] Loaded \(coins.count) coins from cache")
             }
+            #endif
             
             return coins
         } catch {
+            #if DEBUG
             print("🔴 [MarketCacheManager] Cache Load Error: \(error)")
+            #endif
             return nil
         }
     }

@@ -245,7 +245,9 @@ class SecureURLSessionDelegate: NSObject, URLSessionDelegate {
                 completionHandler(.useCredential, credential)
             } else {
                 // Certificate pinning failed
+                #if DEBUG
                 print("[FirebaseSecurity] ERROR: Certificate pinning validation failed for \(host)")
+                #endif
                 completionHandler(.cancelAuthenticationChallenge, nil)
             }
         } else {

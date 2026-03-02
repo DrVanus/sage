@@ -69,7 +69,9 @@ public final class NFTService: ObservableObject {
                         let (nfts, collections) = try await self.fetchChainNFTs(address: address, chain: chain)
                         return (chain, nfts, collections)
                     } catch {
+                        #if DEBUG
                         print("⚠️ Error fetching \(chain.displayName) NFTs: \(error.localizedDescription)")
+                        #endif
                         return (chain, [], [])
                     }
                 }
@@ -487,7 +489,9 @@ extension NFTService {
             
             return nil
         } catch {
+            #if DEBUG
             print("⚠️ Blur API error: \(error.localizedDescription)")
+            #endif
             return nil
         }
     }
@@ -537,7 +541,9 @@ extension NFTService {
                 sales.append(nftSale)
             }
         } catch {
+            #if DEBUG
             print("⚠️ Failed to fetch Blur sales: \(error.localizedDescription)")
+            #endif
         }
         
         return sales

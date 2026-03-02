@@ -539,7 +539,9 @@ public struct ExportResult {
             try data.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
         } catch {
+            #if DEBUG
             print("❌ Failed to save export: \(error)")
+            #endif
             return nil
         }
     }

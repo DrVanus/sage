@@ -353,7 +353,9 @@ public final class CurrencyManager: ObservableObject {
             cacheRates()
             
         } catch {
+            #if DEBUG
             print("[CurrencyManager] Failed to fetch exchange rates: \(error)")
+            #endif
         }
     }
     

@@ -56,7 +56,9 @@ public final class CostBasisCalculator {
         }
         
         guard !availableLots.isEmpty else {
+            #if DEBUG
             print("⚠️ No available lots for \(symbol)")
+            #endif
             return []
         }
         
@@ -100,7 +102,9 @@ public final class CostBasisCalculator {
         }
         
         if remainingQuantity > 0.00000001 {
+            #if DEBUG
             print("⚠️ Insufficient lots to cover sale of \(quantity) \(symbol). Remaining: \(remainingQuantity)")
+            #endif
         }
         
         return disposals

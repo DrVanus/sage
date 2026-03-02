@@ -566,6 +566,8 @@ struct PINEntryView: View {
 
 #Preview {
     PINEntryView(mode: .setup) { success in
+        #if DEBUG
         print("PIN setup: \(success)")
+        #endif
     }
 }

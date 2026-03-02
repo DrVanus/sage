@@ -505,7 +505,9 @@ public final class StrategyEngine: ObservableObject {
             let data = try JSONEncoder().encode(activeStrategies)
             UserDefaults.standard.set(data, forKey: Self.strategiesKey)
         } catch {
+            #if DEBUG
             print("[StrategyEngine] Failed to save strategies: \(error)")
+            #endif
         }
     }
     
@@ -515,7 +517,9 @@ public final class StrategyEngine: ObservableObject {
         do {
             activeStrategies = try JSONDecoder().decode([TradingStrategy].self, from: data)
         } catch {
+            #if DEBUG
             print("[StrategyEngine] Failed to load strategies: \(error)")
+            #endif
         }
     }
     

@@ -267,7 +267,9 @@ public final class NFTTaxService: ObservableObject {
         // Find the matching lot
         let identifier = "\(chain):\(contractAddress.lowercased()):\(tokenId)"
         guard let index = nftLots.firstIndex(where: { $0.nftIdentifier == identifier && !$0.isDisposed }) else {
+            #if DEBUG
             print("⚠️ No matching NFT lot found for \(identifier)")
+            #endif
             return nil
         }
         

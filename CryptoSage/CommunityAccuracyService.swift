@@ -261,7 +261,9 @@ public final class CommunityAccuracyService: ObservableObject {
         // This prevents EXC_BREAKPOINT crashes when provisioning profile lacks CloudKit
         guard cloudKitEnabled else {
             _cloudKitAvailable = false
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit DISABLED - using local learning with baseline community data")
+            #endif
             return
         }
         
@@ -298,16 +300,22 @@ public final class CommunityAccuracyService: ObservableObject {
             }
             
             if available {
+                #if DEBUG
                 print("[CommunityAccuracy] ✅ CloudKit is available - community learning enabled")
+                #endif
             } else {
+                #if DEBUG
                 print("[CommunityAccuracy] ⚠️ CloudKit not available - using local/baseline data")
+                #endif
             }
         } catch {
             // If we can't even check status, CloudKit is definitely not available
             await MainActor.run {
                 self._cloudKitAvailable = false
             }
+            #if DEBUG
             print("[CommunityAccuracy] ⚠️ CloudKit check failed: \(error.localizedDescription) - using local/baseline data")
+            #endif
         }
     }
     
@@ -355,7 +363,9 @@ public final class CommunityAccuracyService: ObservableObject {
     public func fetchCommunityMetrics(force: Bool = false) async {
         // PERFORMANCE: Skip if CloudKit not available (avoids blocking/errors)
         guard isCloudKitAvailable else {
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit not available - using cached/baseline metrics")
+            #endif
             return
         }
         
@@ -363,7 +373,9 @@ public final class CommunityAccuracyService: ObservableObject {
         if !force, let lastSync = lastSyncDate {
             let elapsed = Date().timeIntervalSince(lastSync)
             if elapsed < fetchCooldown {
+                #if DEBUG
                 print("[CommunityAccuracy] Skipping fetch - cooldown active (\(Int(fetchCooldown - elapsed))s remaining)")
+                #endif
                 return
             }
         }
@@ -404,10 +416,14 @@ public final class CommunityAccuracyService: ObservableObject {
             saveCachedMetrics()
             UserDefaults.standard.set(Date(), forKey: lastSyncKey)
             
+            #if DEBUG
             print("[CommunityAccuracy] ✅ Fetched community metrics: \(metrics.totalPredictions) predictions from \(metrics.contributorCount) contributors")
-            
+            #endif
+
         } catch {
+            #if DEBUG
             print("[CommunityAccuracy] ⚠️ Fetch error: \(error.localizedDescription) - keeping cached/baseline data")
+            #endif
             await MainActor.run {
                 self.syncError = error.localizedDescription
             }
@@ -420,12 +436,16 @@ public final class CommunityAccuracyService: ObservableObject {
     public func contributeLocalData() async {
         // PERFORMANCE: Skip if CloudKit not available
         guard isCloudKitAvailable else {
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit not available - cannot contribute")
+            #endif
             return
         }
         
         guard isContributionEnabled else {
+            #if DEBUG
             print("[CommunityAccuracy] Contribution disabled - skipping")
+            #endif
             return
         }
         
@@ -433,7 +453,9 @@ public final class CommunityAccuracyService: ObservableObject {
         if let lastContrib = lastContributionDate {
             let elapsed = Date().timeIntervalSince(lastContrib)
             if elapsed < contributionCooldown {
+                #if DEBUG
                 print("[CommunityAccuracy] Skipping contribution - cooldown active (\(Int((contributionCooldown - elapsed) / 3600))h remaining)")
+                #endif
                 return
             }
         }
@@ -442,7 +464,9 @@ public final class CommunityAccuracyService: ObservableObject {
         
         // Need at least 5 evaluated predictions to contribute
         guard localMetrics.evaluatedPredictions >= 5 else {
+            #if DEBUG
             print("[CommunityAccuracy] Not enough local data to contribute (need 5+)")
+            #endif
             return
         }
         
@@ -468,13 +492,17 @@ public final class CommunityAccuracyService: ObservableObject {
             }
             UserDefaults.standard.set(Date(), forKey: lastContributionKey)
             
+            #if DEBUG
             print("[CommunityAccuracy] ✅ Successfully contributed \(localMetrics.evaluatedPredictions) predictions to community")
-            
+            #endif
+
             // Refresh community metrics after contributing
             await fetchCommunityMetrics(force: true)
-            
+
         } catch {
+            #if DEBUG
             print("[CommunityAccuracy] ⚠️ Contribution error: \(error.localizedDescription) - will retry later")
+            #endif
         }
     }
     
@@ -492,7 +520,9 @@ public final class CommunityAccuracyService: ObservableObject {
     private func fetchAggregateMetrics() async throws -> CommunityAccuracyMetrics {
         // SAFETY: If CloudKit is disabled, return baseline immediately
         guard let db = publicDatabase else {
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit disabled - using baseline data")
+            #endif
             return .baseline
         }
         
@@ -508,27 +538,37 @@ public final class CommunityAccuracyService: ObservableObject {
                let record = try? result.get() {
                 let metrics = parseAggregateRecord(record)
                 if metrics.totalPredictions > 0 {
+                    #if DEBUG
                     print("[CommunityAccuracy] Using pre-computed aggregate: \(metrics.totalPredictions) predictions")
+                    #endif
                     return metrics
                 }
             }
         } catch {
+            #if DEBUG
             print("[CommunityAccuracy] Failed to fetch aggregate: \(error.localizedDescription)")
+            #endif
         }
         
         // Fallback: Try to aggregate from individual contributions
         do {
             let aggregated = try await aggregateFromContributions()
             if aggregated.totalPredictions > 0 {
+                #if DEBUG
                 print("[CommunityAccuracy] Aggregated from contributions: \(aggregated.totalPredictions) predictions")
+                #endif
                 return aggregated
             }
         } catch {
+            #if DEBUG
             print("[CommunityAccuracy] Failed to aggregate contributions: \(error.localizedDescription)")
+            #endif
         }
         
         // Final fallback: No real community data available
+        #if DEBUG
         print("[CommunityAccuracy] No community data available (CloudKit not configured or no contributions)")
+        #endif
         return .empty
     }
     
@@ -624,14 +664,18 @@ public final class CommunityAccuracyService: ObservableObject {
     private func uploadContribution(from metrics: AccuracyMetrics) async throws {
         // SAFETY: If CloudKit is disabled, throw immediately
         guard let cont = container, let db = publicDatabase else {
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit disabled - cannot upload contribution")
+            #endif
             throw CommunityAccuracyError.cloudKitNotAvailable
         }
         
         // Check CloudKit availability first
         let accountStatus = try await cont.accountStatus()
         guard accountStatus == .available else {
+            #if DEBUG
             print("[CommunityAccuracy] CloudKit not available (status: \(accountStatus))")
+            #endif
             throw CommunityAccuracyError.cloudKitNotAvailable
         }
         
@@ -645,11 +689,15 @@ public final class CommunityAccuracyService: ObservableObject {
         let record: CKRecord
         do {
             record = try await db.record(for: recordID)
+            #if DEBUG
             print("[CommunityAccuracy] Updating existing contribution record")
+            #endif
         } catch {
             // Record doesn't exist, create new
             record = CKRecord(recordType: contributionRecordType, recordID: recordID)
+            #if DEBUG
             print("[CommunityAccuracy] Creating new contribution record")
+            #endif
         }
         
         // Populate record with anonymized data
@@ -749,20 +797,26 @@ public final class CommunityAccuracyService: ObservableObject {
             // Invalidate stale baseline data (old hardcoded 500 predictions with 25 contributors)
             // These were fake seed numbers that should no longer be shown
             if cached.contributorCount == 25 && cached.totalPredictions == 500 {
+                #if DEBUG
                 print("[CommunityAccuracy] Clearing stale baseline cache (old hardcoded 500 predictions)")
+                #endif
                 UserDefaults.standard.removeObject(forKey: cachedMetricsKey)
                 self.communityMetrics = .empty
                 return
             }
             
             self.communityMetrics = cached
+            #if DEBUG
             print("[CommunityAccuracy] Loaded cached metrics: \(cached.totalPredictions) predictions")
+            #endif
             return
         }
         
         // No cache available — start with empty (no fake data)
         self.communityMetrics = .empty
+        #if DEBUG
         print("[CommunityAccuracy] No cached metrics — starting fresh")
+        #endif
     }
     
     private func saveCachedMetrics() {

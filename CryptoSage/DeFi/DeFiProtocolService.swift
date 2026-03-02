@@ -69,15 +69,19 @@ public final class DeFiProtocolService: ObservableObject {
             let llamaPositions = try await fetchDefiLlamaPositions(address: address)
             allPositions.append(contentsOf: llamaPositions)
         } catch {
+            #if DEBUG
             print("⚠️ DefiLlama fetch failed: \(error.localizedDescription)")
+            #endif
         }
-        
+
         // Fetch staking positions (Lido, etc.)
         do {
             let stakingPositions = try await fetchStakingPositions(address: address, chains: targetChains)
             allPositions.append(contentsOf: stakingPositions)
         } catch {
+            #if DEBUG
             print("⚠️ Staking positions fetch failed: \(error.localizedDescription)")
+            #endif
         }
         
         // Cache results
@@ -115,7 +119,9 @@ public final class DeFiProtocolService: ObservableObject {
         let hasKey = await MainActor.run { DeFiAggregatorService.shared.hasAPIKey }
         
         guard hasKey else {
+            #if DEBUG
             print("⚠️ DeBank API key not configured, falling back to direct protocol queries")
+            #endif
             return []
         }
         
@@ -133,11 +139,15 @@ public final class DeFiProtocolService: ObservableObject {
                 }
             }
             
+            #if DEBUG
             print("✅ Fetched \(positions.count) DeFi positions via DeBank aggregator")
+            #endif
             return positions
             
         } catch {
+            #if DEBUG
             print("⚠️ DeBank fetch failed: \(error.localizedDescription)")
+            #endif
             return []
         }
     }
@@ -596,7 +606,9 @@ public final class DeFiProtocolService: ObservableObject {
         // Check if API key is set
         let hasKey = await MainActor.run { DeFiAggregatorService.shared.hasAPIKey }
         guard hasKey else {
+            #if DEBUG
             print("⚠️ Zapper API key not configured")
+            #endif
             return []
         }
         
@@ -612,11 +624,15 @@ public final class DeFiProtocolService: ObservableObject {
                 }
             }
             
+            #if DEBUG
             print("✅ Fetched \(positions.count) DeFi positions via Zapper")
+            #endif
             return positions
             
         } catch {
+            #if DEBUG
             print("⚠️ Zapper fetch failed: \(error.localizedDescription)")
+            #endif
             return []
         }
     }

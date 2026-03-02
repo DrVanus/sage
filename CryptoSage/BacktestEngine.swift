@@ -336,7 +336,9 @@ public final class BacktestEngine: ObservableObject {
             let data = try JSONEncoder().encode(backtestHistory)
             UserDefaults.standard.set(data, forKey: Self.historyKey)
         } catch {
+            #if DEBUG
             print("[BacktestEngine] Failed to save history: \(error)")
+            #endif
         }
     }
     
@@ -345,7 +347,9 @@ public final class BacktestEngine: ObservableObject {
         do {
             backtestHistory = try JSONDecoder().decode([BacktestResult].self, from: data)
         } catch {
+            #if DEBUG
             print("[BacktestEngine] Failed to load history: \(error)")
+            #endif
         }
     }
     

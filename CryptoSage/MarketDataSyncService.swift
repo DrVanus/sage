@@ -105,7 +105,9 @@ final class MarketDataSyncService: ObservableObject {
     /// Start periodic background sync
     func startPeriodicSync() {
         guard !CryptoSageAIApp.isEmergencyStopActive() else {
+            #if DEBUG
             print("[MarketDataSyncService] Skipping periodic sync start - emergency stop active")
+            #endif
             return
         }
         stopPeriodicSync() // Stop any existing timer
@@ -123,7 +125,9 @@ final class MarketDataSyncService: ObservableObject {
             }
         }
         
+        #if DEBUG
         print("[MarketDataSyncService] Started periodic sync")
+        #endif
     }
     
     /// Stop periodic sync
@@ -163,7 +167,9 @@ final class MarketDataSyncService: ObservableObject {
                 NewlyListedCoinsService.shared.updateNewlyListedCoins(from: geckoCoins)
             }
         } catch {
+            #if DEBUG
             print("[MarketDataSyncService] CoinGecko sync failed: \(error)")
+            #endif
         }
         
         // Small delay to avoid rate limits
@@ -200,7 +206,9 @@ final class MarketDataSyncService: ObservableObject {
         isSyncing = false
         
         syncCompletedPublisher.send(result)
+        #if DEBUG
         print("[MarketDataSyncService] Full sync completed: \(allMarketCoins.count) coins from \(sources.joined(separator: ", "))")
+        #endif
     }
     
     /// Perform incremental sync (only stale sources)
@@ -261,7 +269,9 @@ final class MarketDataSyncService: ObservableObject {
                     sources.append("CoinGecko")
                 }
             } catch {
+                #if DEBUG
                 print("[MarketDataSyncService] Incremental CoinGecko sync failed: \(error)")
+                #endif
             }
         }
         
@@ -273,7 +283,9 @@ final class MarketDataSyncService: ObservableObject {
         isSyncing = false
         
         if !sources.isEmpty {
+            #if DEBUG
             print("[MarketDataSyncService] Incremental sync: \(sources.joined(separator: ", "))")
+            #endif
         }
     }
     

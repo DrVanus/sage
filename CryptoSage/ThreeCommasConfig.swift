@@ -69,7 +69,9 @@ struct ThreeCommasConfig {
             return id
         } else {
             if !idString.isEmpty {
+                #if DEBUG
                 print("⚠️ Warning: Invalid 3COMMAS_ACCOUNT_ID: \(idString)")
+                #endif
             }
             return 0
         }
@@ -88,7 +90,9 @@ struct ThreeCommasConfig {
             try KeychainHelper.shared.save(tradingSecret, service: keychainService, account: "3COMMAS_TRADING_SECRET")
             try KeychainHelper.shared.save(String(accountId), service: keychainService, account: "3COMMAS_ACCOUNT_ID")
         } catch {
+            #if DEBUG
             print("⚠️ Warning: Failed to seed Keychain: \(error)")
+            #endif
         }
     }
 }

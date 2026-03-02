@@ -228,9 +228,13 @@ public final class CoinAIInsightService: ObservableObject {
             let cached = try decoder.decode([String: CoinAIInsight].self, from: data)
             // Only load insights that are still fresh
             insightCache = cached.filter { $0.value.isFresh }
+            #if DEBUG
             print("[CoinAIInsightService] Loaded \(insightCache.count) cached insights from disk")
+            #endif
         } catch {
+            #if DEBUG
             print("[CoinAIInsightService] Failed to load cache from disk: \(error)")
+            #endif
         }
     }
     
@@ -241,7 +245,9 @@ public final class CoinAIInsightService: ObservableObject {
             let data = try encoder.encode(insightCache)
             UserDefaults.standard.set(data, forKey: cacheKey)
         } catch {
+            #if DEBUG
             print("[CoinAIInsightService] Failed to save cache to disk: \(error)")
+            #endif
         }
     }
     
@@ -252,7 +258,9 @@ public final class CoinAIInsightService: ObservableObject {
             let decoder = JSONDecoder()
             lastRequestTimestamps = try decoder.decode([String: Date].self, from: data)
         } catch {
+            #if DEBUG
             print("[CoinAIInsightService] Failed to load timestamps from disk: \(error)")
+            #endif
         }
     }
     
@@ -263,7 +271,9 @@ public final class CoinAIInsightService: ObservableObject {
             let data = try encoder.encode(lastRequestTimestamps)
             UserDefaults.standard.set(data, forKey: timestampsKey)
         } catch {
+            #if DEBUG
             print("[CoinAIInsightService] Failed to save timestamps to disk: \(error)")
+            #endif
         }
     }
     
@@ -423,7 +433,9 @@ public final class CoinAIInsightService: ObservableObject {
                 return insight
             } catch {
                 // Log Firebase error but fall through to direct API
+                #if DEBUG
                 print("[CoinAIInsightService] Firebase error: \(error.localizedDescription), falling back to direct API")
+                #endif
             }
         }
         

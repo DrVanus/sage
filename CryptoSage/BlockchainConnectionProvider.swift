@@ -534,7 +534,9 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
                 }
             }
         } catch {
+            #if DEBUG
             print("⚠️ Error fetching ERC-20 balances: \(error.localizedDescription)")
+            #endif
         }
         
         return balances
@@ -865,7 +867,9 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
                 }
             }
         } catch {
+            #if DEBUG
             print("⚠️ Error fetching \(config.chain) token balances: \(error.localizedDescription)")
+            #endif
         }
         
         return balances

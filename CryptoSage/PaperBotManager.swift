@@ -935,7 +935,9 @@ public final class PaperBotManager: ObservableObject {
             let data = try JSONEncoder().encode(paperBots)
             UserDefaults.standard.set(data, forKey: Self.botsKey)
         } catch {
+            #if DEBUG
             print("[PaperBotManager] Failed to save bots: \(error)")
+            #endif
         }
     }
     
@@ -953,7 +955,9 @@ public final class PaperBotManager: ObservableObject {
                 }
             }
         } catch {
+            #if DEBUG
             print("[PaperBotManager] Failed to load bots: \(error)")
+            #endif
         }
     }
     

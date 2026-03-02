@@ -163,7 +163,9 @@ final class NewlyListedCoinsService: ObservableObject {
         let significantNewCoins = trulyNewCoins.filter { ($0.totalVolume ?? 0) >= minimumVolumeUSD }
         if !significantNewCoins.isEmpty {
             newCoinAlertPublisher.send(significantNewCoins)
+            #if DEBUG
             print("[NewlyListedCoinsService] Detected \(significantNewCoins.count) significant new coins")
+            #endif
         }
         
         // Filter to coins that are "new" (first seen within threshold) AND have volume
@@ -245,7 +247,9 @@ final class NewlyListedCoinsService: ObservableObject {
             // Update our list (filtered by volume)
             newlyListedCoins = coins.filter { ($0.totalVolume ?? 0) >= minimumVolumeUSD }
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] API fetch failed: \(error)")
+            #endif
             // Fall back to local tracking - updateNewlyListedCoins() should have been called
         }
     }
@@ -270,9 +274,13 @@ final class NewlyListedCoinsService: ObservableObject {
                 .sorted { abs($0.priceChangePercentage24hInCurrency ?? 0) > abs($1.priceChangePercentage24hInCurrency ?? 0) }
             
             trendingMemeCoins = Array(trending.prefix(50))
+            #if DEBUG
             print("[NewlyListedCoinsService] Found \(trendingMemeCoins.count) trending meme coins")
+            #endif
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] Meme coin fetch failed: \(error)")
+            #endif
         }
     }
     
@@ -349,9 +357,13 @@ final class NewlyListedCoinsService: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             let cached = try decoder.decode([String: Date].self, from: data)
             firstSeenDates = cached
+            #if DEBUG
             print("[NewlyListedCoinsService] Loaded \(cached.count) first-seen dates from cache")
+            #endif
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] Could not load cache: \(error)")
+            #endif
         }
     }
     
@@ -368,9 +380,13 @@ final class NewlyListedCoinsService: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             let cached = try decoder.decode([String: CoinFirstSeenMetadata].self, from: data)
             coinMetadata = cached
+            #if DEBUG
             print("[NewlyListedCoinsService] Loaded \(cached.count) coin metadata entries from cache")
+            #endif
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] Could not load metadata cache: \(error)")
+            #endif
         }
     }
     
@@ -383,10 +399,12 @@ final class NewlyListedCoinsService: ObservableObject {
             let data = try encoder.encode(firstSeenDates)
             try data.write(to: url)
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] Could not save cache: \(error)")
+            #endif
         }
     }
-    
+
     private func saveMetadata() {
         guard let url = cacheFileURL(metadataCacheFileName) else { return }
         
@@ -396,10 +414,12 @@ final class NewlyListedCoinsService: ObservableObject {
             let data = try encoder.encode(coinMetadata)
             try data.write(to: url)
         } catch {
+            #if DEBUG
             print("[NewlyListedCoinsService] Could not save metadata cache: \(error)")
+            #endif
         }
     }
-    
+
     private func cacheFileURL(_ fileName: String) -> URL? {
         guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
@@ -434,7 +454,9 @@ final class NewlyListedCoinsService: ObservableObject {
         if removedDates > 0 || removedMeta > 0 {
             saveFirstSeenDates()
             saveMetadata()
+            #if DEBUG
             print("[NewlyListedCoinsService] Cleaned up \(removedDates) date entries and \(removedMeta) metadata entries")
+            #endif
         }
     }
     

@@ -73,7 +73,9 @@ public actor CoinbasePortfolioSyncService {
             }
 
             lastSyncTime = Date()
+            #if DEBUG
             print("✅ Synced \(holdings.count) Coinbase holdings")
+            #endif
 
             // Update LivePortfolioDataService
             await MainActor.run {
@@ -86,7 +88,9 @@ public actor CoinbasePortfolioSyncService {
             }
 
         } catch {
+            #if DEBUG
             print("❌ Portfolio sync failed: \(error.localizedDescription)")
+            #endif
         }
     }
 

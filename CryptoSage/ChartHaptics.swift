@@ -78,9 +78,11 @@ final class ChartHaptics {
         generatorsInitialized = true
         initializationFailed = false
         
+        #if DEBUG
         if debugMode {
             print("[ChartHaptics] Generators initialized successfully")
         }
+        #endif
     }
     
     /// Force re-initialization (call this if haptics stop working)
@@ -172,17 +174,21 @@ final class ChartHaptics {
         notify.prepare()
         sessionPrimed = true
         
+        #if DEBUG
         if debugMode {
             print("[ChartHaptics] Generators primed")
         }
+        #endif
     }
 
     // Session lifecycle
     func begin(startBump: Bool = true) {
         guard shouldPerformHaptics else {
+            #if DEBUG
             if debugMode {
                 print("[ChartHaptics] begin() skipped - shouldPerformHaptics=false")
             }
+            #endif
             return
         }
         
@@ -206,9 +212,11 @@ final class ChartHaptics {
         // Also fire selection for additional tactile confirmation
         selection.selectionChanged()
         
+        #if DEBUG
         if debugMode {
             print("[ChartHaptics] Session began, startBump=\(startBump)")
         }
+        #endif
     }
 
     func end(endBump: Bool = false) {
@@ -234,9 +242,11 @@ final class ChartHaptics {
     // Events
     func tickIfNeeded(intensity: CGFloat? = nil) {
         guard shouldPerformHaptics else {
+            #if DEBUG
             if debugMode {
                 print("[ChartHaptics] tickIfNeeded skipped - shouldPerformHaptics=false")
             }
+            #endif
             return
         }
         
@@ -261,9 +271,11 @@ final class ChartHaptics {
 
         // Throttle check
         guard now - lastTickAt >= minTickInterval else {
+            #if DEBUG
             if debugMode {
                 print("[ChartHaptics] tick throttled, interval=\(now - lastTickAt)s")
             }
+            #endif
             return
         }
         
@@ -278,16 +290,20 @@ final class ChartHaptics {
         lastTickAt = now
         hasEverFired = true
         
+        #if DEBUG
         if debugMode {
             print("[ChartHaptics] tick fired, intensity=\(actualIntensity)")
         }
+        #endif
     }
 
     func majorIfNeeded(intensity: CGFloat = 1.0) {
         guard shouldPerformHaptics else {
+            #if DEBUG
             if debugMode {
                 print("[ChartHaptics] majorIfNeeded skipped - shouldPerformHaptics=false")
             }
+            #endif
             return
         }
         
@@ -295,9 +311,11 @@ final class ChartHaptics {
         
         let now = CACurrentMediaTime()
         guard now - lastMajorAt >= minMajorInterval else {
+            #if DEBUG
             if debugMode {
                 print("[ChartHaptics] major throttled")
             }
+            #endif
             return
         }
         
@@ -312,9 +330,11 @@ final class ChartHaptics {
         lastMajorAt = now
         hasEverFired = true
         
+        #if DEBUG
         if debugMode {
             print("[ChartHaptics] major fired, intensity=\(intensity)")
         }
+        #endif
     }
 
     func gridBumpIfNeeded(intensity: CGFloat? = nil) {
@@ -338,20 +358,26 @@ final class ChartHaptics {
     private var shouldPerformHaptics: Bool {
         // Check if globally disabled
         if disabled {
+            #if DEBUG
             if debugMode { print("[ChartHaptics] Disabled via disabled flag") }
+            #endif
             return false
         }
         
         // Check accessibility setting (can be overridden)
         if respectReduceMotion && UIAccessibility.isReduceMotionEnabled {
+            #if DEBUG
             if debugMode { print("[ChartHaptics] Disabled due to Reduce Motion setting") }
+            #endif
             return false
         }
         
         #if targetEnvironment(simulator)
         // Haptics do not physically work on iOS Simulator
         // Still return false but note this is expected behavior
+        #if DEBUG
         if debugMode { print("[ChartHaptics] Running on Simulator - haptics unavailable") }
+        #endif
         return false
         #else
         return true

@@ -3197,7 +3197,9 @@ extension AITabView {
                     return formatPredictionForChat(cached, coinName: name)
                 }
             }
+            #if DEBUG
             print("[Chat-Prediction] Failed to fetch prediction for \(symbol): \(error.localizedDescription)")
+            #endif
             return ""
         }
     }
@@ -3749,10 +3751,14 @@ extension AITabView {
                             if firebaseService.hasWebSearchCapability {
                                 let searchResponse = try await firebaseService.webSearch(query: augmentedInput)
                                 searchContext = firebaseService.formatWebSearchForAI(searchResponse)
+                                #if DEBUG
                                 print("[AIChatView] Web search returned \(searchResponse.results.count) results")
+                                #endif
                             }
                         } catch {
+                            #if DEBUG
                             print("[AIChatView] Web search failed: \(error.localizedDescription)")
+                            #endif
                             // Continue without search results - AI will use its knowledge
                         }
                         
@@ -4243,12 +4249,16 @@ extension AITabView {
                             assistantReply = combinedText.trimmingCharacters(in: .whitespacesAndNewlines)
                         }
                     } catch {
+                        #if DEBUG
                         print("Error decoding thread messages:", error)
+                        #endif
                     }
                     if assistantReply != nil { break }
                 }
             } catch {
+                #if DEBUG
                 print("Error polling run status:", error)
+                #endif
             }
         }
         
@@ -5314,7 +5324,9 @@ extension AITabView {
         // First try to parse JSON tags (structured AI output — always trust these)
         if let suggestion = parseAlertSuggestionFromTags(text) {
             assignDetectedAlertSuggestion(suggestion)
+            #if DEBUG
             print("[AI Alert] Detected alert suggestion from tags: \(suggestion.symbol) \(suggestion.direction) \(suggestion.targetPrice)")
+            #endif
             return
         }
         
@@ -5348,7 +5360,9 @@ extension AITabView {
         // Extract alert details from natural language
         if let suggestion = extractAlertFromNaturalLanguage(text) {
             assignDetectedAlertSuggestion(suggestion)
+            #if DEBUG
             print("[AI Alert] Extracted alert from natural language: \(suggestion.symbol) \(suggestion.direction) at \(suggestion.targetPrice)")
+            #endif
         }
     }
 
@@ -5506,7 +5520,9 @@ extension AITabView {
             
             // If no reasonable price found, don't suggest anything
             if targetPrice == nil {
+                #if DEBUG
                 print("[AI Alert] No reasonable price found. Candidates: \(candidatePrices), current: \(current)")
+                #endif
                 return nil
             }
         } else {
@@ -5572,7 +5588,9 @@ extension AITabView {
             }
         }
         
+        #if DEBUG
         print("[AI Alert] Created alert: \(suggestion.formattedSymbol) \(suggestion.direction) \(suggestion.targetPrice)")
+        #endif
     }
 }
 
@@ -5627,7 +5645,9 @@ extension AITabView {
                     self.detectedBotConfig = config
                 }
             }
+            #if DEBUG
             print("[AI Bot] Detected bot config from tags: \(config.botType.displayName) \(config.tradingPair ?? config.marketTitle ?? "—")")
+            #endif
             return
         }
         
@@ -5656,10 +5676,12 @@ extension AITabView {
                     self.detectedBotConfig = fallback
                 }
             }
+            #if DEBUG
             print("[AI Bot] Built fallback DCA bot config")
+            #endif
             return
         }
-        
+
         // Extract bot details from natural language
         if let config = extractBotFromNaturalLanguage(text) {
             DispatchQueue.main.async {
@@ -5667,7 +5689,9 @@ extension AITabView {
                     self.detectedBotConfig = config
                 }
             }
+            #if DEBUG
             print("[AI Bot] Extracted bot from natural language: \(config.botType.displayName)")
+            #endif
             return
         }
         
@@ -5680,7 +5704,9 @@ extension AITabView {
                         self.detectedBotConfig = fallback
                     }
                 }
+                #if DEBUG
                 print("[AI Bot] Built fallback DCA bot config")
+                #endif
             }
         }
     }
@@ -6147,7 +6173,9 @@ extension AITabView {
                             self.detectedStrategyConfig = config
                         }
                     }
+                    #if DEBUG
                     print("[AI Strategy] Detected strategy config: \(config.name)")
+                    #endif
                     return
                 }
             }
@@ -6324,7 +6352,9 @@ extension AITabView {
             try data.write(to: fileURL, options: [.atomic])
             return fileURL.lastPathComponent // store only the filename; we reconstruct full path when loading
         } catch {
+            #if DEBUG
             print("[AIChat] Failed to write image: \(error)")
+            #endif
             return nil
         }
     }

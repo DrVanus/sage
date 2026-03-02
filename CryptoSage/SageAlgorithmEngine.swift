@@ -405,7 +405,9 @@ public final class SageAlgorithmEngine: ObservableObject {
             let data = try JSONEncoder().encode(limitedSignals)
             UserDefaults.standard.set(data, forKey: Self.signalHistoryKey)
         } catch {
+            #if DEBUG
             print("[SageAlgorithmEngine] Failed to save signal history: \(error)")
+            #endif
         }
     }
     
@@ -415,7 +417,9 @@ public final class SageAlgorithmEngine: ObservableObject {
         do {
             latestSignals = try JSONDecoder().decode([SageSignal].self, from: data)
         } catch {
+            #if DEBUG
             print("[SageAlgorithmEngine] Failed to load signal history: \(error)")
+            #endif
         }
     }
     

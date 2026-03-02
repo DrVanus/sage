@@ -3086,7 +3086,9 @@ final class AIFunctionTools {
                 return result
             } catch {
                 // Log the error but continue to fallback
+                #if DEBUG
                 print("Firebase web search error: \(error.localizedDescription)")
+                #endif
                 
                 // Check if it's a rate limit error
                 if error.localizedDescription.contains("limit") {
@@ -3159,7 +3161,9 @@ final class AIFunctionTools {
                 return result
             } catch {
                 // Log error and fall through to local extraction
+                #if DEBUG
                 print("Firebase read article error: \(error.localizedDescription)")
+                #endif
                 
                 // Check if it's a rate limit error
                 if error.localizedDescription.contains("limit") {

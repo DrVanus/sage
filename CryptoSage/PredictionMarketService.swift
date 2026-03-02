@@ -344,7 +344,9 @@ final class PredictionMarketService: ObservableObject {
             let polyMarkets = try await fetchPolymarketTrending()
             allMarkets.append(contentsOf: polyMarkets)
         } catch {
+            #if DEBUG
             print("[PredictionMarketService] Polymarket error: \(error)")
+            #endif
         }
         
         // Fetch from Kalshi (limited without auth)
@@ -352,7 +354,9 @@ final class PredictionMarketService: ObservableObject {
             let kalshiMarkets = try await fetchKalshiMarkets()
             allMarkets.append(contentsOf: kalshiMarkets)
         } catch {
+            #if DEBUG
             print("[PredictionMarketService] Kalshi error: \(error)")
+            #endif
         }
         
         // Sort by volume

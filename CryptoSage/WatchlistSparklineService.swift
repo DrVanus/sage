@@ -54,7 +54,9 @@ actor WatchlistSparklineService {
         } else {
             // First launch: start with empty cache, live data will populate it
             self.cache = [:]
+            #if DEBUG
             print("[WatchlistSparklineService] First launch: starting with empty cache, awaiting live data")
+            #endif
         }
         // Mark cached IDs as successful
         self.successfulIDs = Set(self.cache.keys)
@@ -84,7 +86,9 @@ actor WatchlistSparklineService {
             let data = try Data(contentsOf: url)
             return try JSONDecoder().decode([String: [Double]].self, from: data)
         } catch {
+            #if DEBUG
             print("[WatchlistSparklineService] Failed to load bundled seed: \(error.localizedDescription)")
+            #endif
             return nil
         }
     }
@@ -205,7 +209,9 @@ actor WatchlistSparklineService {
         
         let freshCachedCount = coins.count - coinsToFetch.count
         if !coins.isEmpty {
+            #if DEBUG
             print("[WatchlistSparklineService] request=\(coins.count) freshCache=\(freshCachedCount) fetch=\(coinsToFetch.count)")
+            #endif
         }
         
         guard !coinsToFetch.isEmpty else { return [] }
@@ -297,7 +303,9 @@ actor WatchlistSparklineService {
         }
         
         if !sparklineData.isEmpty {
+            #if DEBUG
             print("[WatchlistSparklineService] CoinGecko bootstrap filled \(sparklineData.count) sparkline(s)")
+            #endif
         }
         
         // Update cache within actor context

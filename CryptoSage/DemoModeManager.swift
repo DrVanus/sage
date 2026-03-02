@@ -76,7 +76,9 @@ final class DemoModeManager: ObservableObject {
     /// Called after app initialization to catch any edge cases
     func validateDemoModeState() {
         if isDemoMode && hasConnectedAccounts {
+            #if DEBUG
             print("[DemoModeManager] Disabling demo mode - user has connected accounts")
+            #endif
             disableDemoMode()
         }
     }
@@ -134,7 +136,9 @@ final class DemoModeManager: ObservableObject {
     func enableDemoMode() {
         // Don't allow demo mode if user has real data
         guard !hasConnectedAccounts else {
+            #if DEBUG
             print("[DemoModeManager] Cannot enable demo mode - user has connected accounts")
+            #endif
             return
         }
         isDemoMode = true
@@ -157,7 +161,9 @@ final class DemoModeManager: ObservableObject {
     /// Called when user connects a portfolio/exchange. Auto-disables demo mode.
     func onPortfolioConnected() {
         if isDemoMode {
+            #if DEBUG
             print("[DemoModeManager] Auto-disabling demo mode - user connected portfolio")
+            #endif
             disableDemoMode()
         }
     }

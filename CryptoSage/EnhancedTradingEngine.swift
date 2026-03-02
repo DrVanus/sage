@@ -121,7 +121,9 @@ public final class EnhancedTradingEngine: ObservableObject {
                 // Start services
                 await startBackgroundServices()
 
+                #if DEBUG
                 print("✅ Enhanced Trading Engine initialized successfully")
+                #endif
             } else {
                 throw TradingError.connectionFailed
             }
@@ -163,7 +165,9 @@ public final class EnhancedTradingEngine: ObservableObject {
         let products = ["BTC-USD", "ETH-USD", "SOL-USD", "DOGE-USD", "XRP-USD"]
         try? await websocketService.connect(products: products, feeds: [.ticker])
 
+        #if DEBUG
         print("✅ Background services started")
+        #endif
     }
 
     /// Disconnect and cleanup
@@ -174,7 +178,9 @@ public final class EnhancedTradingEngine: ObservableObject {
         isConnected = false
         connectionStatus = .disconnected
 
+        #if DEBUG
         print("🔌 Trading engine disconnected")
+        #endif
     }
 
     // MARK: - Order Placement
@@ -346,7 +352,9 @@ public final class EnhancedTradingEngine: ObservableObject {
         )
 
         try await dcaService.addStrategy(strategy)
+        #if DEBUG
         print("✅ DCA strategy created: \(productId) - $\(amountUSD) \(frequency.rawValue)")
+        #endif
     }
 
     /// Get all DCA strategies

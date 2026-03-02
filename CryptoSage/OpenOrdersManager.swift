@@ -129,7 +129,9 @@ public final class OpenOrdersManager: ObservableObject {
             }
         } catch {
             errorMessage = error.localizedDescription
+            #if DEBUG
             print("[OpenOrdersManager] Failed to cancel order \(order.id): \(error)")
+            #endif
             return false
         }
     }

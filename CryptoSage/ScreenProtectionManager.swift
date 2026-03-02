@@ -76,7 +76,9 @@ final class ScreenProtectionManager: ObservableObject {
             object: nil
         )
         
+        #if DEBUG
         print("🛡️ [ScreenProtection] Initialized")
+        #endif
     }
     
     // MARK: - Lifecycle Handlers

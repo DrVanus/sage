@@ -256,7 +256,9 @@ public final class SageTradingService: ObservableObject {
                     _ = try await executeConsensus(consensus, portfolioValue: portfolioValue)
                 }
             } catch {
+                #if DEBUG
                 print("[SageTradingService] Error trading \(symbol): \(error)")
+                #endif
             }
         }
     }
@@ -348,7 +350,9 @@ public final class SageTradingService: ObservableObject {
         let slippage = Double.random(in: 0.999...1.001)
         result.filledPrice = execution.requestedPrice * slippage
         
+        #if DEBUG
         print("[SageTradingService] PAPER TRADE: \(execution.side.rawValue) \(execution.requestedQuantity) \(execution.symbol) @ \(execution.requestedPrice)")
+        #endif
         
         return result
     }
@@ -374,12 +378,16 @@ public final class SageTradingService: ObservableObject {
             result.errorMessage = orderResult.errorMessage
             result.isPaperTrade = false
             
+            #if DEBUG
             print("[SageTradingService] LIVE TRADE: \(execution.side.rawValue) \(execution.requestedQuantity) \(tradingSymbol) - Success: \(orderResult.success)")
+            #endif
             
         } catch {
             result.success = false
             result.errorMessage = error.localizedDescription
+            #if DEBUG
             print("[SageTradingService] LIVE TRADE FAILED: \(error)")
+            #endif
         }
         
         return result
@@ -469,7 +477,9 @@ public final class SageTradingService: ObservableObject {
         do {
             executionHistory = try JSONDecoder().decode([SageTradeExecution].self, from: data)
         } catch {
+            #if DEBUG
             print("[SageTradingService] Failed to load history: \(error)")
+            #endif
         }
     }
     
@@ -478,7 +488,9 @@ public final class SageTradingService: ObservableObject {
             let data = try JSONEncoder().encode(executionHistory)
             UserDefaults.standard.set(data, forKey: Self.historyKey)
         } catch {
+            #if DEBUG
             print("[SageTradingService] Failed to save history: \(error)")
+            #endif
         }
     }
 }

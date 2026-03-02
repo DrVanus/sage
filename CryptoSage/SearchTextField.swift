@@ -151,10 +151,14 @@ struct SearchTextField_Previews: PreviewProvider {
                     placeholder: "Search coins...",
                     autoFocus: true, // Demo auto-focus
                     onTextChange: { text in
+                        #if DEBUG
                         print("Text changed: \(text)")
+                        #endif
                     },
                     onSubmit: {
+                        #if DEBUG
                         print("Search submitted")
+                        #endif
                     }
                 )
                 .frame(height: 44)

@@ -1017,7 +1017,9 @@ struct ProfileView: View {
             // Upload to Firebase Storage for cloud backup
             ProfileSyncService.shared.uploadProfileImage(image)
         } catch {
+            #if DEBUG
             print("[ProfileView] Failed to save profile image: \(error)")
+            #endif
         }
     }
     

@@ -308,7 +308,9 @@ struct AIPredictionDetailView: View {
         .navigationBarBackButtonHidden(true)
         .task {
             // Sparkline diagnostics only: ignore unrelated Firebase startup warnings for this flow.
+            #if DEBUG
             print("[AIPredictionChart] start symbol=\(coinSymbol.uppercased()) points=\(sparklineData.count)")
+            #endif
             
             // Backfill accuracy tracking when opening detail from any entry point.
             // Safe to call repeatedly because storePrediction de-duplicates by prediction id.
@@ -335,7 +337,9 @@ struct AIPredictionDetailView: View {
                 // sparkline has another chance to arrive.
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 if sparklineData.isEmpty {
+                    #if DEBUG
                     print("[AIPredictionChart] retry loadAllData symbol=\(coinSymbol.uppercased())")
+                    #endif
                     await marketVM.loadAllData()
                 }
                 if sparklineData.isEmpty {
@@ -343,12 +347,16 @@ struct AIPredictionDetailView: View {
                     try? await Task.sleep(nanoseconds: 5_000_000_000)
                     if sparklineData.isEmpty {
                         sparklineTimedOut = true
+                        #if DEBUG
                         print("[AIPredictionChart] timeout symbol=\(coinSymbol.uppercased()) points=0")
+                        #endif
                     }
                 }
             }
             if !sparklineTimedOut {
+                #if DEBUG
                 print("[AIPredictionChart] ready symbol=\(coinSymbol.uppercased()) points=\(sparklineData.count)")
+                #endif
             }
         }
         .onReceive(LivePriceManager.shared.throttledPublisher) { liveCoins in
@@ -629,9 +637,13 @@ struct AIPredictionDetailView: View {
                     selectedTimeframe = newPrediction.timeframe
                 }
             } catch is CancellationError {
+                #if DEBUG
                 print("[AIPrediction] Detail view loading task cancelled for \(timeframe.displayName)")
+                #endif
             } catch {
+                #if DEBUG
                 print("[AIPrediction] Error loading prediction for \(timeframe.displayName): \(error.localizedDescription)")
+                #endif
             }
         }
         

@@ -1082,7 +1082,9 @@ final class ExtendedFearGreedViewModel: ObservableObject {
         if AppSettings.isSimulatorLimitedDataMode {
             // Limited simulator profile: one immediate fetch for parity, no periodic loop.
             allowPeriodicRefresh = false
+            #if DEBUG
             print("🧪 [FearGreedVM] Simulator limited profile: single fetch, periodic refresh disabled")
+            #endif
             Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 250_000_000) // 250ms
                 await self?.fetchData()

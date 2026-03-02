@@ -654,12 +654,12 @@ struct OpenOrdersFullView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.white.opacity(0.6))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.08))
+                            .fill(DS.Adaptive.chipBackground)
                     )
                     .overlay(
                         Capsule()
@@ -1039,7 +1039,7 @@ struct OpenOrdersFullView: View {
                 
                 Text(symbol)
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
                 
                 Text("\(orders.count) order\(orders.count == 1 ? "" : "s")")
                     .font(.system(size: 11))

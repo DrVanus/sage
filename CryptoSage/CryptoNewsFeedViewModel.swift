@@ -573,7 +573,9 @@ final class CryptoNewsFeedViewModel: ObservableObject {
 
             if AppSettings.isSimulatorLimitedDataMode {
                 // Limited simulator profile: one-shot network fetch only.
+                #if DEBUG
                 print("🧪 [NewsFeedVM] Simulator limited profile: single fetch, auto-refresh disabled")
+                #endif
                 self.loadAllNews(force: true)
                 self.loadBookmarks()
             } else {

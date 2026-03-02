@@ -104,7 +104,9 @@ public final class KrakenExchangeAdapter: ExchangeAdapter {
                 }
 
             } catch {
+                #if DEBUG
                 print("[KrakenExchangeAdapter] Batch fetch error: \(error)")
+                #endif
                 continue
             }
 

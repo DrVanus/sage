@@ -618,6 +618,8 @@ struct AddStockHoldingView: View {
 
 #Preview {
     AddStockHoldingView { holding in
+        #if DEBUG
         print("Added: \(holding.displaySymbol) - \(holding.shares) shares")
+        #endif
     }
 }

@@ -835,7 +835,9 @@ public actor TradingExecutionService {
                     do {
                         return try await self.fetchOpenOrders(exchange: exchange)
                     } catch {
+                        #if DEBUG
                         print("[TradingExecutionService] Failed to fetch orders from \(exchange.displayName): \(error)")
+                        #endif
                         return []
                     }
                 }

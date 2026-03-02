@@ -256,7 +256,9 @@ public final class PredictionTradingService: ObservableObject {
                 }
             }
         } catch {
+            #if DEBUG
             print("[PredictionTradingService] Failed to fetch USDC balance: \(error)")
+            #endif
         }
     }
     
@@ -411,7 +413,9 @@ public final class PredictionTradingService: ObservableObject {
         // SAFETY: Block live trading when disabled at app config level
         guard AppConfig.liveTradingEnabled else {
             lastError = AppConfig.liveTradingDisabledMessage
+            #if DEBUG
             print("[PredictionTradingService] Live trading disabled - trade blocked")
+            #endif
             return nil
         }
         
@@ -431,7 +435,9 @@ public final class PredictionTradingService: ObservableObject {
             }
         } catch {
             lastError = "Trade failed: \(error.localizedDescription)"
+            #if DEBUG
             print("[PredictionTradingService] Trade execution error: \(error)")
+            #endif
         }
         
         return nil
@@ -561,7 +567,9 @@ public final class PredictionTradingService: ObservableObject {
         do {
             liveBots = try JSONDecoder().decode([LivePredictionBot].self, from: data)
         } catch {
+            #if DEBUG
             print("[PredictionTradingService] Failed to load bots: \(error)")
+            #endif
         }
     }
     
@@ -570,7 +578,9 @@ public final class PredictionTradingService: ObservableObject {
             let data = try JSONEncoder().encode(liveBots)
             UserDefaults.standard.set(data, forKey: Self.botsKey)
         } catch {
+            #if DEBUG
             print("[PredictionTradingService] Failed to save bots: \(error)")
+            #endif
         }
     }
     
@@ -579,7 +589,9 @@ public final class PredictionTradingService: ObservableObject {
         do {
             activeTrades = try JSONDecoder().decode([LivePredictionTrade].self, from: data)
         } catch {
+            #if DEBUG
             print("[PredictionTradingService] Failed to load trades: \(error)")
+            #endif
         }
     }
     
@@ -588,7 +600,9 @@ public final class PredictionTradingService: ObservableObject {
             let data = try JSONEncoder().encode(activeTrades)
             UserDefaults.standard.set(data, forKey: Self.tradesKey)
         } catch {
+            #if DEBUG
             print("[PredictionTradingService] Failed to save trades: \(error)")
+            #endif
         }
     }
 }

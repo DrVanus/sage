@@ -418,7 +418,9 @@ struct AIPredictionSectionView: View {
                 
                 // Sync from parent when timeframe changes via overlay
                 if self.selectedTimeframe != newValue {
+                    #if DEBUG
                     print("[AIPrediction] Timeframe changed: \(self.selectedTimeframe.rawValue) -> \(newValue.rawValue)")
+                    #endif
                     self.selectedTimeframe = newValue
                     
                     // When timeframe changes, update the displayed prediction
@@ -428,14 +430,18 @@ struct AIPredictionSectionView: View {
                     
                     if let cached = predictionService.cachedPredictions[key], !cached.isExpired {
                         // Load cached prediction for new timeframe instantly (no API call)
+                        #if DEBUG
                         print("[AIPrediction] Loaded cached prediction for \(key)")
+                        #endif
                         currentPrediction = cached
                         // User is viewing a prediction - allow auto-restore
                         userCollapsed = false
                     } else {
                         // No cached prediction for this timeframe - show empty state
                         // User must tap "Predict" to generate (cost efficiency)
+                        #if DEBUG
                         print("[AIPrediction] No cached prediction for \(key) - showing empty state")
+                        #endif
                         currentPrediction = nil
                     }
                 }
@@ -700,7 +706,9 @@ struct AIPredictionSectionView: View {
         // Use binding value as source of truth for timeframe
         let timeframeToUse = selectedTimeframeBinding
         let key = "\(symbol.uppercased())_\(timeframeToUse.rawValue)"
+        #if DEBUG
         print("[AIPrediction] Loading cached prediction for key: \(key)")
+        #endif
         if let cached = predictionService.cachedPredictions[key], !cached.isExpired {
             userCollapsed = false  // User wants to see prediction - allow auto-restore
             currentPrediction = cached
@@ -709,7 +717,9 @@ struct AIPredictionSectionView: View {
                 selectedTimeframe = timeframeToUse
             }
         } else {
+            #if DEBUG
             print("[AIPrediction] No valid cached prediction found for \(key)")
+            #endif
         }
     }
     
@@ -1023,9 +1033,13 @@ struct AIPredictionSectionView: View {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
+                #if DEBUG
                 print("[AIPredictionCard] Failed to send prediction outcome notification: \(error)")
+                #endif
             } else {
+                #if DEBUG
                 print("[AIPredictionCard] Sent prediction correct notification for \(prediction.coinSymbol)")
+                #endif
             }
         }
     }
@@ -1474,7 +1488,9 @@ struct AIPredictionSectionView: View {
             if !cached.isExpired {
                 currentPrediction = cached
                 let progress = Int(cached.timeframeProgress * 100)
+                #if DEBUG
                 print("[AIPrediction] Restored cached prediction for \(key) (\(progress)% elapsed\(cached.needsRefresh ? ", showing refresh banner" : ""))")
+                #endif
                 // Start glow animation
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     glowPulse = true
@@ -1575,7 +1591,9 @@ struct AIPredictionSectionView: View {
         // Don't clear currentPrediction immediately - preserve it until we have a new one
         // This prevents losing the prediction if the refresh fails
         if forceRefresh {
+            #if DEBUG
             print("[AIPredictionCard] Force refresh requested - preserving current prediction until success")
+            #endif
         }
         glowPulse = false
         // FIX v28: Wrap loading state change in animation for smooth transition
@@ -1625,7 +1643,9 @@ struct AIPredictionSectionView: View {
             } catch is CancellationError {
                 // Task was cancelled before the service could return a result.
                 // Preserve the existing prediction (don't nil it out).
+                #if DEBUG
                 print("[AIPredictionCard] Prediction task cancelled (safety timeout)")
+                #endif
                 withAnimation(.easeInOut(duration: 0.3)) {
                     isLoading = false
                 }
@@ -1638,7 +1658,9 @@ struct AIPredictionSectionView: View {
                 }
             } catch {
                 // Handle error
+                #if DEBUG
                 print("[AIPredictionCard] Prediction error: \(error.localizedDescription)")
+                #endif
                 
                 // Provide user-friendly error messages
                 let userMessage: String
@@ -1670,7 +1692,9 @@ struct AIPredictionSectionView: View {
         // Start safety timer that cancels the task if it takes too long
         // The task's defer block will handle resetting UI state when cancelled
         loadingSafetyTimer = Timer.scheduledTimer(withTimeInterval: loadingSafetyTimeoutSeconds, repeats: false) { [task] _ in
+            #if DEBUG
             print("[AIPredictionCard] Safety timeout triggered - cancelling prediction task")
+            #endif
             task.cancel()
         }
     }
@@ -3869,7 +3893,9 @@ struct AIPredictionSheet: View {
         // Don't clear current prediction - preserve it until we have a new one
         // This prevents losing the prediction if the refresh fails
         if forceRefresh {
+            #if DEBUG
             print("[FullscreenPrediction] Force refresh requested - preserving current prediction until success")
+            #endif
         }
         
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -3905,7 +3931,9 @@ struct AIPredictionSheet: View {
                 }
             } catch is CancellationError {
                 // Cancelled - defer will reset isLoading
+                #if DEBUG
                 print("[FullscreenPrediction] Prediction task cancelled")
+                #endif
             } catch {
                 if !Task.isCancelled {
                     errorMessage = error.localizedDescription

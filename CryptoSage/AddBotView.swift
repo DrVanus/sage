@@ -75,7 +75,9 @@ struct AddBotView: View {
 struct AddBotView_Previews: PreviewProvider {
     static var previews: some View {
         AddBotView { bot in
+            #if DEBUG
             print("Added bot: \(bot.name)")
+            #endif
         }
     }
 }

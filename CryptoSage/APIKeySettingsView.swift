@@ -403,9 +403,13 @@ struct APIKeySettingsView: View {
         do {
             try APIConfig.setOpenAIKey(openAIKey)
             openAIKey = ""
+            #if DEBUG
             print("✅ OpenAI key saved to Keychain")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ Failed to save OpenAI key: \(error)")
+            #endif
         }
     }
     
@@ -414,9 +418,13 @@ struct APIKeySettingsView: View {
         do {
             try APIConfig.setNewsAPIKey(newsAPIKey)
             newsAPIKey = ""
+            #if DEBUG
             print("✅ NewsAPI key saved to Keychain")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ Failed to save NewsAPI key: \(error)")
+            #endif
         }
     }
     
@@ -429,9 +437,13 @@ struct APIKeySettingsView: View {
                 account: "3COMMAS_TRADING_API_KEY"
             )
             threeCommasAPIKey = ""
+            #if DEBUG
             print("✅ 3Commas API key saved to Keychain")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ Failed to save 3Commas key: \(error)")
+            #endif
         }
     }
     
@@ -459,9 +471,13 @@ struct APIKeySettingsView: View {
         do {
             try SecureUserDataManager.shared.saveAPIKey(binanceAPIKey, for: "binance")
             binanceAPIKey = ""
+            #if DEBUG
             print("✅ Binance API key saved to Keychain")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ Failed to save Binance key: \(error)")
+            #endif
         }
     }
     
@@ -511,7 +527,9 @@ struct APIKeySettingsView: View {
         }
         
         notificationFeedback.notificationOccurred(.success)
+        #if DEBUG
         print("🗑️ Deleted key: \(keyId)")
+        #endif
     }
 }
 

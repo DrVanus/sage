@@ -130,7 +130,9 @@ public class MarketStatsViewModel: ObservableObject {
         }
 
         if AppSettings.isSimulatorLimitedDataMode {
+            #if DEBUG
             print("🧪 [MarketStatsVM] Simulator limited profile: eager fetch enabled, periodic refresh disabled")
+            #endif
         } else {
             // Periodic global stats refresh to keep Market Cap/Volume/Dominance up to date
             // PERFORMANCE FIX v19: Changed .common to .default so timer pauses during scroll

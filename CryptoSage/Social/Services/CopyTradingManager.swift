@@ -279,7 +279,9 @@ public final class CopyTradingManager: ObservableObject {
             do {
                 try await syncBot(localBotId: bot.localBotId)
             } catch {
+                #if DEBUG
                 print("Failed to sync bot \(bot.localBotId): \(error)")
+                #endif
             }
         }
     }

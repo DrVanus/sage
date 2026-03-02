@@ -67,7 +67,9 @@ public final class DeFiTokenService: ObservableObject {
                         let (native, tokens) = try await self.fetchChainBalances(address: address, chain: chain)
                         return (chain, native, tokens)
                     } catch {
+                        #if DEBUG
                         print("⚠️ Error fetching \(chain.displayName) balances: \(error.localizedDescription)")
+                        #endif
                         return (chain, nil, [])
                     }
                 }
@@ -110,7 +112,9 @@ public final class DeFiTokenService: ObservableObject {
         case .sui, .aptos, .ton, .near, .cosmos, .polkadot, .cardano, .starknet, .osmosis, .injective, .sei:
             // These chains require specialized APIs - return empty for now
             // Users should use DeBank aggregator for these chains
+            #if DEBUG
             print("⚠️ Direct balance fetching not yet supported for \(chain.displayName). Use DeBank integration.")
+            #endif
             return (nil, [])
         }
     }

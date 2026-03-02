@@ -687,7 +687,9 @@ final class AIService: ObservableObject {
                 }
             }
         } else {
+            #if DEBUG
             print("[AIService] Firebase not available, using local API keys")
+            #endif
         }
         
         // PRIORITY 2: Fall back to local API keys (for users who configured their own)
@@ -919,7 +921,9 @@ final class AIService: ObservableObject {
             let cleanedText = stripMarkdown(responseText)
             return (response: cleanedText, provider: provider.displayName, model: model)
         } catch {
+            #if DEBUG
             print("[AIService] \(provider.displayName) request failed: \(error.localizedDescription)")
+            #endif
             throw error
         }
     }

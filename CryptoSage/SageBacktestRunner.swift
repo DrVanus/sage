@@ -92,7 +92,9 @@ public final class SageBacktestRunner: ObservableObject {
                     results.append(result)
                     
                 } catch {
+                    #if DEBUG
                     print("[SageBacktestRunner] Failed to backtest \(algorithm.name) on \(symbol): \(error)")
+                    #endif
                     
                     // Add failed result
                     let failedResult = SageBacktestResult(
@@ -151,7 +153,9 @@ public final class SageBacktestRunner: ObservableObject {
             return result
             
         } catch {
+            #if DEBUG
             print("[SageBacktestRunner] Backtest failed: \(error)")
+            #endif
             return nil
         }
     }
@@ -385,7 +389,9 @@ public final class SageBacktestRunner: ObservableObject {
             let data = try JSONEncoder().encode(results)
             UserDefaults.standard.set(data, forKey: Self.resultsKey)
         } catch {
+            #if DEBUG
             print("[SageBacktestRunner] Failed to save results: \(error)")
+            #endif
         }
     }
     
@@ -394,7 +400,9 @@ public final class SageBacktestRunner: ObservableObject {
         do {
             results = try JSONDecoder().decode([SageBacktestResult].self, from: data)
         } catch {
+            #if DEBUG
             print("[SageBacktestRunner] Failed to load results: \(error)")
+            #endif
         }
     }
     

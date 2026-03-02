@@ -152,7 +152,9 @@ final class CertificatePinningManager: NSObject {
         guard let expectedHashes = publicKeyHashes[host], !expectedHashes.isEmpty else {
             // No pins configured for this domain yet - allow in report mode
             if pinningMode == .reportOnly {
+                #if DEBUG
                 print("⚠️ [CertPinning] No pins configured for \(host) - allowing")
+                #endif
                 return true
             }
             // In strict mode, fail if no pins configured
@@ -166,13 +168,17 @@ final class CertificatePinningManager: NSObject {
         let hasMatch = serverHashes.contains { expectedHashes.contains($0) }
         
         if !hasMatch {
+            #if DEBUG
             print("🚨 [CertPinning] Certificate pin mismatch for \(host)")
             print("🚨 [CertPinning] Server hashes: \(serverHashes)")
             print("🚨 [CertPinning] Expected hashes: \(Array(expectedHashes))")
+            #endif
             
             // In report mode, log but allow
             if pinningMode == .reportOnly {
+                #if DEBUG
                 print("⚠️ [CertPinning] Report-only mode - allowing connection")
+                #endif
                 return true
             }
         }
@@ -203,7 +209,9 @@ extension CertificatePinningManager: URLSessionDelegate {
         let isValid = SecTrustEvaluateWithError(serverTrust, &error)
         
         guard isValid else {
+            #if DEBUG
             print("🚨 [CertPinning] Standard validation failed for \(host): \(error?.localizedDescription ?? "unknown")")
+            #endif
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }
@@ -278,11 +286,15 @@ struct CertificateHashHelper {
     /// Use this to get the hashes you need to add to publicKeyHashes
     static func printHashes(for domain: String) async {
         guard let url = URL(string: "https://\(domain)") else {
+            #if DEBUG
             print("Invalid domain: \(domain)")
+            #endif
             return
         }
         
+        #if DEBUG
         print("🔐 Fetching certificate hashes for \(domain)...")
+        #endif
         
         let session = URLSession(configuration: .ephemeral)
         
@@ -290,12 +302,16 @@ struct CertificateHashHelper {
             let (_, response) = try await session.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse {
+                #if DEBUG
                 print("✅ Connected to \(domain) (Status: \(httpResponse.statusCode))")
                 print("📋 To get certificate hashes, implement a URLSessionDelegate")
                 print("   that logs the hashes from didReceive challenge")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("❌ Failed to connect: \(error.localizedDescription)")
+            #endif
         }
     }
 }

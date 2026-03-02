@@ -1199,13 +1199,17 @@ final class FirebaseService: ObservableObject {
         config.timeoutIntervalForResource = 90
         let session = URLSession(configuration: config)
         
+        #if DEBUG
         print("[FirebaseService] Starting streaming request to \(url.absoluteString)")
+        #endif
         
         // Make streaming request
         let (bytes, response) = try await session.bytes(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
+            #if DEBUG
             print("[FirebaseService] Invalid response - not HTTP")
+            #endif
             throw FirebaseServiceError.networkError("Invalid response")
         }
         
@@ -1214,7 +1218,9 @@ final class FirebaseService: ObservableObject {
         #endif
         
         guard (200...299).contains(httpResponse.statusCode) else {
+            #if DEBUG
             print("[FirebaseService] HTTP error: \(httpResponse.statusCode)")
+            #endif
             throw FirebaseServiceError.serverError("HTTP \(httpResponse.statusCode)")
         }
         
@@ -1227,11 +1233,13 @@ final class FirebaseService: ObservableObject {
             lineCount += 1
             
             // SSE format: "data: {...}\n"
-            guard line.hasPrefix("data: ") else { 
+            guard line.hasPrefix("data: ") else {
+                #if DEBUG
                 if lineCount <= 3 {
                     print("[FirebaseService] Skipping non-data line #\(lineCount): \(line.prefix(50))...")
                 }
-                continue 
+                #endif
+                continue
             }
             let jsonString = String(line.dropFirst(6))
             
@@ -1242,7 +1250,9 @@ final class FirebaseService: ObservableObject {
                 if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                     // Check for error
                     if let error = json["error"] as? String {
+                        #if DEBUG
                         print("[FirebaseService] Server error in stream: \(error)")
+                        #endif
                         throw FirebaseServiceError.serverError(error)
                     }
                     
@@ -1251,9 +1261,11 @@ final class FirebaseService: ObservableObject {
                         chunkCount += 1
                         fullText += content
                         
+                        #if DEBUG
                         if chunkCount <= 3 {
                             print("[FirebaseService] Chunk #\(chunkCount): +\(content.count) chars, total: \(fullText.count)")
                         }
+                        #endif
                         
                         // Update UI on main thread and yield to allow SwiftUI to render
                         await MainActor.run {
@@ -1265,7 +1277,9 @@ final class FirebaseService: ObservableObject {
                     
                     // Check if done
                     if json["done"] as? Bool == true {
+                        #if DEBUG
                         print("[FirebaseService] Stream complete, \(chunkCount) chunks received")
+                        #endif
                         break
                     }
                 }
@@ -1273,13 +1287,17 @@ final class FirebaseService: ObservableObject {
                 throw parseError
             } catch {
                 // Skip malformed chunks
+                #if DEBUG
                 print("[FirebaseService] Skipping malformed chunk: \(error.localizedDescription)")
+                #endif
                 continue
             }
         }
         
+        #if DEBUG
         print("[FirebaseService] Streaming finished, total lines: \(lineCount), chunks: \(chunkCount), chars: \(fullText.count)")
-        
+        #endif
+
         return fullText
     }
     

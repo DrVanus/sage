@@ -121,7 +121,9 @@ class PriceViewModel: ObservableObject {
         instanceCache = instanceCache.filter { $0.value.value != nil }
         instanceCacheLock.unlock()
         geckoCache.removeAll()
+        #if DEBUG
         print("🗑️ [PriceViewModel] Cleared all static caches (historicalCache, geckoCache, chart data)")
+        #endif
     }
     
     // Shared URLSession with custom timeout
@@ -421,11 +423,15 @@ class PriceViewModel: ObservableObject {
             let sinceLastRefresh = Date().timeIntervalSince(lastStaleRefreshAt)
             if timeframe == .live && stale && sinceLastRefresh > 10 {
                 lastStaleRefreshAt = Date()
+                #if DEBUG
                 print("PriceViewModel: same symbol \(normalized) but live is stale; refreshing live updates")
+                #endif
                 stopPolling()
                 startPolling()
             } else {
+                #if DEBUG
                 print("PriceViewModel: updateSymbol called with same symbol \(normalized), skipping")
+                #endif
             }
             return
         }

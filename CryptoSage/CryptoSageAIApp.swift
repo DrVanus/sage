@@ -304,7 +304,6 @@ struct CryptoSageAIApp: App {
                 // Home/Watchlist feel cold on nearly every launch.
                 print("ℹ️ [BUILD CHANGE] Binary changed — preserving warm caches in DEBUG")
                 #else
-                print("🔄 [BUILD CHANGE] Binary changed — purging all caches for clean start")
                 CryptoSageAIApp.purgeAllCacheFiles()
                 needsFirestoreCacheClear = true
                 #endif
@@ -555,12 +554,16 @@ struct CryptoSageAIApp: App {
                 await marketVM.loadFromCacheOnly()
                 logMemory("Phase 1 DONE (simulator cache + one-shot refresh)")
                 LivePriceManager.shared.startPolling(interval: 45)
+                #if DEBUG
                 print("🧪 [Startup] Simulator limited profile active — one-shot refresh + throttled polling")
                 print("🧪 [SIM DIAGNOSTIC] profile=limited allCoins=\(marketVM.allCoins.count), coins=\(marketVM.coins.count)")
+                #endif
             }
             return
         } else {
+            #if DEBUG
             print("🧪 [Startup] Simulator full-data profile active — matching device startup path")
+            #endif
         }
         #endif
 
@@ -591,7 +594,9 @@ struct CryptoSageAIApp: App {
             let usedAtPhase2 = currentMemoryMB()
             let availAtPhase2 = Double(os_proc_available_memory()) / (1024 * 1024)
             if usedAtPhase2 > 700 || (availAtPhase2 > 0 && availAtPhase2 < 1500) {
+                #if DEBUG
                 print("⚠️ [Phase 2] DEFERRED — used \(String(format: "%.0f", usedAtPhase2)) MB, avail \(String(format: "%.0f", availAtPhase2)) MB")
+                #endif
                 // Retry after a shorter wait to avoid prolonged cold-start UI.
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 6_000_000_000)
@@ -600,7 +605,9 @@ struct CryptoSageAIApp: App {
                     let usedRetry = currentMemoryMB()
                     let availRetry = Double(os_proc_available_memory()) / (1024 * 1024)
                     if usedRetry > 800 || (availRetry > 0 && availRetry < 1200) {
+                        #if DEBUG
                         print("⚠️ [Phase 2] RETRY SKIPPED — used \(String(format: "%.0f", usedRetry)) MB, avail \(String(format: "%.0f", availRetry)) MB")
+                        #endif
                         return
                     }
                     logMemory("Phase 2 BEGIN (retry)")
@@ -657,7 +664,9 @@ struct CryptoSageAIApp: App {
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             guard canRunNonCriticalPhase(1400, 1500) else {
+                #if DEBUG
                 print("⏭️ [Phase 5.5] Deferred stock tracking due to startup memory pressure")
+                #endif
                 return
             }
             
@@ -686,7 +695,9 @@ struct CryptoSageAIApp: App {
             try? await Task.sleep(nanoseconds: 35_000_000_000)
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             guard canRunNonCriticalPhase(1400, 1500) else {
+                #if DEBUG
                 print("⏭️ [Phase 6] Deferred StoreKit/Ads init due to memory pressure")
+                #endif
                 return
             }
             // Keep Home interactions smooth: if user is still on Home, defer monetization init once.
@@ -773,7 +784,9 @@ struct CryptoSageAIApp: App {
             guard canRunNonCriticalPhase(1400, 1500) else { return }
             let pendingCount = PredictionAccuracyService.shared.storedPredictions.filter { $0.isReadyForEvaluation }.count
             if pendingCount > 0 {
+                #if DEBUG
                 print("[CryptoSageAIApp] \(pendingCount) predictions still pending - running second evaluation pass")
+                #endif
                 await PredictionAccuracyService.shared.evaluatePendingPredictions()
             }
         }
@@ -784,7 +797,9 @@ struct CryptoSageAIApp: App {
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             guard canRunNonCriticalPhase(1400, 1500) else { return }
             guard CommunityAccuracyService.shared.isCloudKitAvailable else {
+                #if DEBUG
                 print("[CryptoSageAIApp] Skipping community sync - CloudKit not available")
+                #endif
                 return
             }
             await CommunityAccuracyService.shared.sync()
@@ -836,7 +851,9 @@ struct CryptoSageAIApp: App {
             UserDefaults.standard.removeObject(forKey: key)
         }
         
+        #if DEBUG
         print("🧹 [NUKE] Deleted \(nuked) files/directories from Documents + Caches + \(cacheDefaults.count) UserDefaults keys")
+        #endif
     }
     
     /// Purges ALL known cache files from the Documents directory.
@@ -862,7 +879,9 @@ struct CryptoSageAIApp: App {
             }
         }
         if purged > 0 {
+            #if DEBUG
             print("🧹 [CryptoSageAIApp] Full cache purge: deleted \(purged) files for clean launch")
+            #endif
         }
     }
     
@@ -875,11 +894,13 @@ struct CryptoSageAIApp: App {
         // At this point in init(), no listeners have been started yet.
         let db = Firestore.firestore()
         db.clearPersistence { error in
+            #if DEBUG
             if let error = error {
                 print("⚠️ [Firestore] clearPersistence failed: \(error.localizedDescription)")
             } else {
                 print("🧹 [Firestore] Persistent cache cleared successfully")
             }
+            #endif
         }
     }
     
@@ -902,7 +923,9 @@ struct CryptoSageAIApp: App {
                     cleared += 1
                 }
                 if cleared > 0 {
+                    #if DEBUG
                     print("🧹 [Nuclear] Cleared \(cleared) items from Library/Caches")
+                    #endif
                 }
             }
         }
@@ -914,7 +937,9 @@ struct CryptoSageAIApp: App {
                 try? FileManager.default.removeItem(atPath: (tmpDir as NSString).appendingPathComponent(item))
             }
             if !contents.isEmpty {
+                #if DEBUG
                 print("🧹 [Nuclear] Cleared \(contents.count) items from tmp/")
+                #endif
             }
         }
     }
@@ -948,16 +973,20 @@ struct CryptoSageAIApp: App {
             if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
                let size = attrs[.size] as? Int,
                size > maxSize {
+                #if DEBUG
                 print("🧹 [Cache] \(file) is \(size / 1024) KB (limit: \(maxSize / 1024) KB) — deleting")
+                #endif
                 try? FileManager.default.removeItem(at: url)
                 purged += 1
             }
         }
+        #if DEBUG
         if purged > 0 {
             print("🧹 [CryptoSageAIApp] Purged \(purged) oversized cache files at startup")
         } else {
             print("✅ [CryptoSageAIApp] All cache files within size limits")
         }
+        #endif
     }
     
     // MARK: - Memory Management (Static to avoid capturing self)
@@ -998,13 +1027,17 @@ struct CryptoSageAIApp: App {
     private static func handleMemoryWarning() {
         let mb = currentMemoryMB()
         let avail = availableMemoryMB()
+        #if DEBUG
         print("🚨 MEMORY WARNING: \(String(format: "%.0f", mb)) MB used, \(String(format: "%.0f", avail)) MB available")
+        #endif
         
         // MEMORY FIX v13: Skip cleanup if already in emergency mode.
         // Repeated cleanup calls trigger @Published objectWillChange → SwiftUI re-renders
         // → ~40 MB of new allocations per cycle (the "freed -40 MB" in logs).
         if hasTriggeredEmergencyStop {
+            #if DEBUG
             print("🧠 MEMORY: Already in emergency mode — skipping redundant cleanup")
+            #endif
             return
         }
         
@@ -1016,7 +1049,9 @@ struct CryptoSageAIApp: App {
         runMainPressureCleanup(emergencyTrim: false)
         
         let mbAfter = currentMemoryMB()
+        #if DEBUG
         print("🧠 MEMORY after cleanup: \(String(format: "%.0f", mbAfter)) MB (freed \(String(format: "%.0f", mb - mbAfter)) MB)")
+        #endif
     }
     
     /// Background watchdog that monitors memory and triggers cleanup before iOS kills us.
@@ -1043,7 +1078,9 @@ struct CryptoSageAIApp: App {
     private static var isWatchdogDrainPending = false
     
     private static func startMemoryWatchdog() {
+        #if DEBUG
         print("🐕 MEMORY WATCHDOG: Starting (GCD timer)...")
+        #endif
         watchdogStartedAt = Date()
         
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
@@ -1056,7 +1093,9 @@ struct CryptoSageAIApp: App {
             
             // Keep startup visibility, then taper logs to reduce console noise.
             if elapsed <= 12 || (elapsed <= 60 && watchdogTick % 3 == 0) || watchdogTick % 10 == 0 {
+                #if DEBUG
                 print("🐕 WATCHDOG +\(elapsed)s: \(String(format: "%.0f", mb)) MB used, \(String(format: "%.0f", avail)) MB avail")
+                #endif
             }
             
             // MEMORY FIX v7: Force autorelease pool drain on main thread.
@@ -1141,12 +1180,16 @@ struct CryptoSageAIApp: App {
             let now = Date()
             guard now.timeIntervalSince(lastCriticalCleanupAt) >= 10 else { return }
             lastCriticalCleanupAt = now
+            #if DEBUG
             print("🚨🚨🚨 CRITICAL: \(String(format: "%.0f", usedMB)) MB used, \(String(format: "%.0f", availMB)) MB available - emergency memory mitigation")
+            #endif
             
             // After the first critical mitigation, remain in observe-only mode to avoid
             // repeated cleanup storms that can allocate additional transient memory.
             if hasTriggeredEmergencyStop {
+                #if DEBUG
                 print("🛑 [WATCHDOG] Already in emergency mode — observe-only, skipping repeated cleanup")
+                #endif
                 return
             }
             
@@ -1159,7 +1202,9 @@ struct CryptoSageAIApp: App {
             // These are the primary source of ~8 MB/s memory growth when sparkline
             // data never arrives. Once killed, animations stay off for the session.
             globalAnimationsKilled = true
+            #if DEBUG
             print("🛑 [WATCHDOG] Emergency stop — halting high-churn pipeline paths")
+            #endif
             FavoritesManager.shared.stopFirestoreSync()
             MarketDataSyncService.shared.stopPeriodicSync()
             // Clear transient data only — NOT image caches (causes re-download storm)
@@ -1172,18 +1217,24 @@ struct CryptoSageAIApp: App {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 let mbAfter = currentMemoryMB()
                 let availAfter = availableMemoryMB()
+                #if DEBUG
                 print("🧠 MEMORY checkpoint +0.5s: \(String(format: "%.0f", mbAfter)) MB used, \(String(format: "%.0f", availAfter)) MB available")
+                #endif
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 let mbAfter = currentMemoryMB()
                 let availAfter = availableMemoryMB()
+                #if DEBUG
                 print("🧠 MEMORY checkpoint +1.5s: \(String(format: "%.0f", mbAfter)) MB used, \(String(format: "%.0f", availAfter)) MB available")
+                #endif
             }
         } else if isElevated {
             let now = Date()
             guard now.timeIntervalSince(lastElevatedCleanupAt) >= 20 else { return }
             lastElevatedCleanupAt = now
+            #if DEBUG
             print("⚠️ ELEVATED: \(String(format: "%.0f", usedMB)) MB used, \(String(format: "%.0f", availMB)) MB available - aggressive cleanup")
+            #endif
             // Stop data pipeline to halt new allocations — DO NOT clear image caches
             CacheManager.shared.clearMemoryCache()
             URLCache.shared.removeAllCachedResponses()
@@ -1195,7 +1246,9 @@ struct CryptoSageAIApp: App {
             guard now.timeIntervalSince(lastEarlyCleanupAt) >= 30 || grownSinceLastEarly else { return }
             lastEarlyCleanupAt = now
             lastEarlyCleanupUsedMB = usedMB
+            #if DEBUG
             print("⚡ EARLY WARNING: \(String(format: "%.0f", usedMB)) MB used, \(String(format: "%.0f", availMB)) MB available - light cleanup")
+            #endif
             // Light cleanup only — DO NOT clear image/chart caches (causes re-download feedback loop)
             CacheManager.shared.clearMemoryCache()
         }
@@ -1368,7 +1421,9 @@ struct CryptoSageAIApp: App {
                 didStartLoading = true
                 startupSurfaceShownAt = Date()
                 
+                #if DEBUG
                 print("🚀 [CryptoSageAIApp] .task block starting — single launch surface")
+                #endif
                 logMemory("TASK START")
                 
                 // MEMORY FIX: Register for iOS memory warning notifications
@@ -1419,7 +1474,9 @@ struct CryptoSageAIApp: App {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
                     let tickerFresh = FirestoreMarketSync.shared.tickerFreshness.rawValue
                     let geckoFresh = FirestoreMarketSync.shared.coinGeckoFreshness.rawValue
+                    #if DEBUG
                     print("📡 [StartupDataStatus] source=live ticker=\(tickerFresh) coingecko=\(geckoFresh)")
+                    #endif
                 }
                 
                 // RELAUNCH FIX v5.0.15: Clear crash guard + reset failure counter
@@ -1431,7 +1488,9 @@ struct CryptoSageAIApp: App {
                     UserDefaults.standard.set(false, forKey: "StartupSafeModeEnabled")
                     UserDefaults.standard.set(0, forKey: "AppConsecutiveFailCount")
                     startupRecoveryMode = false
+                    #if DEBUG
                     print("🛡️ [CRASH GUARD] Cleared + failure counter reset after stable runtime")
+                    #endif
                 }
                 
                 // Show periodic upgrade prompt after core launch has settled.
@@ -1469,7 +1528,9 @@ struct CryptoSageAIApp: App {
                         if didStartRealtimePipeline && !CryptoSageAIApp.isEmergencyStopActive() {
                             FirestoreMarketSync.shared.startListening()
                         } else {
+                            #if DEBUG
                             print("⏳ [ScenePhase] Skipping Firestore restart — pipeline not ready or emergency stop active")
+                            #endif
                         }
                         
                         // PERFORMANCE v26: Only clear caches AND reload when cooldown has elapsed.
@@ -1478,7 +1539,9 @@ struct CryptoSageAIApp: App {
                         // Now both operations are gated together.
                         let isInitialActivePulse = !appReady || !didStartLoading
                         if isInitialActivePulse {
+                            #if DEBUG
                             print("⏳ [ScenePhase] Initial active pulse — skipping foreground reload")
+                            #endif
                         } else {
                             let now = Date()
                             if now.timeIntervalSince(lastForegroundLoadAt) >= foregroundLoadCooldown {
@@ -1812,7 +1875,9 @@ private struct PhoneScaleNormalizer: ViewModifier {
         let measuredWidthPoints = bounds.width
         let factor = expectedWidthPoints > 0 ? (expectedWidthPoints / measuredWidthPoints) : 1
         if !logged {
+            #if DEBUG
             print("[Normalize] bounds=\(Int(bounds.width))x\(Int(bounds.height))@\(scale)x nativeScale=\(nativeScale) expectedWidth=\(expectedWidthPoints) factor=\(factor))")
+            #endif
         }
         // Only apply if off by more than ~10%
         if abs(1 - factor) > 0.10 {

@@ -96,7 +96,9 @@ final class AIInsightService {
             do {
                 cachedInsight = try JSONDecoder().decode(AIInsight.self, from: data)
             } catch {
+                #if DEBUG
                 print("[AIInsightService] Failed to load cached insight: \(error)")
+                #endif
             }
         }
         
@@ -130,7 +132,9 @@ final class AIInsightService {
                 let data = try JSONEncoder().encode(insight)
                 defaults.set(data, forKey: cacheInsightKey)
             } catch {
+                #if DEBUG
                 print("[AIInsightService] Failed to save cached insight: \(error)")
+                #endif
             }
         } else {
             defaults.removeObject(forKey: cacheInsightKey)
@@ -188,10 +192,14 @@ final class AIInsightService {
                 return insight
             } catch FirebaseServiceError.authenticationRequired {
                 // Fall through to direct API call
+                #if DEBUG
                 print("[AIInsightService] Firebase auth required, falling back to direct API")
+                #endif
             } catch {
                 // Log Firebase error but fall through to direct API
+                #if DEBUG
                 print("[AIInsightService] Firebase error: \(error.localizedDescription), falling back to direct API")
+                #endif
             }
         }
         

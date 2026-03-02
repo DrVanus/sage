@@ -409,7 +409,9 @@ final class AIInsightViewModel: ObservableObject {
                 return
             } catch {
                 // Log the error but fall back to demo insights
+                #if DEBUG
                 print("AI Insight error: \(error.localizedDescription)")
+                #endif
                 // Continue to demo insights below
             }
         }
@@ -445,7 +447,9 @@ final class AIInsightViewModel: ObservableObject {
                 }
                 return
             } catch {
+                #if DEBUG
                 print("AI Insight error: \(error.localizedDescription)")
+                #endif
             }
         }
         
@@ -697,7 +701,9 @@ final class AIInsightViewModel: ObservableObject {
                 loadPaperTradingData(paperManager: paperManager, prices: prices)
                 return
             } catch {
+                #if DEBUG
                 print("AI Insight error for paper trading: \(error.localizedDescription)")
+                #endif
             }
         }
         

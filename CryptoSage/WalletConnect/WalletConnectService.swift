@@ -82,7 +82,9 @@ public final class WalletConnectService: ObservableObject {
                 isConnected = false
             }
             
+            #if DEBUG
             print("🔐 [WalletConnect] Cleaned up \(activeSessions.count - validSessions.count) expired sessions")
+            #endif
         }
     }
     
@@ -246,7 +248,9 @@ public final class WalletConnectService: ObservableObject {
         // Use encrypted storage for WalletConnect sessions
         // Sessions contain wallet addresses which are sensitive
         secureStorage.saveEncrypted(activeSessions, to: sessionsFileName)
+        #if DEBUG
         print("🔐 [WalletConnect] Sessions saved to encrypted storage")
+        #endif
     }
     
     private func loadSessions() {
@@ -259,7 +263,9 @@ public final class WalletConnectService: ObservableObject {
             if let session = activeSessions.first, let account = session.accounts.first {
                 connectedAccount = account
                 isConnected = true
+                #if DEBUG
                 print("🔐 [WalletConnect] Restored session for \(account.address.prefix(10))...")
+                #endif
             }
         }
         
@@ -267,7 +273,9 @@ public final class WalletConnectService: ObservableObject {
         let legacyKey = "CryptoSage.WalletConnect.Sessions"
         if UserDefaults.standard.data(forKey: legacyKey) != nil {
             UserDefaults.standard.removeObject(forKey: legacyKey)
+            #if DEBUG
             print("🔐 [WalletConnect] Migrated sessions from UserDefaults to encrypted storage")
+            #endif
         }
     }
     
@@ -278,7 +286,9 @@ public final class WalletConnectService: ObservableObject {
         isConnected = false
         connectionURI = nil
         secureStorage.deleteEncrypted(sessionsFileName)
+        #if DEBUG
         print("🔐 [WalletConnect] All sessions cleared")
+        #endif
     }
     
     // MARK: - Helpers
