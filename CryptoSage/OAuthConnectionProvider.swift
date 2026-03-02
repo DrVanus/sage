@@ -830,11 +830,3 @@ final class OAuthConnectionProviderImpl: NSObject, ConnectionProvider, ASWebAuth
     }
 }
 
-// MARK: - Replace Stub with Implementation
-
-extension OAuthConnectionProvider {
-    /// Override the stub methods to use the real implementation
-    static var implementation: OAuthConnectionProviderImpl {
-        OAuthConnectionProviderImpl.shared
-    }
-}

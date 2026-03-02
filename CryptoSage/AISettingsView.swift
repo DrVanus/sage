@@ -1092,7 +1092,7 @@ struct AISettingsView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "link")
                         .font(.caption2)
-                    Link("Get \(provider.displayName) API Key", destination: URL(string: provider.apiKeyURL) ?? URL(string: "https://google.com")!)
+                    Link("Get \(provider.displayName) API Key", destination: URL(string: provider.apiKeyURL) ?? URL(string: "https://cryptosage.app/help")!)
                         .font(.caption)
                 }
                 .foregroundColor(BrandColors.goldBase)
@@ -1571,7 +1571,7 @@ struct AISettingsView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "link")
                             .font(.caption2)
-                        Link("Get Tavily API Key (1000 free/month)", destination: URL(string: "https://tavily.com") ?? URL(string: "https://google.com")!)
+                        Link("Get Tavily API Key (1000 free/month)", destination: URL(string: "https://tavily.com") ?? URL(string: "https://cryptosage.app/help")!)
                             .font(.caption)
                     }
                     .foregroundColor(.cyan)
@@ -2216,7 +2216,7 @@ private struct ResourceLink: View {
     let url: String
     
     var body: some View {
-        Link(destination: URL(string: url) ?? URL(string: "https://google.com")!) {
+        Link(destination: URL(string: url) ?? URL(string: "https://cryptosage.app/help")!) {
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)

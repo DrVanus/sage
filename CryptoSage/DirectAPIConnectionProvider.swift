@@ -1543,11 +1543,3 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
     }
 }
 
-// MARK: - Replace Stub with Implementation
-
-extension DirectAPIConnectionProvider {
-    /// Override the stub methods to use the real implementation
-    static var implementation: DirectAPIConnectionProviderImpl {
-        DirectAPIConnectionProviderImpl.shared
-    }
-}

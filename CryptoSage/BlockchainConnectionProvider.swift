@@ -992,11 +992,3 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
     }
 }
 
-// MARK: - Replace Stub with Implementation
-
-extension BlockchainConnectionProvider {
-    /// Override the stub methods to use the real implementation
-    static var implementation: BlockchainConnectionProviderImpl {
-        BlockchainConnectionProviderImpl.shared
-    }
-}
