@@ -1696,7 +1696,7 @@ struct DeveloperModeEntryView: View {
         return VStack(spacing: 8) {
             HStack {
                 Image(systemName: "info.circle.fill")
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Text("App Info")
                     .font(.caption.weight(.bold))
                     .foregroundColor(DS.Adaptive.textSecondary)
@@ -5420,10 +5420,10 @@ struct LiveTradingBotsSettingsSection: View {
                         HStack {
                             Image(systemName: "cpu")
                                 .font(.system(size: 14))
-                                .foregroundColor(.gray)
+                                .foregroundColor(DS.Adaptive.textTertiary)
                             Text("No live bots yet")
                                 .font(.system(size: 14))
-                                .foregroundColor(.gray)
+                                .foregroundColor(DS.Adaptive.textTertiary)
                             Spacer()
                         }
                         .padding(.vertical, 8)

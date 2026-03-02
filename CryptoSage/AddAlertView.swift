@@ -960,7 +960,7 @@ struct AddAlertView: View {
                                     Text("Push notifications enabled by default")
                                         .font(.system(size: 14, weight: .semibold))
                                         .foregroundStyle(DS.Adaptive.textPrimary)
-                                    Text("Email and Telegram are coming in a future update.")
+                                    Text("Additional delivery methods like email and Telegram may be added later.")
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundStyle(DS.Adaptive.textTertiary)
                                 }

@@ -765,7 +765,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
     /// Generate a random nonce for Apple Sign-In
     /// - Throws: NonceError if SecRandomCopyBytes fails (extremely rare)
     private func randomNonceString(length: Int = 32) throws -> String {
-        precondition(length > 0)
+        guard length > 0 else { throw NonceError.secRandomFailed(-1) }
         var randomBytes = [UInt8](repeating: 0, count: length)
         let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
         if errorCode != errSecSuccess {

@@ -22,8 +22,9 @@ struct IdeasCard: View {
             HStack {
                 Spacer()
                 Button {
-                    let url = URL(string: "https://www.tradingview.com/symbols/\(symbol)USD/ideas/")!
-                    openURL(url)
+                    if let url = URL(string: "https://www.tradingview.com/symbols/\(symbol)USD/ideas/") {
+                        openURL(url)
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "link")
@@ -1446,13 +1447,13 @@ final class CoinNewsViewModel: ObservableObject {
 
     func moreURL(for symbol: String, category: CoinNewsCategory) -> URL {
         let q = query(for: symbol, category: category).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? symbol
-        return URL(string: "https://news.google.com/search?q=\(q)")!
+        return URL(string: "https://news.google.com/search?q=\(q)") ?? URL(string: "https://news.google.com")!
     }
 
     private func feedURL(for symbol: String, category: CoinNewsCategory) -> URL {
         let q = query(for: symbol, category: category).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? symbol
         let path = "https://news.google.com/rss/search?q=\(q)&hl=en-US&gl=US&ceid=US:en"
-        return URL(string: path)!
+        return URL(string: path) ?? URL(string: "https://news.google.com/rss")!
     }
 
     private func query(for symbol: String, category: CoinNewsCategory) -> String {

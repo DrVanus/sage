@@ -590,7 +590,7 @@ struct OrderBookDepthChartView: View {
             VStack(spacing: 3) {
                 Text("Spread")
                     .font(.system(size: Design.headerLabelSize, weight: .semibold))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Text(formatSmartSpread(cachedSpread))
                     .font(.system(size: Design.headerValueSize, weight: .bold, design: .monospaced))
                     .foregroundColor(isDark ? .white.opacity(0.9) : .black.opacity(0.8))
@@ -620,7 +620,7 @@ struct OrderBookDepthChartView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Price")
                     .font(.system(size: Design.headerLabelSize, weight: .medium))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Text(formatDetailPrice(data.price))
                     .font(.system(size: Design.headerValueSize, weight: .bold, design: .monospaced))
                     .foregroundColor(sideColor)
@@ -632,7 +632,7 @@ struct OrderBookDepthChartView: View {
             VStack(spacing: 2) {
                 Text("Total Depth")
                     .font(.system(size: Design.headerLabelSize, weight: .medium))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Text(formatSmartDepth(data.depth))
                     .font(.system(size: Design.headerValueSize, weight: .bold, design: .monospaced))
                     .foregroundColor(sideColor)
@@ -644,7 +644,7 @@ struct OrderBookDepthChartView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Side")
                     .font(.system(size: Design.headerLabelSize, weight: .medium))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 HStack(spacing: 4) {
                     Image(systemName: data.isBid ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                         .font(.system(size: 11))

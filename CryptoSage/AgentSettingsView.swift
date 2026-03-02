@@ -106,7 +106,7 @@ struct AgentSettingsView: View {
             } else if agentService.isConnected {
                 HStack(spacing: 8) {
                     Image(systemName: "antenna.radiowaves.left.and.right.slash")
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Text("Waiting for agent heartbeat...")
                         .font(.caption)
                         .foregroundColor(DS.Adaptive.textSecondary)
@@ -115,7 +115,7 @@ struct AgentSettingsView: View {
             } else {
                 HStack(spacing: 8) {
                     Image(systemName: "bolt.slash")
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Text("No agent connected")
                         .font(.caption)
                         .foregroundColor(DS.Adaptive.textSecondary)

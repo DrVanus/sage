@@ -4329,14 +4329,14 @@ private struct OrderBookHeaderRow: View {
                 HStack(spacing: 4) {
                     Text("Spread")
                         .font(DS.Fonts.orderBookHeader)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .allowsTightening(true)
                     spreadBadge
                     Text("• \(spreadAbsText)")
                         .font(DS.Fonts.orderBookHeader)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .allowsTightening(true)
@@ -4346,7 +4346,7 @@ private struct OrderBookHeaderRow: View {
                 HStack(spacing: 3) {
                     Text("Spread")
                         .font(DS.Fonts.orderBookHeader)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                         .allowsTightening(true)
@@ -4361,7 +4361,7 @@ private struct OrderBookHeaderRow: View {
                 HStack(spacing: 4) {
                     Text("Spread")
                         .font(DS.Fonts.orderBookHeader)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .allowsTightening(true)

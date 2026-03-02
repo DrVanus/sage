@@ -2735,7 +2735,8 @@ public actor TradingExecutionService {
         let signString = timestamp + credentials.apiKey + recvWindow + queryString
         let signature = hmacSHA256HexBybit(message: signString, key: credentials.apiSecret)
         
-        var request = URLRequest(url: URL(string: "https://api.bybit.com/v5/account/wallet-balance?\(queryString)")!)
+        guard let bybitURL = URL(string: "https://api.bybit.com/v5/account/wallet-balance?\(queryString)") else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: bybitURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-BAPI-API-KEY")
         request.setValue(timestamp, forHTTPHeaderField: "X-BAPI-TIMESTAMP")
@@ -2781,7 +2782,8 @@ public actor TradingExecutionService {
         let signString = timestamp + credentials.apiKey + recvWindow + queryString
         let signature = hmacSHA256HexBybit(message: signString, key: credentials.apiSecret)
         
-        var request = URLRequest(url: URL(string: "https://api.bybit.com/v5/account/wallet-balance?\(queryString)")!)
+        guard let bybitURL = URL(string: "https://api.bybit.com/v5/account/wallet-balance?\(queryString)") else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: bybitURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-BAPI-API-KEY")
         request.setValue(timestamp, forHTTPHeaderField: "X-BAPI-TIMESTAMP")
@@ -2814,7 +2816,8 @@ public actor TradingExecutionService {
         let signString = timestamp + credentials.apiKey + recvWindow + queryParams
         let signature = hmacSHA256HexBybit(message: signString, key: credentials.apiSecret)
         
-        var request = URLRequest(url: URL(string: "https://api.bybit.com/v5/order/realtime?\(queryParams)")!)
+        guard let bybitOrderURL = URL(string: "https://api.bybit.com/v5/order/realtime?\(queryParams)") else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: bybitOrderURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-BAPI-API-KEY")
         request.setValue(timestamp, forHTTPHeaderField: "X-BAPI-TIMESTAMP")
@@ -3169,7 +3172,8 @@ public actor TradingExecutionService {
         let signString = timestamp + "GET" + path
         let signature = hmacSHA256Base64OKX(message: signString, key: credentials.apiSecret)
         
-        var request = URLRequest(url: URL(string: "https://www.okx.com\(path)")!)
+        guard let okxURL = URL(string: "https://www.okx.com\(path)") else { throw TradingError.apiError(message: "Invalid URL") }
+        var request = URLRequest(url: okxURL)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "OK-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "OK-ACCESS-SIGN")

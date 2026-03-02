@@ -38,7 +38,11 @@ actor LinkCanonicalResolver {
                 cache[url] = s
                 return s
             }
-        } catch { }
+        } catch {
+            #if DEBUG
+            print("⚠️ [LinkCanonicalResolver] Failed to resolve \(url): \(error.localizedDescription)")
+            #endif
+        }
         return nil
     }
 
