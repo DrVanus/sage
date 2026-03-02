@@ -35,7 +35,7 @@ struct DerivativesStrategyBasicView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("GRID SETTINGS")
                         .font(.caption2)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .padding(.horizontal)
 
                     VStack(spacing: 1) {

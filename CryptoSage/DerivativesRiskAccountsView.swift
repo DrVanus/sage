@@ -18,7 +18,7 @@ struct DerivativesRiskAccountsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("EXCHANGE & MARKET")
                         .font(.caption2)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .padding(.horizontal)
                     VStack(spacing: 1) {
                         Picker("Exchange", selection: $viewModel.selectedExchange) {
@@ -52,7 +52,7 @@ struct DerivativesRiskAccountsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("RISK MANAGEMENT")
                         .font(.caption2)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .padding(.horizontal)
                     VStack(spacing: 1) {
                         Stepper("Leverage: \(viewModel.leverage)x",

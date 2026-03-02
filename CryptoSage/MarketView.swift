@@ -1513,7 +1513,7 @@ struct MarketView: View {
             } label: {
                 Text("Clear")
                     .font(.caption.weight(.medium))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
             }
         }
         .padding(.horizontal, MarketColumns.horizontalPadding)
