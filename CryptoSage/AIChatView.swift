@@ -2320,7 +2320,7 @@ extension AITabView {
                         
                         Text("Daily limit reached")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                         
                         Spacer()
                         

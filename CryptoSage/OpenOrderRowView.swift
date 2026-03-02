@@ -185,7 +185,7 @@ struct OpenOrderRowView: View {
                     if showSymbol {
                         Text(order.baseAsset)
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                     
                     Text(isBuy ? "BUY" : "SELL")
@@ -198,7 +198,7 @@ struct OpenOrderRowView: View {
                     
                     Text(order.type == .limit ? "LIMIT" : "MARKET")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(Color.white.opacity(0.05))
@@ -208,7 +208,7 @@ struct OpenOrderRowView: View {
                     if !isSwipedOpen {
                         Image(systemName: "chevron.left.2")
                             .font(.system(size: 8))
-                            .foregroundColor(.gray.opacity(0.5))
+                            .foregroundColor(DS.Adaptive.textTertiary.opacity(0.5))
                     }
                 }
                 
@@ -217,28 +217,28 @@ struct OpenOrderRowView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Price")
                             .font(.system(size: 9))
-                            .foregroundColor(.gray)
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         Text(formatPrice(order.price))
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                     
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Quantity")
                             .font(.system(size: 9))
-                            .foregroundColor(.gray)
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         Text(formatQuantity(order.quantity))
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(.white)
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                     
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Total")
                             .font(.system(size: 9))
-                            .foregroundColor(.gray)
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         Text(formatUSD(order.totalValue))
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(DS.Adaptive.textPrimary)
                     }
                 }
             }
@@ -292,7 +292,7 @@ struct OpenOrderRowView: View {
                 } label: {
                     Image(systemName: showDetails ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                         .frame(width: 28, height: 28)
                         .background(Circle().fill(Color.white.opacity(0.05)))
                 }
@@ -382,7 +382,7 @@ struct OpenOrderRowView: View {
                     
                     Text("Price Distance")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                 }
                 
                 Spacer()
@@ -457,7 +457,7 @@ struct OpenOrderRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Order Price")
                         .font(.system(size: 9))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Text(formatPrice(order.price))
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(sideColor)
@@ -468,7 +468,7 @@ struct OpenOrderRowView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Market Price")
                         .font(.system(size: 9))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Text(formatPrice(simulatedMarketPrice))
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(BrandColors.goldBase)
@@ -519,7 +519,7 @@ struct OpenOrderRowView: View {
             HStack {
                 Text("Fill Progress")
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Spacer()
                 Text("\(String(format: "%.1f", order.filledPercent))%")
                     .font(.system(size: 11, weight: .medium))
@@ -548,11 +548,11 @@ struct OpenOrderRowView: View {
             HStack {
                 Text("Filled: \(formatQuantity(order.filledQuantity))")
                     .font(.system(size: 10))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 Spacer()
                 Text("Remaining: \(formatQuantity(order.remainingQuantity))")
                     .font(.system(size: 10))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
             }
         }
         .padding(10)
@@ -571,14 +571,14 @@ struct OpenOrderRowView: View {
         HStack {
             Image(systemName: "building.columns")
                 .font(.system(size: 11))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
             Text(order.exchange.displayName)
                 .font(.system(size: 12))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
             Spacer()
             Text(order.symbol)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
         }
         .padding(.top, 4)
     }
@@ -624,7 +624,7 @@ struct OpenOrderRowView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.system(size: 10))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
             Text(value)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(color)

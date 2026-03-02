@@ -2624,13 +2624,13 @@ struct CoinDetailView: View {
     }
 
     // MARK: - Row builders (erase conditional complexity)
-    private func statRow(icon: String, title: String, value: String?, valueColor: Color = .white, shimmerWidth: CGFloat = 72) -> some View {
+    private func statRow(icon: String, title: String, value: String?, valueColor: Color = DS.Adaptive.textPrimary, shimmerWidth: CGFloat = 72) -> some View {
         HStack {
             HStack(spacing: 8) {
                 leadingIcon(icon)
                 Text(title)
                     .font(.subheadline)
-                    .foregroundColor(value != nil ? .gray : .gray.opacity(0.5))
+                    .foregroundColor(value != nil ? DS.Adaptive.textTertiary : DS.Adaptive.textTertiary.opacity(0.5))
             }
             Spacer()
             if let v = value {
@@ -2641,12 +2641,12 @@ struct CoinDetailView: View {
         }
     }
 
-    private func statRow(title: String, value: String?, valueColor: Color = .white, shimmerWidth: CGFloat = 72, infoMessage: String? = nil) -> some View {
+    private func statRow(title: String, value: String?, valueColor: Color = DS.Adaptive.textPrimary, shimmerWidth: CGFloat = 72, infoMessage: String? = nil) -> some View {
         HStack {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.footnote)
-                    .foregroundColor(value != nil ? .gray : .gray.opacity(0.5))
+                    .foregroundColor(value != nil ? DS.Adaptive.textTertiary : DS.Adaptive.textTertiary.opacity(0.5))
                 if let info = infoMessage {
                     SmallInfoButton(message: info)
                 }
@@ -2667,12 +2667,12 @@ struct CoinDetailView: View {
     }
     
     /// Stat row with freshness indicator (orange dot when stale, no dot when fresh)
-    private func statRowWithFreshness(title: String, value: String?, valueColor: Color = .white, isFresh: Bool, shimmerWidth: CGFloat = 72, infoMessage: String? = nil) -> some View {
+    private func statRowWithFreshness(title: String, value: String?, valueColor: Color = DS.Adaptive.textPrimary, isFresh: Bool, shimmerWidth: CGFloat = 72, infoMessage: String? = nil) -> some View {
         HStack {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.footnote)
-                    .foregroundColor(value != nil ? .gray : .gray.opacity(0.5))
+                    .foregroundColor(value != nil ? DS.Adaptive.textTertiary : DS.Adaptive.textTertiary.opacity(0.5))
                 if !isFresh && value != nil {
                     Circle()
                         .fill(Color.orange)

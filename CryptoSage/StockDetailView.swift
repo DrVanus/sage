@@ -232,7 +232,9 @@ struct StockDetailView: View {
     
     // Data freshness tracking
     @State private var lastQuoteUpdate: Date?
+    #if DEBUG
     @State private var showDiagnostics = false
+    #endif
     
     // AI Signal state (unified TradingSignal model + Firebase AI)
     @State private var tradingSignal: TradingSignal?
@@ -408,9 +410,11 @@ struct StockDetailView: View {
         .sheet(isPresented: $showWhyMoving) {
             stockWhyMovingSheetView
         }
+        #if DEBUG
         .sheet(isPresented: $showDiagnostics) {
             stockDiagnosticsSheetView
         }
+        #endif
         .onDisappear {
             signalTask?.cancel()
             signalDebounceTask?.cancel()
@@ -419,6 +423,7 @@ struct StockDetailView: View {
         }
     }
     
+    #if DEBUG
     private var stockDiagnosticsSheetView: some View {
         StockDiagnosticsSheet(
             ticker: ticker,
@@ -432,6 +437,7 @@ struct StockDetailView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
     }
+    #endif
     
     private var stockDeepDiveSheetView: some View {
         StockDeepDiveSheet(
@@ -2354,12 +2360,14 @@ struct StockDetailView: View {
                 .foregroundColor(isMarketCurrentlyOpen() ? Color.green : Color.orange)
             }
             .contentShape(Rectangle())
+            #if DEBUG
             .onLongPressGesture {
                 #if os(iOS)
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 #endif
                 showDiagnostics = true
             }
+            #endif
             
             // Stats grid with shimmer loading
             if isLoadingQuote && quote == nil {
@@ -3771,6 +3779,7 @@ struct StockWhyMovingSheet: View {
     }
 }
 
+#if DEBUG
 // MARK: - Stock Diagnostics Sheet
 
 /// Diagnostics sheet for debugging stock data issues
@@ -3913,6 +3922,7 @@ private struct StockDiagnosticsSheet: View {
         }
     }
 }
+#endif
 
 // MARK: - Stock Why Is Moving Card
 

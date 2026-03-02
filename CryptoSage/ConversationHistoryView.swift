@@ -206,39 +206,89 @@ extension ConversationHistoryView {
         let pinnedSorted = pinnedConvos.sorted { ($0.lastMessageDate ?? $0.createdAt) > ($1.lastMessageDate ?? $1.createdAt) }
         let unpinnedSorted = unpinnedConvos.sorted { ($0.lastMessageDate ?? $0.createdAt) > ($1.lastMessageDate ?? $1.createdAt) }
         
-        return List {
-            if !pinnedSorted.isEmpty {
-                Section(header: pinnedHeader()) {
-                    ForEach(pinnedSorted, id: \._id) { convo in
-                        conversationCell(convo)
+        if filtered.isEmpty {
+            return AnyView(
+                VStack(spacing: 16) {
+                    Spacer()
+                    Image(systemName: conversations.isEmpty ? "bubble.left.and.bubble.right" : "magnifyingglass")
+                        .font(.system(size: 40))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [BrandColors.goldLight, BrandColors.goldBase],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Text(conversations.isEmpty ? "No Conversations Yet" : "No Results")
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(DS.Adaptive.textPrimary)
+                    Text(conversations.isEmpty ? "Start a new chat to get AI-powered crypto insights." : "Try a different search term.")
+                        .font(.subheadline)
+                        .foregroundColor(DS.Adaptive.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    if conversations.isEmpty {
+                        Button(action: onNewChat) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("New Chat")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [BrandColors.goldLight, BrandColors.goldBase],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            )
+                        }
+                        .padding(.top, 8)
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                    Spacer()
                 }
-            }
-            
-            if !unpinnedSorted.isEmpty {
+            )
+        }
+
+        return AnyView(
+            List {
                 if !pinnedSorted.isEmpty {
-                    Section(header: recentHeader()) {
+                    Section(header: pinnedHeader()) {
+                        ForEach(pinnedSorted, id: \._id) { convo in
+                            conversationCell(convo)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
+                if !unpinnedSorted.isEmpty {
+                    if !pinnedSorted.isEmpty {
+                        Section(header: recentHeader()) {
+                            ForEach(unpinnedSorted, id: \._id) { convo in
+                                conversationCell(convo)
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+                    } else {
+                        // No pinned section; show recent conversations without a redundant header
                         ForEach(unpinnedSorted, id: \._id) { convo in
                             conversationCell(convo)
                         }
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
-                } else {
-                    // No pinned section; show recent conversations without a redundant header
-                    ForEach(unpinnedSorted, id: \._id) { convo in
-                        conversationCell(convo)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                 }
             }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+        )
     }
     
     private func pinnedHeader() -> some View {

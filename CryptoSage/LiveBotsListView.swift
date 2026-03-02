@@ -120,7 +120,7 @@ struct LiveBotsListView: View {
                         )
                 }
             }
-            .foregroundColor(isSelected ? .black : .white.opacity(0.8))
+            .foregroundColor(isSelected ? .black : DS.Adaptive.textPrimary.opacity(0.8))
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
@@ -194,11 +194,11 @@ struct LiveBotsListView: View {
                     .foregroundColor(color)
                 Text(value)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(DS.Adaptive.textPrimary)
             }
             Text(label)
                 .font(.system(size: 10))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
         }
     }
     
@@ -230,7 +230,7 @@ struct LiveBotsListView: View {
                         Spacer()
                         Text("Last updated: \(formatTime(lastFetch))")
                             .font(.system(size: 11))
-                            .foregroundColor(.gray)
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         Spacer()
                     }
                     .padding(.top, 8)
@@ -264,7 +264,7 @@ struct LiveBotsListView: View {
             
             Text("Loading bots...")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(DS.Adaptive.textSecondary)
             
             Spacer()
         }
@@ -287,11 +287,11 @@ struct LiveBotsListView: View {
             
             Text("3Commas Not Connected")
                 .font(.title2.weight(.bold))
-                .foregroundColor(.white)
+                .foregroundColor(DS.Adaptive.textPrimary)
             
             Text("Connect your 3Commas account to view and manage your live trading bots.")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(DS.Adaptive.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -346,11 +346,11 @@ struct LiveBotsListView: View {
             
             Text("No Live Bots Yet")
                 .font(.title2.weight(.bold))
-                .foregroundColor(.white)
+                .foregroundColor(DS.Adaptive.textPrimary)
             
             Text("You don't have any bots on 3Commas yet. Create bots on 3Commas or use paper trading to practice first.")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(DS.Adaptive.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -386,7 +386,7 @@ struct LiveBotsListView: View {
             
             Text(message)
                 .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(DS.Adaptive.textSecondary)
             
             Spacer()
             
@@ -395,7 +395,7 @@ struct LiveBotsListView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
             }
         }
         .padding(12)
@@ -485,7 +485,7 @@ struct LiveBotRowView: View {
         HStack(spacing: 6) {
             Text(bot.name)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(DS.Adaptive.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
             
@@ -512,7 +512,7 @@ struct LiveBotRowView: View {
         HStack(spacing: 6) {
             Text(bot.strategy.displayName)
                 .font(.system(size: 11))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
                 .lineLimit(1)
             
             Text("•")
@@ -520,7 +520,7 @@ struct LiveBotRowView: View {
             
             Text(formatPair(bot.primaryPair))
                 .font(.system(size: 11))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
                 .lineLimit(1)
             
             if let accountName = bot.accountName {
@@ -529,7 +529,7 @@ struct LiveBotRowView: View {
                 
                 Text(accountName)
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                     .lineLimit(1)
             }
         }
@@ -547,7 +547,7 @@ struct LiveBotRowView: View {
             let deals = (bot.closedDealsCount ?? 0)
             Text("\(deals) trades")
                 .font(.system(size: 10))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
                 .lineLimit(1)
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -611,7 +611,7 @@ struct LiveBotRowView: View {
         } label: {
             Image(systemName: showDetails ? "chevron.up" : "chevron.down")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
                 .frame(width: 28, height: 28)
                 .background(Circle().fill(Color.white.opacity(0.08)))
         }
@@ -683,11 +683,11 @@ struct LiveBotRowView: View {
     
     // MARK: - Helpers
     
-    private func detailItem(label: String, value: String, color: Color = .white) -> some View {
+    private func detailItem(label: String, value: String, color: Color = DS.Adaptive.textPrimary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.system(size: 10))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
             Text(value)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(color)
@@ -753,7 +753,7 @@ struct LiveBotsSection: View {
                 HStack {
                     Text("Connect 3Commas to manage live bots")
                         .font(.system(size: 14))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Spacer()
                 }
                 .padding(.vertical, 8)
@@ -762,7 +762,7 @@ struct LiveBotsSection: View {
                 HStack {
                     Text("No live bots on 3Commas")
                         .font(.system(size: 14))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                     Spacer()
                 }
                 .padding(.vertical, 8)
@@ -778,7 +778,7 @@ struct LiveBotsSection: View {
                             
                             Text(bot.name)
                                 .font(.system(size: 14))
-                                .foregroundColor(.white)
+                                .foregroundColor(DS.Adaptive.textPrimary)
                                 .lineLimit(1)
                             
                             Spacer()
@@ -822,9 +822,9 @@ struct LiveBotsSection: View {
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12))
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textTertiary)
                 }
-                .foregroundColor(.white)
+                .foregroundColor(DS.Adaptive.textPrimary)
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
