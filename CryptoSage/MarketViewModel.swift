@@ -1106,7 +1106,10 @@ final class MarketViewModel: ObservableObject {
                             return abs(oldPrice - newPrice) > threshold
                         }
                         let allChanged: Bool = countDiffers || priceDiffers
-                        if allChanged {
+                        // BTC DATA FIX: Only replace allCoins with live data if the live set
+                        // is at least as large as the existing set, or if allCoins is very small.
+                        // Prevents a partial API response from wiping out a complete cached list.
+                        if allChanged && (liveCoins.count >= self.allCoins.count || self.allCoins.count < 10) {
                             self.allCoins = self.capToMaxCoins(liveCoins)
                         }
                         self.state = .success(liveCoins)
@@ -4310,6 +4313,19 @@ final class MarketViewModel: ObservableObject {
             // Fall back to bundled snapshot if async cache load didn't find anything
             if self.allCoins.isEmpty {
                 adoptCachedOrBundledSnapshot()
+            }
+            // COLD START FIX: If Documents cache and adoptCachedOrBundled both failed
+            // (fresh install or corrupted cache), use the bundled coins_cache.json.
+            // This ensures BTC and other major coins are always present on first launch.
+            if self.allCoins.isEmpty {
+                let bundled = self.loadBundledCoins()
+                if !bundled.isEmpty {
+                    let normalized = self.normalizeCoins(self.capToMaxCoins(bundled))
+                    self.allCoins = normalized
+                    self.state = .success(normalized)
+                    self.rebuildPriceBooks()
+                    self.showSnapshotImmediately()
+                }
             }
         }
         

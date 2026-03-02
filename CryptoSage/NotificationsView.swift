@@ -1243,12 +1243,12 @@ private struct AIPortfolioAlertsCardView: View {
 
     var body: some View {
         ZStack {
-            // Main card content
-            cardContent
-            
-            // Locked overlay for free users
-            if !hasPro {
-                lockedOverlay
+            if hasPro {
+                // Full card content for pro users
+                cardContent
+            } else {
+                // Clean card for free users — no overlay bleeding
+                freeCardContent
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: NotificationsDesign.cardCornerRadius, style: .continuous))
@@ -1633,28 +1633,49 @@ private struct AIPortfolioAlertsCardView: View {
         .allowsHitTesting(false)
     }
     
-    // MARK: - Locked Overlay (Free Users)
-    
-    private var lockedOverlay: some View {
+    // MARK: - Free User Card Content
+
+    private var freeCardContent: some View {
         Button {
             onUpgrade()
         } label: {
-            ZStack {
-                // Semi-transparent overlay — fills the card exactly
-                RoundedRectangle(cornerRadius: NotificationsDesign.cardCornerRadius, style: .continuous)
-                    .fill(DS.Adaptive.cardBackground)
-                    .opacity(0.92)
-                
-                // Lock badge + CTA — compact inline pill
+            VStack(spacing: 12) {
+                HStack(spacing: 14) {
+                    aiIconView
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 6) {
+                            Text("AI Market Alerts")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(DS.Adaptive.textPrimary)
+                                .minimumScaleFactor(0.92)
+
+                            statusPill(
+                                text: "PRO",
+                                icon: "crown.fill",
+                                tint: BrandColors.goldBase
+                            )
+                        }
+
+                        Text("Upgrade to unlock AI-driven market and portfolio monitoring alerts")
+                            .font(.system(size: 12))
+                            .foregroundStyle(DS.Adaptive.textTertiary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 4)
+                }
+
+                // Prominent upgrade CTA
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
-                    
+
                     Text("Unlock with Pro")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.white)
-                    
+
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.white.opacity(0.7))
@@ -1672,8 +1693,14 @@ private struct AIPortfolioAlertsCardView: View {
                         )
                 )
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .background(cardBackground)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("AI Market Alerts")
+        .accessibilityHint("Upgrade to Pro to unlock AI market alerts")
     }
 }
 
