@@ -134,14 +134,6 @@ private struct HoldingsSortPicker: View {
     }
 }
 
-// Temporary extension to add a default accountName property to Holding.
-// When your API provides actual account info, update this accordingly.
-extension Holding {
-    var accountName: String {
-        return "Default"
-    }
-}
-
 private let brandAccent = Color.brandAccent
 
 struct ScaleButtonStyle: ButtonStyle {

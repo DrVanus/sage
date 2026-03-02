@@ -249,15 +249,22 @@ final class BlockchainConnectionProviderImpl: ConnectionProvider {
     }
     
     func disconnect(accountId: String) async throws {
-        // Extract address from account ID and remove
+        // Account ID format: "chain-addressPrefix-addressSuffix"
+        // StoredWalletAddress.id is a UUID — match by address prefix/suffix instead
         let parts = accountId.split(separator: "-")
-        if parts.count >= 2 {
-            // Account ID format: chain-prefix-suffix
-            // We need to find the full address from storage
-            let addresses = getStoredAddresses()
-            if let toRemove = addresses.first(where: { $0.id.contains(accountId) }) {
-                removeWalletAddress(toRemove.id)
-            }
+        guard parts.count >= 3 else { return }
+
+        let chain = String(parts[0])
+        let addrPrefix = String(parts[1])
+        let addrSuffix = String(parts[2])
+
+        let addresses = getStoredAddresses()
+        if let toRemove = addresses.first(where: {
+            $0.chain.lowercased() == chain.lowercased() &&
+            $0.address.hasPrefix(addrPrefix) &&
+            $0.address.hasSuffix(addrSuffix)
+        }) {
+            removeWalletAddress(toRemove.id)
         }
     }
     

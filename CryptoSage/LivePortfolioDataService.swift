@@ -35,66 +35,6 @@ final class LivePortfolioDataService: PortfolioDataService {
     private let secureDataManager = SecureUserDataManager.shared
     private var localTransactions: [Transaction] = []
     
-    // MARK: - Mock Data
-    
-    private static let mockHoldings: [Holding] = [
-        Holding(
-            coinName: "Bitcoin",
-            coinSymbol: "BTC",
-            quantity: 0.5,
-            currentPrice: 42000,
-            costBasis: 35000,
-            imageUrl: nil,
-            isFavorite: true,
-            dailyChange: 2.5,
-            purchaseDate: Date().addingTimeInterval(-86400 * 30)
-        ),
-        Holding(
-            coinName: "Ethereum",
-            coinSymbol: "ETH",
-            quantity: 3.0,
-            currentPrice: 2200,
-            costBasis: 1800,
-            imageUrl: nil,
-            isFavorite: true,
-            dailyChange: -1.2,
-            purchaseDate: Date().addingTimeInterval(-86400 * 60)
-        ),
-        Holding(
-            coinName: "Solana",
-            coinSymbol: "SOL",
-            quantity: 50.0,
-            currentPrice: 95,
-            costBasis: 80,
-            imageUrl: nil,
-            isFavorite: false,
-            dailyChange: 5.8,
-            purchaseDate: Date().addingTimeInterval(-86400 * 14)
-        ),
-        Holding(
-            coinName: "Dogecoin",
-            coinSymbol: "DOGE",
-            quantity: 10000,
-            currentPrice: 0.08,
-            costBasis: 0.05,
-            imageUrl: nil,
-            isFavorite: false,
-            dailyChange: 3.2,
-            purchaseDate: Date().addingTimeInterval(-86400 * 90)
-        ),
-        Holding(
-            coinName: "Tether",
-            coinSymbol: "USDT",
-            quantity: 5000,
-            currentPrice: 1.0,
-            costBasis: 1.0,
-            imageUrl: nil,
-            isFavorite: false,
-            dailyChange: 0.0,
-            purchaseDate: Date().addingTimeInterval(-86400 * 7)
-        )
-    ]
-    
     // MARK: - Initialization
     
     init() {

@@ -161,22 +161,44 @@ final class ConnectedAccountsManager: ObservableObject {
         addAccount(account)
     }
     
-    /// Remove an account
+    /// Remove an account and clean up stored credentials
     func removeAccount(_ account: ConnectedAccount) {
         let removedName = account.name
+
+        // Clean up credentials via the provider's disconnect method
+        Task {
+            do {
+                let connectionType: ConnectionType = {
+                    switch account.provider {
+                    case "oauth": return .oauth
+                    case "blockchain": return .walletAddress
+                    case "3commas": return .threeCommas
+                    default: return .apiKey
+                    }
+                }()
+                if let prov = provider(for: connectionType) {
+                    try await prov.disconnect(accountId: account.id)
+                }
+            } catch {
+                #if DEBUG
+                print("⚠️ [ConnectedAccounts] Failed to disconnect provider for \(account.name): \(error)")
+                #endif
+            }
+        }
+
         accounts.removeAll { $0.id == account.id }
-        
+
         // ANALYTICS: Track exchange disconnection
         AnalyticsService.shared.trackExchangeDisconnected(exchangeName: removedName)
         AnalyticsService.shared.updateConnectedExchangeCount(accounts.count)
-        
+
         // If we removed the default, make the first remaining account default
         if account.isDefault, let first = accounts.first {
             if let index = accounts.firstIndex(where: { $0.id == first.id }) {
                 accounts[index].isDefault = true
             }
         }
-        
+
         saveAccounts()
         objectWillChange.send()
     }

@@ -145,39 +145,70 @@ final class ConnectionHealthViewModel: ObservableObject {
     
     func refreshAll() async {
         guard !isRefreshing else { return }
-        
+
         isRefreshing = true
-        
+
         // Set all to syncing
         for i in accountHealths.indices {
             accountHealths[i].status = .syncing
         }
-        
-        // Simulate refresh - in production this would call the actual sync
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-        
-        // Update last sync times
+
+        // Actually fetch balances from each connected account's provider
         for i in accountHealths.indices {
-            accountHealths[i].lastSync = Date()
-            accountHealths[i].status = .healthy
+            await refreshAccountAtIndex(i)
         }
-        
+
         lastRefresh = Date()
         isRefreshing = false
         updateOverallStatus()
     }
-    
+
     func refreshAccount(_ id: String) async {
         guard let index = accountHealths.firstIndex(where: { $0.id == id }) else { return }
-        
+
         accountHealths[index].status = .syncing
-        
-        // Simulate refresh
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        accountHealths[index].lastSync = Date()
-        accountHealths[index].status = .healthy
+        await refreshAccountAtIndex(index)
         updateOverallStatus()
+    }
+
+    private func refreshAccountAtIndex(_ index: Int) async {
+        let health = accountHealths[index]
+        let account = accountsManager.accounts.first(where: { $0.id == health.id })
+
+        guard let account = account else {
+            accountHealths[index].status = .error
+            accountHealths[index].errorMessage = "Account not found"
+            return
+        }
+
+        let connectionType: ConnectionType = {
+            switch account.provider {
+            case "oauth": return .oauth
+            case "blockchain": return .walletAddress
+            case "3commas": return .threeCommas
+            default: return .apiKey
+            }
+        }()
+
+        guard let provider = accountsManager.provider(for: connectionType) else {
+            accountHealths[index].status = .error
+            accountHealths[index].errorMessage = "Provider unavailable"
+            return
+        }
+
+        do {
+            let balances = try await provider.fetchBalances(accountId: account.id)
+            accountHealths[index].lastSync = Date()
+            accountHealths[index].balanceCount = balances.count
+            accountHealths[index].status = .healthy
+            accountHealths[index].errorMessage = nil
+        } catch {
+            accountHealths[index].status = .error
+            accountHealths[index].errorMessage = error.localizedDescription
+            #if DEBUG
+            print("⚠️ [ConnectionHealth] Refresh failed for \(account.name): \(error)")
+            #endif
+        }
     }
 }
 

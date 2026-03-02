@@ -86,23 +86,7 @@ final class ThreeCommasAPI {
     }()
     
     private init() {}
-    
-    // MARK: - Mock Data
-    
-    private static let mockAccounts: [Account] = [
-        Account(id: 1001, name: "Binance Main", currency: "USDT"),
-        Account(id: 1002, name: "Coinbase Pro", currency: "USD"),
-        Account(id: 1003, name: "Kraken Trading", currency: "EUR")
-    ]
-    
-    private static let mockBalances: [AccountBalance] = [
-        AccountBalance(currency: "BTC", balance: 0.5),
-        AccountBalance(currency: "ETH", balance: 2.5),
-        AccountBalance(currency: "USDT", balance: 5000.0),
-        AccountBalance(currency: "SOL", balance: 25.0),
-        AccountBalance(currency: "DOGE", balance: 10000.0)
-    ]
-    
+
     // MARK: - Connection & Validation
 
     /// Test connection using API credentials

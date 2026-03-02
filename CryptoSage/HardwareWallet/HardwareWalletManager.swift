@@ -286,7 +286,9 @@ public final class HardwareWalletManager: ObservableObject {
         // Load from encrypted storage (not UserDefaults - wallet addresses are sensitive)
         if let savedAccounts = secureStorage.loadEncrypted([HWAccount].self, from: accountsFileName) {
             accounts = savedAccounts
+            #if DEBUG
             print("🔐 [HWWallet] Loaded \(accounts.count) accounts from encrypted storage")
+            #endif
         }
         
         // Migrate from old UserDefaults storage if exists
@@ -301,7 +303,9 @@ public final class HardwareWalletManager: ObservableObject {
             }
             saveAccounts()
             UserDefaults.standard.removeObject(forKey: legacyKey)
+            #if DEBUG
             print("🔐 [HWWallet] Migrated accounts from UserDefaults to encrypted storage")
+            #endif
         }
     }
     
@@ -314,7 +318,9 @@ public final class HardwareWalletManager: ObservableObject {
     public func clearAllAccounts() {
         accounts.removeAll()
         secureStorage.deleteEncrypted(accountsFileName)
+        #if DEBUG
         print("🔐 [HWWallet] All accounts cleared")
+        #endif
     }
 }
 

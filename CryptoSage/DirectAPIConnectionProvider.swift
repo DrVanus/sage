@@ -406,6 +406,13 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let signature = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: key)
         return signature.map { String(format: "%02x", $0) }.joined()
     }
+
+    /// Returns the raw HMAC-SHA256 bytes as Data (for APIs that need base64 of raw bytes, e.g. KuCoin, Bitget)
+    private func hmacSHA256Data(message: String, secret: String) -> Data {
+        let key = SymmetricKey(data: Data(secret.utf8))
+        let signature = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: key)
+        return Data(signature)
+    }
     
     // MARK: - Binance API
     
@@ -495,13 +502,11 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let method = "GET"
         let endpoint = config.accountEndpoint
         
-        // KuCoin signature: timestamp + method + endpoint
+        // KuCoin signature: base64(HMAC-SHA256(timestamp + method + endpoint))
         let signatureString = timestamp + method + endpoint
-        let signature = hmacSHA256(message: signatureString, secret: credentials.apiSecret)
-        let signatureBase64 = Data(signature.utf8).base64EncodedString()
-        
-        let passphraseSignature = hmacSHA256(message: credentials.passphrase ?? "", secret: credentials.apiSecret)
-        let passphraseBase64 = Data(passphraseSignature.utf8).base64EncodedString()
+        let signatureBase64 = hmacSHA256Data(message: signatureString, secret: credentials.apiSecret).base64EncodedString()
+
+        let passphraseBase64 = hmacSHA256Data(message: credentials.passphrase ?? "", secret: credentials.apiSecret).base64EncodedString()
         
         var request = URLRequest(url: config.baseURL.appendingPathComponent(endpoint))
         request.httpMethod = method
@@ -555,12 +560,10 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let endpoint = config.accountEndpoint
         
         let signatureString = timestamp + method + endpoint
-        let signature = hmacSHA256(message: signatureString, secret: secret)
-        let signatureBase64 = Data(signature.utf8).base64EncodedString()
-        
-        let passphraseSignature = hmacSHA256(message: passphrase, secret: secret)
-        let passphraseBase64 = Data(passphraseSignature.utf8).base64EncodedString()
-        
+        let signatureBase64 = hmacSHA256Data(message: signatureString, secret: secret).base64EncodedString()
+
+        let passphraseBase64 = hmacSHA256Data(message: passphrase, secret: secret).base64EncodedString()
+
         var request = URLRequest(url: config.baseURL.appendingPathComponent(endpoint))
         request.httpMethod = method
         request.setValue(key, forHTTPHeaderField: "KC-API-KEY")
@@ -1352,10 +1355,9 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let method = "GET"
         let endpoint = config.accountEndpoint
         
-        // Bitget signature: timestamp + method + requestPath + queryString + body
+        // Bitget signature: base64(HMAC-SHA256(timestamp + method + requestPath + queryString + body))
         let signPayload = timestamp + method + endpoint
-        let signature = hmacSHA256(message: signPayload, secret: credentials.apiSecret)
-        let signatureBase64 = Data(signature.utf8).base64EncodedString()
+        let signatureBase64 = hmacSHA256Data(message: signPayload, secret: credentials.apiSecret).base64EncodedString()
         
         var request = URLRequest(url: config.baseURL.appendingPathComponent(endpoint))
         request.httpMethod = method
@@ -1418,9 +1420,8 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let endpoint = config.accountEndpoint
         
         let signPayload = timestamp + method + endpoint
-        let signature = hmacSHA256(message: signPayload, secret: secret)
-        let signatureBase64 = Data(signature.utf8).base64EncodedString()
-        
+        let signatureBase64 = hmacSHA256Data(message: signPayload, secret: secret).base64EncodedString()
+
         var request = URLRequest(url: config.baseURL.appendingPathComponent(endpoint))
         request.httpMethod = method
         request.setValue(key, forHTTPHeaderField: "ACCESS-KEY")

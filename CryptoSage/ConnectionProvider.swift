@@ -631,7 +631,9 @@ class ThreeCommasConnectionProvider: ConnectionProvider {
     }
     
     func disconnect(accountId: String) async throws {
-        // Clear stored credentials
+        // Clear stored 3Commas credentials from Keychain
+        try? KeychainHelper.shared.delete(service: "CryptoSage.3Commas", account: "api_key")
+        try? KeychainHelper.shared.delete(service: "CryptoSage.3Commas", account: "api_secret")
     }
     
     func fetchBalances(accountId: String) async throws -> [PortfolioBalance] {
