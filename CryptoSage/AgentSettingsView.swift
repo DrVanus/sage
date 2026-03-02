@@ -39,7 +39,7 @@ struct AgentSettingsView: View {
         .task {
             do {
                 try await agentService.loadApiKeys()
-                if let userId = authManager.userId {
+                if let userId = authManager.currentUser?.id {
                     agentService.startListening(userId: userId)
                 }
             } catch {
@@ -218,7 +218,7 @@ struct AgentSettingsView: View {
     private func commandButton(title: String, icon: String, type: String) -> some View {
         Button {
             impactLight.impactOccurred()
-            guard let userId = authManager.userId else { return }
+            guard let userId = authManager.currentUser?.id else { return }
             Task { try? await agentService.sendCommand(userId: userId, type: type) }
         } label: {
             HStack(spacing: 12) {

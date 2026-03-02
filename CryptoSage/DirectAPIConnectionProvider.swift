@@ -586,11 +586,11 @@ final class DirectAPIConnectionProviderImpl: ConnectionProvider {
         let paramStr = "accountType=UNIFIED"
         let signPayload = timestamp + credentials.apiKey + recvWindow + paramStr
         let signature = hmacSHA256(message: signPayload, secret: credentials.apiSecret)
-        
-        guard var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false) else { return false }
+
+        guard var components = URLComponents(url: config.baseURL.appendingPathComponent(config.accountEndpoint), resolvingAgainstBaseURL: false) else { return [] }
         components.queryItems = [URLQueryItem(name: "accountType", value: "UNIFIED")]
 
-        guard let url = components.url else { return false }
+        guard let url = components.url else { return [] }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(credentials.apiKey, forHTTPHeaderField: "X-BAPI-API-KEY")
