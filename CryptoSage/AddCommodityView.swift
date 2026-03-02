@@ -128,7 +128,7 @@ struct AddCommodityView: View {
         .navigationBarHidden(true)
         .enableInteractivePopGesture()
         .edgeSwipeToDismiss(onDismiss: { dismiss() })
-        .alert("Error", isPresented: $showError) {
+        .alert("Unable to Add Commodity", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)

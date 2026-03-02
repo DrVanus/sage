@@ -114,7 +114,7 @@ struct AISettingsView: View {
         } message: {
             Text("Your \(selectedProvider.displayName) API key has been saved securely.")
         }
-        .alert("Error", isPresented: $showSaveError) {
+        .alert("Could Not Save", isPresented: $showSaveError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)

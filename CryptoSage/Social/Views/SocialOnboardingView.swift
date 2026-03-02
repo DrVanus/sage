@@ -80,7 +80,7 @@ public struct SocialOnboardingView: View {
             .toolbarBackground(isDark ? Color.black : Color(UIColor.systemBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(isDark ? .dark : .light, for: .navigationBar)
-            .alert("Error", isPresented: $showError) {
+            .alert("Setup Issue", isPresented: $showError) {
                 Button("OK") { }
             } message: {
                 Text(errorMessage)

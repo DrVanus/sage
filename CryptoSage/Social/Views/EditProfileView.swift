@@ -259,7 +259,7 @@ struct EditProfileView: View {
             .toolbarBackground(DS.Adaptive.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(colorScheme == .dark ? .dark : .light, for: .navigationBar)
-            .alert("Error", isPresented: $showingError) {
+            .alert("Profile Update Failed", isPresented: $showingError) {
                 Button("OK") { }
             } message: {
                 Text(errorMessage)

@@ -637,10 +637,13 @@ struct AIPredictionDetailView: View {
         
         currentLoadingTask = task
         
-        // Start safety timer that cancels the task if it takes too long
-        loadingSafetyTimer = Timer.scheduledTimer(withTimeInterval: loadingSafetyTimeoutSeconds, repeats: false) { [task] _ in
+        // Start safety timer that cancels the task if it takes too long.
+        // Use [weak task] to avoid retaining the Task if the view is dismissed before timeout.
+        loadingSafetyTimer = Timer.scheduledTimer(withTimeInterval: loadingSafetyTimeoutSeconds, repeats: false) { [weak task] _ in
+            #if DEBUG
             print("[AIPrediction] Detail view safety timeout triggered - cancelling task")
-            task.cancel()
+            #endif
+            task?.cancel()
         }
     }
     

@@ -85,13 +85,13 @@ struct NFTGalleryView: View {
             .sheet(item: $selectedNFT) { nft in
                 NFTDetailView(nft: nft)
             }
-            .alert("Error", isPresented: .init(
+            .alert("NFT Loading Failed", isPresented: .init(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
             )) {
                 Button("OK") { errorMessage = nil }
             } message: {
-                Text(errorMessage ?? "")
+                Text(errorMessage ?? "Unable to load NFTs. Please try again.")
             }
         }
     }

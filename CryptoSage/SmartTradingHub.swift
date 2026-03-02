@@ -9066,8 +9066,10 @@ private struct SmartTradingChatBubble: View {
 
 private struct SmartTradingTypingIndicator: View {
     @State private var dotPhase: Int = 0
-    @State private var animationTimer: Timer? = nil
-    
+
+    // Use a TimelineView-friendly timer publisher to avoid Timer retain issues
+    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<3, id: \.self) { index in
@@ -9088,27 +9090,9 @@ private struct SmartTradingTypingIndicator: View {
                         .stroke(BrandColors.goldLight.opacity(0.25), lineWidth: 1)
                 )
         )
-        .onAppear {
-            startAnimation()
+        .onReceive(timer) { _ in
+            dotPhase = (dotPhase + 1) % 3
         }
-        .onDisappear {
-            stopAnimation()
-        }
-    }
-    
-    private func startAnimation() {
-        animationTimer?.invalidate()
-        // NOTE: SwiftUI View structs use [self] - timer invalidated in onDisappear
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [self] _ in
-            DispatchQueue.main.async {
-                dotPhase = (dotPhase + 1) % 3
-            }
-        }
-    }
-    
-    private func stopAnimation() {
-        animationTimer?.invalidate()
-        animationTimer = nil
     }
 }
 

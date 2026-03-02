@@ -387,9 +387,39 @@ struct SettingsView: View {
                         
                         // MARK: - Notifications
                         SettingsSection(title: "NOTIFICATIONS") {
+                            // Push notification status
+                            HStack {
+                                Image(systemName: "bell.badge.fill")
+                                    .foregroundColor(PushNotificationManager.shared.isPushEnabled ? .green : DS.Adaptive.textTertiary)
+                                    .frame(width: 24)
+                                Text("Push Notifications")
+                                    .font(.subheadline)
+                                    .foregroundColor(DS.Adaptive.textPrimary)
+                                Spacer()
+                                if PushNotificationManager.shared.isPushEnabled {
+                                    Text("Enabled")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                } else {
+                                    Button("Enable") {
+                                        Task {
+                                            await PushNotificationManager.shared.registerForPushNotifications()
+                                        }
+                                    }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundColor(BrandColors.goldBase)
+                                }
+                            }
+                            .padding(.vertical, 4)
+
+                            NavigationLink(destination: NotificationsView()) {
+                                SettingsRow(icon: "bell", title: "Price Alerts")
+                            }
+                            .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
+
                             let aiMonitor = AIPortfolioMonitor.shared
                             let hasPro = SubscriptionManager.shared.hasAccess(to: .aiPoweredAlerts)
-                            
+
                             VStack(alignment: .leading, spacing: 4) {
                                 SettingsToggleRow(
                                     icon: "sparkles",
@@ -406,7 +436,7 @@ struct SettingsView: View {
                                 )
                                 .disabled(!hasPro)
                                 .opacity(hasPro ? 1.0 : 0.5)
-                                
+
                                 Text(hasPro
                                     ? "AI monitors macro market shifts plus your portfolio/watchlist relevance and sends smart notifications."
                                     : "Upgrade to Pro to enable AI market and portfolio notifications.")

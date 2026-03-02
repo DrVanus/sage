@@ -72,10 +72,10 @@ struct BrokerageConnectionView: View {
                     }
                 }
             }
-            .alert("Error", isPresented: $showError) {
+            .alert("Connection Failed", isPresented: $showError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "An error occurred")
+                Text(errorMessage ?? "Unable to connect. Please try again.")
             }
             .sheet(isPresented: $showSetupInstructions) {
                 PlaidSetupInstructionsView()
