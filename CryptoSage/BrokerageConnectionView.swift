@@ -124,19 +124,19 @@ struct BrokerageConnectionView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
-            // Coming soon badge
+            // Manual entry hint
             HStack(spacing: 6) {
-                Image(systemName: "clock.badge.checkmark")
+                Image(systemName: "plus.circle.fill")
                     .font(.system(size: 11, weight: .semibold))
-                Text("Auto-sync coming soon — add stocks manually for now")
+                Text("Add stocks and ETFs manually to track your portfolio")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundColor(.orange)
+            .foregroundColor(DS.Adaptive.textSecondary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(Color.orange.opacity(0.12))
+                    .fill(DS.Adaptive.chipBackground)
             )
         }
         .padding(.vertical, 16)
@@ -379,7 +379,7 @@ struct BrokerageConnectionView: View {
             if !isConfigured {
                 // Show user-friendly "coming soon" instead of developer setup instructions
                 await MainActor.run {
-                    errorMessage = "Brokerage connections are coming soon! You can add stocks manually in the meantime by going to Portfolio > Add Stock."
+                    errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
                     showError = true
                 }
             } else {
@@ -406,14 +406,14 @@ struct BrokerageConnectionView: View {
             
             await MainActor.run {
                 isLoading = false
-                errorMessage = "Brokerage connections are coming soon! You can add stocks manually in the meantime by going to Portfolio > Add Stock."
+                errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
                 showError = true
             }
             
         } catch {
             await MainActor.run {
                 isLoading = false
-                errorMessage = "Brokerage connections are coming soon! You can add stocks manually in the meantime by going to Portfolio > Add Stock."
+                errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
                 showError = true
             }
         }

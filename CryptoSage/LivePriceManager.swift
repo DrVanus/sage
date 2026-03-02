@@ -1591,8 +1591,8 @@ final class LivePriceManager {
         // MEMORY FIX v5: Cap before saving to prevent bloated cache on next launch
         // MERGE FIX: Cache the full coin list (currentCoins) not just the incoming subset
         let coinsToCache = currentCoins
-        Task.detached(priority: .utility) { [self] in
-            await self.saveCoinsCacheCappedAsync(coinsToCache)
+        Task.detached(priority: .utility) { [weak self] in
+            await self?.saveCoinsCacheCappedAsync(coinsToCache)
         }
         
         let emittedCount = currentCoins.count

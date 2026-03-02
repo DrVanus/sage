@@ -78,7 +78,9 @@ final class BrokeragePortfolioDataService: PortfolioDataService {
         do {
             connectedAccounts = try await PlaidService.shared.loadAccounts()
         } catch {
+            #if DEBUG
             print("⚠️ BrokeragePortfolioDataService: Failed to load accounts: \(error)")
+            #endif
             connectedAccounts = []
         }
     }
@@ -102,7 +104,9 @@ final class BrokeragePortfolioDataService: PortfolioDataService {
         lastRefreshTime = nil
         lastError = nil
         
+        #if DEBUG
         print("📴 BrokeragePortfolioDataService: Stocks feature disabled, cleared local state")
+        #endif
     }
     
     /// Call when the stocks feature is enabled to restore state
@@ -113,7 +117,9 @@ final class BrokeragePortfolioDataService: PortfolioDataService {
         // Sync with connected accounts
         await syncAllAccounts()
         
+        #if DEBUG
         print("📱 BrokeragePortfolioDataService: Stocks feature enabled, syncing...")
+        #endif
     }
     
     // MARK: - Holdings Sync
@@ -189,7 +195,9 @@ final class BrokeragePortfolioDataService: PortfolioDataService {
                 
             } catch {
                 syncErrors.append(error)
+                #if DEBUG
                 print("❌ BrokeragePortfolioDataService: Failed to sync \(account.institutionName): \(error)")
+                #endif
             }
         }
         
@@ -334,9 +342,13 @@ final class BrokeragePortfolioDataService: PortfolioDataService {
             let cached = try decoder.decode([Holding].self, from: data)
             stockHoldings = cached
             holdingsSubject.send(cached)
+            #if DEBUG
             print("📂 BrokeragePortfolioDataService: Loaded \(cached.count) cached stock holdings")
+            #endif
         } catch {
+            #if DEBUG
             print("⚠️ BrokeragePortfolioDataService: Failed to load cached holdings: \(error)")
+            #endif
         }
     }
     

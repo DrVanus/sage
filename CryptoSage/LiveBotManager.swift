@@ -239,10 +239,14 @@ public final class LiveBotManager: ObservableObject {
             errorMessage = nil
         } catch let error as ThreeCommasError {
             errorMessage = error.localizedDescription
+            #if DEBUG
             print("[LiveBotManager] Failed to fetch bots: \(error.localizedDescription)")
+            #endif
         } catch {
             errorMessage = "Failed to fetch bots: \(error.localizedDescription)"
+            #if DEBUG
             print("[LiveBotManager] Unexpected error: \(error)")
+            #endif
         }
         
         isLoading = false
@@ -262,7 +266,9 @@ public final class LiveBotManager: ObservableObject {
             
             return bot
         } catch {
+            #if DEBUG
             print("[LiveBotManager] Failed to fetch bot \(id): \(error)")
+            #endif
             return nil
         }
     }
@@ -274,7 +280,9 @@ public final class LiveBotManager: ObservableObject {
         // SAFETY: Block live bot operations when trading is disabled at app config level
         guard AppConfig.liveTradingEnabled else {
             errorMessage = AppConfig.liveTradingDisabledMessage
+            #if DEBUG
             print("[LiveBotManager] Live trading disabled - cannot enable bot \(id)")
+            #endif
             return
         }
         
@@ -294,13 +302,19 @@ public final class LiveBotManager: ObservableObject {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             #endif
             
+            #if DEBUG
             print("[LiveBotManager] Bot \(id) enabled successfully")
+            #endif
         } catch let error as ThreeCommasError {
             errorMessage = error.localizedDescription
+            #if DEBUG
             print("[LiveBotManager] Failed to enable bot \(id): \(error.localizedDescription)")
+            #endif
         } catch {
             errorMessage = "Failed to enable bot: \(error.localizedDescription)"
+            #if DEBUG
             print("[LiveBotManager] Unexpected error enabling bot \(id): \(error)")
+            #endif
         }
         
         togglingBotIds.remove(id)
@@ -328,13 +342,19 @@ public final class LiveBotManager: ObservableObject {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
             
+            #if DEBUG
             print("[LiveBotManager] Bot \(id) disabled successfully")
+            #endif
         } catch let error as ThreeCommasError {
             errorMessage = error.localizedDescription
+            #if DEBUG
             print("[LiveBotManager] Failed to disable bot \(id): \(error.localizedDescription)")
+            #endif
         } catch {
             errorMessage = "Failed to disable bot: \(error.localizedDescription)"
+            #if DEBUG
             print("[LiveBotManager] Unexpected error disabling bot \(id): \(error)")
+            #endif
         }
         
         togglingBotIds.remove(id)
@@ -352,7 +372,9 @@ public final class LiveBotManager: ObservableObject {
             // Enabling requires live trading to be on
             guard AppConfig.liveTradingEnabled else {
                 errorMessage = "Enable Developer Mode with Live Trading to start bots"
+                #if DEBUG
                 print("[LiveBotManager] Live trading disabled - cannot enable bot \(id)")
+                #endif
                 return
             }
             await enableBot(id: id)

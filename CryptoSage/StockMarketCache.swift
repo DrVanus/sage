@@ -805,7 +805,9 @@ final class StockMarketCache: ObservableObject {
                 let data = try enc.encode(stocksToSave)
                 try data.write(to: url, options: .atomic)
             } catch {
+                #if DEBUG
                 print("Failed to save stock cache: \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -822,7 +824,9 @@ final class StockMarketCache: ObservableObject {
                 let data = try enc.encode(stringKeyed)
                 try data.write(to: url, options: .atomic)
             } catch {
+                #if DEBUG
                 print("Failed to save index cache: \(error.localizedDescription)")
+                #endif
             }
         }
     }

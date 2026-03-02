@@ -244,13 +244,13 @@ struct MarketSentimentView: View {
         let sortedTS = byTS.keys.sorted()
         for t in sortedTS {
             xs.append(t)
-            ys.append(byTS[t]!)
+            ys.append(byTS[t] ?? 50)
         }
 
         // Fabricate a minimal anchor set if history is too thin
         let nowTs = Int(Date().timeIntervalSince1970)
         var calUTC = Calendar(identifier: .gregorian)
-        calUTC.timeZone = TimeZone(secondsFromGMT: 0)!
+        calUTC.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
         let todayStartUTC = calUTC.startOfDay(for: Date())
         let noon: TimeInterval = 60 * 60 * 12
         let yDate = (calUTC.date(byAdding: .day, value: -1, to: todayStartUTC) ?? todayStartUTC).addingTimeInterval(noon)
