@@ -63,7 +63,7 @@ public final class MEXCExchangeAdapter: ExchangeAdapter {
         let symbol = pair.baseSymbol.uppercased() + pair.quoteSymbol.uppercased()
         let mexcInterval = mapInterval(interval)
         
-        var components = URLComponents(url: baseURL.appendingPathComponent("klines"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("klines"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "symbol", value: symbol),
             URLQueryItem(name: "interval", value: mexcInterval),

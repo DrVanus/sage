@@ -706,14 +706,19 @@ public actor CoinbaseAdvancedTradeService {
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
         
         // Build request
-        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
-        
+        guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            throw URLError(.badURL)
+        }
+
         // Handle query parameters in path
         if let queryStart = path.firstIndex(of: "?") {
             let basePath = String(path[..<queryStart])
             let queryString = String(path[path.index(after: queryStart)...])
-            components = URLComponents(url: baseURL.appendingPathComponent(basePath), resolvingAgainstBaseURL: false)!
-            components.query = queryString
+            guard var newComponents = URLComponents(url: baseURL.appendingPathComponent(basePath), resolvingAgainstBaseURL: false) else {
+                throw URLError(.badURL)
+            }
+            newComponents.query = queryString
+            components = newComponents
         }
         
         guard let url = components.url else {

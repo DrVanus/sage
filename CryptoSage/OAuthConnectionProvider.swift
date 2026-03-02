@@ -347,7 +347,9 @@ final class OAuthConnectionProviderImpl: NSObject, ConnectionProvider, ASWebAuth
         pendingCodeVerifier = codeVerifier
         
         // Build authorization URL
-        var components = URLComponents(url: config.authorizationURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: config.authorizationURL, resolvingAgainstBaseURL: false) else {
+            throw ConnectionError.oauthFailed("Failed to build URL")
+        }
         components.queryItems = [
             URLQueryItem(name: "client_id", value: config.clientId),
             URLQueryItem(name: "redirect_uri", value: config.redirectURI),

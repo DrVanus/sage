@@ -295,7 +295,7 @@ final class ThreeCommasAPI {
         }
         
         let url = ThreeCommasConfig.baseURL.appendingPathComponent("public/api/ver1/bots")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         if let scope = scope {
             components.queryItems = [URLQueryItem(name: "scope", value: scope)]
         }

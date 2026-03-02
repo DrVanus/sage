@@ -599,7 +599,7 @@ public actor FuturesTradingExecutionService {
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
         
-        var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/balance"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/balance"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.query = signedQuery
         
         guard let url = components.url else {
@@ -658,7 +658,7 @@ public actor FuturesTradingExecutionService {
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
         
-        var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/positionRisk"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: currentBaseURL.appendingPathComponent("/fapi/v2/positionRisk"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.query = signedQuery
         
         guard let url = components.url else {
@@ -724,7 +724,7 @@ public actor FuturesTradingExecutionService {
     /// Fetch current funding rate for a symbol
     public func fetchFundingRate(symbol: String) async throws -> FundingRate {
         let url = currentBaseURL.appendingPathComponent("/fapi/v1/premiumIndex")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [URLQueryItem(name: "symbol", value: symbol.uppercased())]
         
         guard let requestURL = components.url else {
@@ -762,7 +762,7 @@ public actor FuturesTradingExecutionService {
     /// Uses Binance Futures public endpoint (no auth required)
     public func fetchOpenInterest(symbol: String) async throws -> OpenInterestData {
         let url = currentBaseURL.appendingPathComponent("/fapi/v1/openInterest")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [URLQueryItem(name: "symbol", value: symbol.uppercased())]
         
         guard let requestURL = components.url else {
@@ -813,7 +813,7 @@ public actor FuturesTradingExecutionService {
         // Use fapi.binance.com for this endpoint
         let baseURL = URL(string: "https://fapi.binance.com")!
         let url = baseURL.appendingPathComponent("/futures/data/globalLongShortAccountRatio")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "symbol", value: symbol.uppercased()),
             URLQueryItem(name: "period", value: "5m"),  // 5 minute periods
@@ -859,7 +859,7 @@ public actor FuturesTradingExecutionService {
     public func fetchTopTraderRatio(symbol: String) async throws -> TopTraderRatioData {
         let baseURL = URL(string: "https://fapi.binance.com")!
         let url = baseURL.appendingPathComponent("/futures/data/topLongShortPositionRatio")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "symbol", value: symbol.uppercased()),
             URLQueryItem(name: "period", value: "5m"),
@@ -905,7 +905,7 @@ public actor FuturesTradingExecutionService {
     public func fetchTakerBuySellRatio(symbol: String) async throws -> TakerBuySellData {
         let baseURL = URL(string: "https://fapi.binance.com")!
         let url = baseURL.appendingPathComponent("/futures/data/takerlongshortRatio")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "symbol", value: symbol.uppercased()),
             URLQueryItem(name: "period", value: "5m"),

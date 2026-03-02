@@ -1030,7 +1030,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256(message: queryString, key: credentials.apiSecret)
         let signedQuery = queryString + "&signature=\(signature)"
 
-        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/account"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/account"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.query = signedQuery
         
         guard let url = components.url else {
@@ -1098,7 +1098,7 @@ public actor TradingExecutionService {
         let signature = hmacSHA256(message: queryParams, key: credentials.apiSecret)
         let signedQuery = queryParams + "&signature=\(signature)"
         
-        var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/openOrders"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: credentials.exchange.restBaseURL.appendingPathComponent("api/v3/openOrders"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.query = signedQuery
         
         guard let url = components.url else {

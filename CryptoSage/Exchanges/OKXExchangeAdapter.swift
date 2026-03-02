@@ -63,7 +63,7 @@ public final class OKXExchangeAdapter: ExchangeAdapter {
         let instId = "\(pair.baseSymbol.uppercased())-\(pair.quoteSymbol.uppercased())"
         let okxBar = mapInterval(interval)
         
-        var components = URLComponents(url: baseURL.appendingPathComponent("market/candles"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("market/candles"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "instId", value: instId),
             URLQueryItem(name: "bar", value: okxBar),
@@ -114,7 +114,7 @@ public final class OKXExchangeAdapter: ExchangeAdapter {
     // MARK: - Private Methods
     
     private func fetchSpotTickers() async throws -> [String: OKXTickerData] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("market/tickers"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("market/tickers"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "instType", value: "SPOT")
         ]

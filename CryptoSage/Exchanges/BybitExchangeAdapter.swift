@@ -62,7 +62,7 @@ public final class BybitExchangeAdapter: ExchangeAdapter {
         let symbol = pair.baseSymbol.uppercased() + pair.quoteSymbol.uppercased()
         let bybitInterval = mapInterval(interval)
         
-        var components = URLComponents(url: baseURL.appendingPathComponent("market/kline"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("market/kline"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "category", value: "spot"),
             URLQueryItem(name: "symbol", value: symbol),
@@ -114,7 +114,7 @@ public final class BybitExchangeAdapter: ExchangeAdapter {
     // MARK: - Private Methods
     
     private func fetchSpotTickers() async throws -> [String: BybitTickerData] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("market/tickers"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("market/tickers"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "category", value: "spot")
         ]

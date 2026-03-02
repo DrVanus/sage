@@ -62,7 +62,7 @@ public final class GateIOExchangeAdapter: ExchangeAdapter {
         let currencyPair = "\(pair.baseSymbol.uppercased())_\(pair.quoteSymbol.uppercased())"
         let gateInterval = mapInterval(interval)
         
-        var components = URLComponents(url: baseURL.appendingPathComponent("spot/candlesticks"), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("spot/candlesticks"), resolvingAgainstBaseURL: false) else { throw URLError(.badURL) }
         components.queryItems = [
             URLQueryItem(name: "currency_pair", value: currencyPair),
             URLQueryItem(name: "interval", value: gateInterval),
