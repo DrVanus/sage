@@ -66,13 +66,13 @@ public struct SoftPaywallView<UnlockedContent: View, LockedPreview: View>: View 
                     )
                 )
             
-            // Gradient overlay for visual effect
+            // Gradient overlay — use adaptive background for proper dark/light mode blending
             LinearGradient(
                 colors: [
                     .clear,
-                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.3),
-                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.7),
-                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.95)
+                    DS.Adaptive.background.opacity(0.5),
+                    DS.Adaptive.background.opacity(0.85),
+                    DS.Adaptive.background
                 ],
                 startPoint: .top,
                 endPoint: .bottom

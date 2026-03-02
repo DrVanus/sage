@@ -153,7 +153,7 @@ struct CryptoSageAIApp: App {
     // PERFORMANCE v26: Increased from 30s to 60s. Firestore real-time listener keeps data
     // fresh between foreground events, so full reloads are only needed after extended background.
     // This prevents rapid foreground/background cycles from hammering APIs and clearing caches.
-    private let foregroundLoadCooldown: TimeInterval = 60
+    private let foregroundLoadCooldown: TimeInterval = 15
     // PERF: Minimum interval between foreground events for lightweight operations (analytics, coordinator).
     // ScreenProtection activate/deactivate cycles cause rapid .active pulses that flood the console.
     private let foregroundEventCooldown: TimeInterval = 20
@@ -1480,6 +1480,8 @@ struct CryptoSageAIApp: App {
                                     // Foreground resume should be lightweight. Full loadAllData() is expensive
                                     // and can hitch scrolling/tab transitions on return to Home.
                                     await marketVM.loadWatchlistDataImmediate()
+                                    // Also refresh portfolio prices so they stay in sync with market data
+                                    await portfolioVM.refreshAllPortfolioData()
                                 }
                             }
                         }

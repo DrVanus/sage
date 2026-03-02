@@ -579,10 +579,11 @@ public struct BannerAdView: View {
             #if DEBUG
             HStack(spacing: 8) {
                 Image(systemName: "megaphone.fill")
-                    .foregroundColor(.gray)
+                    .font(.caption2)
+                    .foregroundColor(Color.gray.opacity(0.5))
                 Text("Ad Placeholder")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .font(.caption2)
+                    .foregroundColor(Color.gray.opacity(0.5))
                 
                 Spacer()
                 
