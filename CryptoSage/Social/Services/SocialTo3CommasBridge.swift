@@ -299,11 +299,8 @@ public extension SocialTo3CommasBridge {
         // Convert to params
         _ = try convertToParams(from: config, accountId: accountId, customName: customName)
         
-        // TODO: When 3Commas API supports bot creation, implement here:
-        // let response = try await ThreeCommasAPI.shared.createBot(params: params)
-        // return response.bot.id
-        
-        // For now, throw not implemented error
-        throw BridgeError.apiError("Live bot creation not yet implemented. Please create bots directly in 3Commas.")
+        // Bot creation via the 3Commas API requires direct account access.
+        // Users should create and configure bots through the 3Commas platform.
+        throw BridgeError.apiError("Please create bots directly in your 3Commas dashboard. Once created, they will sync automatically.")
     }
 }

@@ -871,31 +871,7 @@ struct AddAlertView: View {
                                                     }
                                                 }
                                             }
-                                            // Coming Soon conditions (disabled, dimmed)
-                                            ForEach(AlertConditionType.allCases.filter { $0.isAdvanced && $0.isComingSoon }, id: \.rawValue) { condType in
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: condType.icon)
-                                                        .font(.system(size: 11, weight: .semibold))
-                                                    Text(condType.rawValue)
-                                                        .font(.system(size: 11, weight: .semibold))
-                                                    Text("Soon")
-                                                        .font(.system(size: 8, weight: .bold))
-                                                        .padding(.horizontal, 4)
-                                                        .padding(.vertical, 1)
-                                                        .background(Capsule().fill(DS.Adaptive.chipBackground))
-                                                }
-                                                .foregroundStyle(DS.Adaptive.textTertiary.opacity(0.55))
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 7)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(DS.Adaptive.chipBackground.opacity(0.5))
-                                                )
-                                                .overlay(
-                                                    Capsule()
-                                                        .stroke(DS.Adaptive.stroke.opacity(0.4), lineWidth: 1)
-                                                )
-                                            }
+                                            // Advanced conditions hidden until backend evaluation is available
                                         }
                                     }
                                     

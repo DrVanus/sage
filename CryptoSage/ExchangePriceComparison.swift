@@ -154,7 +154,7 @@ final class ExchangePriceComparisonViewModel: ObservableObject {
     @Published var isBackgroundRefresh: Bool = false
     
     /// True when showing sample/demo data because all exchanges failed
-    @Published var isUsingSampleData: Bool = false
+    // Sample data flag removed — live data only in production
     
     private let kExchanges = "pricecomp.exchanges"
     private let kSelectedSymbol = "pricecomp.symbol"
@@ -250,7 +250,7 @@ final class ExchangePriceComparisonViewModel: ObservableObject {
         // LIVE DATA ONLY - No sample data for production
         // Show empty state until real exchange prices are fetched
         self.comparisons = []
-        self.isUsingSampleData = false
+        // live data mode
         self.hasCompletedFirstLoad = false
         #if DEBUG
         print("[ExchangePrice] No cache found, will fetch live prices")
@@ -1139,10 +1139,10 @@ final class ExchangePriceComparisonViewModel: ObservableObject {
                     } else {
                         self.error = "Using cached prices (offline)"
                     }
-                    self.isUsingSampleData = false
+                    // live data mode
                 } else {
                     self.comparisons = newComparisons.sorted { $0.symbol < $1.symbol }
-                    self.isUsingSampleData = false
+                    // live data mode
                     self.error = nil
                     // Save to cache for instant display on next launch
                     self.savePricesToCache()
@@ -1165,7 +1165,7 @@ final class ExchangePriceComparisonViewModel: ObservableObject {
                     self.comparisons = newComparisons.sorted { $0.symbol < $1.symbol }
                 }
                 // Keep existing cached data if available, otherwise show error
-                self.isUsingSampleData = false
+                // live data mode
                 
                 self.lastUpdated = Date()
                 self.isLoading = false
@@ -1889,26 +1889,10 @@ struct ExchangePriceSection: View {
                 
                 // Status indicator (only when there's something worth showing)
                 if !vm.comparisons.isEmpty && !vm.isLoading {
-                    if vm.isUsingSampleData {
-                        HStack(spacing: 4) {
-                            Image(systemName: "play.circle")
-                                .font(.system(size: 9, weight: .semibold))
-                            Text("Sample")
-                                .font(.system(size: 10, weight: .medium))
-                        }
-                        .foregroundColor(.orange)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.orange.opacity(0.15))
-                        )
-                        .fixedSize()
-                    } else {
-                        let hasFailures = !vm.failedExchanges.isEmpty
-                        let isStale = vm.lastUpdated.map { Date().timeIntervalSince($0) > 300 } ?? false
-                        
-                        if isStale || hasFailures {
+                    let hasFailures = !vm.failedExchanges.isEmpty
+                    let isStale = vm.lastUpdated.map { Date().timeIntervalSince($0) > 300 } ?? false
+
+                    if isStale || hasFailures {
                             // Only show a label when something is wrong
                             Menu {
                                 if hasFailures {
@@ -1960,7 +1944,6 @@ struct ExchangePriceSection: View {
                         }
                     }
                 }
-            }
             .animation(.easeInOut(duration: 0.2), value: vm.isLoading)
         }
     }

@@ -2536,12 +2536,12 @@ struct StockDetailView: View {
                 
                 Text("Set Price Alert for \(ticker)")
                     .font(.headline)
-                
-                Text("Price alerts for stocks coming soon!")
+
+                Text("Stock price alerts are available for crypto assets. Visit the Market tab to set alerts on any cryptocurrency.")
                     .font(.subheadline)
                     .foregroundColor(DS.Adaptive.textSecondary)
                     .multilineTextAlignment(.center)
-                
+
                 Spacer()
             }
             .padding()

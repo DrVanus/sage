@@ -3814,23 +3814,6 @@ private struct CoinDetailShimmerView: View {
     }
 }
 
-private struct ComingSoonCard: View {
-    let title: String
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "clock.badge.exclamationmark")
-                .foregroundColor(DS.Adaptive.textSecondary)
-            Text("\(title) is coming soon.")
-                .font(.footnote)
-                .foregroundColor(DS.Adaptive.textSecondary)
-            Spacer()
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(DS.Adaptive.cardBackground))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(DS.Adaptive.stroke, lineWidth: 0.8))
-    }
-}
-
 private struct DiagItem: Identifiable {
     let id = UUID()
     let label: String

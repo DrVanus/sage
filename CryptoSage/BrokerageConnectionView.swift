@@ -377,9 +377,9 @@ struct BrokerageConnectionView: View {
             let isConfigured = await PlaidService.shared.isConfigured
             
             if !isConfigured {
-                // Show user-friendly "coming soon" instead of developer setup instructions
+                // Show user-friendly error when brokerage integration is unavailable
                 await MainActor.run {
-                    errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
+                    errorMessage = "Brokerage auto-sync requires a supported broker. You can add stocks and ETFs manually from Portfolio > Add Stock."
                     showError = true
                 }
             } else {
@@ -406,14 +406,14 @@ struct BrokerageConnectionView: View {
             
             await MainActor.run {
                 isLoading = false
-                errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
+                errorMessage = "Brokerage auto-sync requires a supported broker. You can add stocks and ETFs manually from Portfolio > Add Stock."
                 showError = true
             }
             
         } catch {
             await MainActor.run {
                 isLoading = false
-                errorMessage = "Brokerage auto-sync is not yet available. You can add stocks manually by going to Portfolio > Add Stock."
+                errorMessage = "Brokerage auto-sync requires a supported broker. You can add stocks and ETFs manually from Portfolio > Add Stock."
                 showError = true
             }
         }

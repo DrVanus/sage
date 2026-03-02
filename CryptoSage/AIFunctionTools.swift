@@ -1205,15 +1205,55 @@ final class AIFunctionTools {
     }
     
     private func executeGetNews(args: [String: Any]) async -> String {
-        // News would typically come from CryptoNewsFeedViewModel
-        // For now, return a placeholder indicating the feature
-        let topic = args["topic"] as? String
-        
-        return """
-        News functionality is available in the app's News section. \
-        \(topic != nil ? "For \(topic!) news, " : "")Please refer to the News tab for the latest cryptocurrency headlines and articles. \
-        The app aggregates news from multiple sources including CoinDesk, CryptoSlate, and other major crypto news outlets.
-        """
+        let topic = (args["topic"] as? String)?.lowercased()
+        let newsVM = CryptoNewsFeedViewModel.shared
+        let count = min(args["count"] as? Int ?? 5, 10)
+
+        var articles = newsVM.articles
+        if let topic = topic, !topic.isEmpty {
+            articles = articles.filter {
+                $0.title.localizedCaseInsensitiveContains(topic) ||
+                ($0.description ?? "").localizedCaseInsensitiveContains(topic)
+            }
+        }
+        articles = Array(articles.prefix(count))
+
+        guard !articles.isEmpty else {
+            return topic != nil
+                ? "No recent news found about \(topic!). The news feed may still be loading or there are no matching headlines."
+                : "No recent news available. The news feed may still be loading."
+        }
+
+        var newsItems: [[String: Any]] = []
+        for article in articles {
+            var item: [String: Any] = [
+                "title": article.title,
+                "source": article.sourceName,
+                "published_at": Self._isoFormatter.string(from: article.publishedAt)
+            ]
+            if let desc = article.description, !desc.isEmpty {
+                item["summary"] = desc.count > 200 ? String(desc.prefix(197)) + "..." : desc
+            }
+            newsItems.append(item)
+        }
+
+        let result: [String: Any] = [
+            "articles": newsItems,
+            "count": newsItems.count,
+            "topic": topic ?? "all",
+            "timestamp": Self._isoFormatter.string(from: Date())
+        ]
+
+        if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: .prettyPrinted),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            return jsonString
+        }
+
+        var text = "Recent Crypto News" + (topic != nil ? " about \(topic!)" : "") + ":\n"
+        for article in articles {
+            text += "- [\(article.sourceName)] \(article.title)\n"
+        }
+        return text
     }
     
     private func executeCompareCoins(args: [String: Any]) async -> String {
