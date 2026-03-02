@@ -1294,6 +1294,15 @@ final class LivePriceManager {
         currentCoins = []
         
         logger.info("✅ [LivePriceManager] Cache pruning complete after memory warning")
+
+        // Schedule a recovery poll to repopulate cleared percent-change data.
+        // Without this, all 24h/7d/1h change values show as zero until the next poll cycle.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s delay to let memory settle
+            guard let self, !Task.isCancelled else { return }
+            self.logger.info("🔄 [LivePriceManager] Triggering recovery poll after memory warning")
+            await self.pollMarketCoinsPublic()
+        }
     }
     
     // MEMORY FIX: Prune per-symbol dictionaries that exceed the entry limit

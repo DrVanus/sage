@@ -150,9 +150,9 @@ struct CryptoSageAIApp: App {
     @State private var startupRecoveryMode: Bool = false
     @State private var lastForegroundLoadAt: Date = .distantPast
     @State private var lastForegroundEventAt: Date = .distantPast
-    // PERFORMANCE v26: Increased from 30s to 60s. Firestore real-time listener keeps data
-    // fresh between foreground events, so full reloads are only needed after extended background.
-    // This prevents rapid foreground/background cycles from hammering APIs and clearing caches.
+    // PERFORMANCE v26: Reduced from 60s to 15s for faster data refresh on foreground resume.
+    // Firestore real-time listener keeps data fresh between events, so this mainly triggers
+    // supplemental HTTP polling and portfolio refresh when the user returns.
     private let foregroundLoadCooldown: TimeInterval = 15
     // PERF: Minimum interval between foreground events for lightweight operations (analytics, coordinator).
     // ScreenProtection activate/deactivate cycles cause rapid .active pulses that flood the console.

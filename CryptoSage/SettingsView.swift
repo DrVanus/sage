@@ -820,6 +820,7 @@ struct AboutView: View {
                         Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"))")
                             .font(.subheadline)
                             .foregroundColor(DS.Adaptive.textTertiary)
+                            #if DEBUG
                             .onTapGesture(count: 1) {
                                 developerTapCount += 1
                                 if developerTapCount >= 5 {
@@ -830,6 +831,7 @@ struct AboutView: View {
                                     impactLight.impactOccurred()
                                 }
                             }
+                            #endif
                     }
                     
                     Text("Your all-in-one crypto portfolio tracker. Monitor holdings across exchanges, get AI-powered insights, and stay ahead of the market.")

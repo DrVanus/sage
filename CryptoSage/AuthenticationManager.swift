@@ -488,7 +488,8 @@ final class AuthenticationManager: NSObject, ObservableObject {
         PredictionAccuracyService.shared.stopFirestoreSync()
         ProfileSyncService.shared.stopFirestoreSync()
         PaperTradingManager.shared.stopFirestoreSync()
-        
+        AIPortfolioMonitor.shared.stopMonitoring()
+
         // Clean up Apple user ID key before clearing user
         if let userId = currentUser?.id {
             UserDefaults.standard.removeObject(forKey: "AppleUserID_\(userId)")

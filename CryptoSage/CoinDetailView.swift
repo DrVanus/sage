@@ -1135,12 +1135,14 @@ struct CoinDetailView: View {
                 .foregroundColor(isOffline ? Color.orange : Color.green)
             }
             .contentShape(Rectangle())
+            #if DEBUG
             .onLongPressGesture {
                 #if os(iOS)
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 #endif
                 showDiagnostics = true
             }
+            #endif
 
             coreStatsView
             extendedStatsView
