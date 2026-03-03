@@ -1451,6 +1451,16 @@ struct PortfolioSectionView: View {
                 if !PaperTradingManager.shared.isPaperTradingEnabled && !DemoModeManager.shared.isDemoMode {
                     ensurePortfolioSparklineCached()
                 }
+
+                // DEMO FIX: Force re-render after demo history is seeded so sparkline displays
+                if DemoModeManager.shared.isDemoMode {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        guard DemoModeManager.shared.isDemoMode else { return }
+                        if !vm.portfolioVM.history.isEmpty {
+                            paperTradingTick &+= 1
+                        }
+                    }
+                }
             }
             
             // FIX v24: Schedule a follow-up refresh 3 seconds after appear.

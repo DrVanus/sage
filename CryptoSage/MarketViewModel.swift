@@ -3181,9 +3181,12 @@ final class MarketViewModel: ObservableObject {
             }
         }
 
-        // Push zero-priced items to the bottom
-        let nonZero = list.filter { ($0.priceUsd ?? 0) > 0 }
-        let zeros   = list.filter { ($0.priceUsd ?? 0) <= 0 }
+        // Push zero-priced items to the bottom, but keep major coins in place
+        // so BTC/ETH/SOL aren't hidden below the fold during cold-start when
+        // their price hasn't arrived yet from the first poll.
+        let majorSymbols: Set<String> = ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE"]
+        let nonZero = list.filter { ($0.priceUsd ?? 0) > 0 || majorSymbols.contains($0.symbol.uppercased()) }
+        let zeros   = list.filter { ($0.priceUsd ?? 0) <= 0 && !majorSymbols.contains($0.symbol.uppercased()) }
         list = nonZero + zeros
 
         // Early exit: if list is semantically unchanged vs currently published filteredCoins, skip mapping/publish

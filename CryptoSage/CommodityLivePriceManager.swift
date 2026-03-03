@@ -153,7 +153,7 @@ final class CommodityLivePriceManager: ObservableObject {
         Task {
             // Wait for startup to complete before first fetch
             if shouldBlockHeavyOperationsDuringStartup() {
-                try? await Task.sleep(nanoseconds: 3_500_000_000) // 3.5 seconds
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
             }
             await refreshAllPrices()
         }

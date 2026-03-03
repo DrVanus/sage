@@ -1123,7 +1123,7 @@ struct NewsSwipeRow<Content: View>: View {
                         .contentShape(Rectangle())
                         .offset(x: offset + dragX)
                         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.86), value: offset)
-                        .gesture(drag)
+                        .simultaneousGesture(drag)
                         .onDisappear {
                             withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) { offset = 0 }
                         }

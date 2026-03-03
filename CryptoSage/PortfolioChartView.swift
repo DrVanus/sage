@@ -1166,6 +1166,18 @@ struct PortfolioChartView: View {
             ChartHaptics.shared.minTickInterval = hTickInterval
             ChartHaptics.shared.minMajorInterval = hMajorInterval
             #endif
+
+            // DEMO/COLD-START FIX: Retry chart load after 2s if history was empty on first appear.
+            // Demo mode seeds history asynchronously; cold start waits for Firestore data.
+            if effectiveHistory.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    let h = overrideHistory ?? portfolioVM.history
+                    let t = overrideTotalValue ?? portfolioVM.totalValue
+                    if !h.isEmpty && chartVM.dataPoints.isEmpty {
+                        chartVM.loadDataImmediate(for: chartVM.selectedRange, history: h, portfolioTotal: t)
+                    }
+                }
+            }
         }
         .onChange(of: portfolioVM.totalValue) { _, newValue in
             // STARTUP FIX v25: Allow significant corrections during startup
@@ -1188,8 +1200,9 @@ struct PortfolioChartView: View {
         // PERFORMANCE FIX: Observe history count instead of whole array to prevent
         // "tried to update multiple times per frame" warning
         .onChange(of: portfolioVM.history.count) { _, newCount in
-            // PERFORMANCE FIX: Skip during scroll to prevent jank
-            guard !ScrollStateManager.shared.isScrolling else { return }
+            // PERFORMANCE FIX: Skip during scroll to prevent jank — but always
+            // allow reload when chart is empty (e.g., demo mode just seeded history)
+            guard !ScrollStateManager.shared.isScrolling || chartVM.dataPoints.isEmpty else { return }
             
             // Skip if using override (Paper Trading mode handles its own updates)
             guard overrideHistory == nil else { return }
