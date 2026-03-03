@@ -104,15 +104,15 @@ struct LockScreenView: View {
                 if authManager.canUseBiometric {
                     Text("Use \(authManager.biometricType.displayName) to unlock")
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textSecondary)
                 } else if authManager.canUsePINFallback {
                     Text("Enter your PIN to unlock")
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textSecondary)
                 } else {
                     Text("Use your device passcode to unlock")
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DS.Adaptive.textSecondary)
                 }
             }
             

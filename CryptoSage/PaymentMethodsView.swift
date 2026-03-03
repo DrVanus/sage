@@ -71,7 +71,7 @@ struct EnhancedPaymentMethodPickerView: View {
                     // SEARCH BAR
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
+                            .foregroundColor(DS.Adaptive.textTertiary)
                         TextField("Search payment methods", text: $searchText)
                             .foregroundColor(DS.Adaptive.textPrimary)
                     }
@@ -98,7 +98,7 @@ struct EnhancedPaymentMethodPickerView: View {
                                         }
                                     }
                                     Text(method.details)
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(DS.Adaptive.textTertiary)
                                         .font(.caption)
                                 }
                                 Spacer()

@@ -126,7 +126,7 @@ final class ArticleContentExtractor {
             
             return nil
         } catch {
-            os_log("Failed to fetch HTML: %{public}@", log: extractorLog, type: .error, error.localizedDescription)
+            os_log("Failed to fetch HTML: %{private}@", log: extractorLog, type: .error, error.localizedDescription)
             return nil
         }
     }

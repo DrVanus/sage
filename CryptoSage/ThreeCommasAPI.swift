@@ -541,7 +541,6 @@ final class ThreeCommasAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue(ThreeCommasConfig.apiKey, forHTTPHeaderField: "APIKEY")
-        // TODO: add signature header if required
 
         let payload: [String: Any] = [
             "pair": "\(side.rawValue)_\(orderType.rawValue)",

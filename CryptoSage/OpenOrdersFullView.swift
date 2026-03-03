@@ -530,7 +530,7 @@ struct OpenOrdersFullView: View {
             
             Text(label)
                 .font(.system(size: 9))
-                .foregroundColor(.gray)
+                .foregroundColor(DS.Adaptive.textTertiary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -1043,7 +1043,7 @@ struct OpenOrdersFullView: View {
                 
                 Text("\(orders.count) order\(orders.count == 1 ? "" : "s")")
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(DS.Adaptive.textTertiary)
                 
                 Spacer()
                 

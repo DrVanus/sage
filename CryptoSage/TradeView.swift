@@ -2233,6 +2233,7 @@ struct TradeView: View {
         tradeContent
             .modifier(PreferredSchemeModifier(mode: appAppearance))
             .navigationBarBackButtonHidden(true)
+            .navigationBarHidden(true)
             .background(tradeBackground)
             .safeAreaInset(edge: .top) {
                 Rectangle()

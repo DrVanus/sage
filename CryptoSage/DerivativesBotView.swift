@@ -88,6 +88,7 @@ struct DerivativesBotView: View {
         .background(DS.Adaptive.background)
         .ignoresSafeArea(edges: .bottom)
         .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
         .edgeSwipeToDismiss(onDismiss: { dismiss() })

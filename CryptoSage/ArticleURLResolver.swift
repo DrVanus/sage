@@ -185,6 +185,6 @@ struct ResolverDebug {
         os_log("%{public}@", log: newsLog, type: .debug, message)
     }
     static func warn(_ message: String) {
-        os_log("%{public}@", log: newsLog, type: .error, message)
+        os_log("%{private}@", log: newsLog, type: .error, message)
     }
 }

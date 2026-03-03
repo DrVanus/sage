@@ -216,10 +216,10 @@ final class TavilyService {
         } catch let error as TavilyError {
             throw error
         } catch let error as DecodingError {
-            os_log("Tavily decoding error: %{public}@", log: tavilyLog, type: .error, error.localizedDescription)
+            os_log("Tavily decoding error: %{private}@", log: tavilyLog, type: .error, error.localizedDescription)
             throw TavilyError.decodingError(error)
         } catch {
-            os_log("Tavily network error: %{public}@", log: tavilyLog, type: .error, error.localizedDescription)
+            os_log("Tavily network error: %{private}@", log: tavilyLog, type: .error, error.localizedDescription)
             throw TavilyError.networkError(error)
         }
     }

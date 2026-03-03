@@ -344,6 +344,7 @@ struct PredictionBotView: View {
         }
         .background(DS.Adaptive.background)
         .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
         .onAppear {
             setupAIConfigCallback()
             Task {

@@ -217,6 +217,7 @@ struct TradingBotView: View {
         .background(Color(UIColor.systemBackground))
         .ignoresSafeArea(edges: .bottom)
         .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
         // MARK: - Bot Creation Success Alert
         .alert("Bot Created Successfully", isPresented: $showBotCreatedAlert) {
             Button("View My Bots") {
