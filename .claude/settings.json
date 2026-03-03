@@ -16,8 +16,7 @@
       "Bash(sed *)"
     ],
     "deny": [
-      "Bash(rm -rf *)",
-      "Bash(xcodebuild *)"
+      "Bash(rm -rf *)"
     ]
   }
 }
