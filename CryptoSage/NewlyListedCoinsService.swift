@@ -300,7 +300,7 @@ final class NewlyListedCoinsService: ObservableObject {
         // For now, let's try fetching coins sorted by recently added
         // This is a workaround since CoinGecko's free API doesn't expose listing dates
         let curr = CurrencyManager.apiValue
-        guard let url = URL(string: "https://api.coingecko.com/api/v3/coins/markets?vs_currency=\(curr)&order=market_cap_asc&per_page=100&page=1&sparkline=true&price_change_percentage=1h,24h,7d") else {
+        guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/coins/markets?vs_currency=\(curr)&order=market_cap_asc&per_page=100&page=1&sparkline=true&price_change_percentage=1h,24h,7d") else {
             throw URLError(.badURL)
         }
         

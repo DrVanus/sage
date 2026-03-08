@@ -611,7 +611,7 @@ class PriceViewModel: ObservableObject {
         
         APIRequestCoordinator.shared.recordRequest(for: .coinGecko)
         
-        var comps = URLComponents(string: "https://api.coingecko.com/api/v3/simple/price")
+        var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/simple/price")
         comps?.queryItems = [
             URLQueryItem(name: "ids", value: id),
             URLQueryItem(name: "vs_currencies", value: CurrencyManager.apiValue)

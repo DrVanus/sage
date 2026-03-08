@@ -20,7 +20,7 @@ extension Notification.Name {
     static let favoritesDidChange = Notification.Name("com.cryptosage.favoritesDidChange")
 }
 
-final class FavoritesManager: ObservableObject {
+final class FavoritesManager: ObservableObject, @unchecked Sendable {
     // The single UserDefaults key under which we store the Set of IDs
     private let defaultsKey = "favoriteCoinIDs"
     private let orderKey = "favoriteCoinOrder"
@@ -262,22 +262,21 @@ final class FavoritesManager: ObservableObject {
                 "version": FieldValue.increment(Int64(1))
             ]
             
-            watchlistRef.setData(data, merge: true) { [weak self] error in
-                if let error = error {
-                    self?.logger.error("🔥 [FavoritesManager] Failed to sync to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.logger.debug("🔥 [FavoritesManager] Synced \(favoritesArray.count) favorites to Firestore")
-                }
+            do {
+                try await watchlistRef.setData(data, merge: true)
+                self.logger.debug("🔥 [FavoritesManager] Synced \(favoritesArray.count) favorites to Firestore")
+            } catch {
+                self.logger.error("🔥 [FavoritesManager] Failed to sync to Firestore: \(error.localizedDescription)")
             }
         }
     }
-    
+
     /// Force upload local data to Firestore (used when document doesn't exist)
     private func uploadToFirestore() {
         // Capture values needed for Firestore write
         let favoritesArray = Array(favoriteIDs)
         let order = favoriteOrder
-        
+
         // Access MainActor-isolated auth properties safely
         Task { @MainActor [weak self] in
             guard let self,
@@ -285,22 +284,21 @@ final class FavoritesManager: ObservableObject {
                   let userId = AuthenticationManager.shared.currentUser?.id else {
                 return
             }
-            
+
             let watchlistRef = self.db.collection("users").document(userId).collection("watchlist").document("favorites")
-            
+
             let data: [String: Any] = [
                 "coinIds": favoritesArray,
                 "order": order,
                 "updatedAt": FieldValue.serverTimestamp(),
                 "version": 1
             ]
-            
-            watchlistRef.setData(data) { [weak self] error in
-                if let error = error {
-                    self?.logger.error("🔥 [FavoritesManager] Failed to upload to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.logger.info("🔥 [FavoritesManager] Uploaded local watchlist to Firestore")
-                }
+
+            do {
+                try await watchlistRef.setData(data)
+                self.logger.info("🔥 [FavoritesManager] Uploaded local watchlist to Firestore")
+            } catch {
+                self.logger.error("🔥 [FavoritesManager] Failed to upload to Firestore: \(error.localizedDescription)")
             }
         }
     }

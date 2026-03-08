@@ -1063,7 +1063,6 @@ extension HomeView {
         @Environment(\.dismiss) private var dismiss
         @StateObject private var vm = HomeView.RecentTransactionsViewModel()
         @State private var filter: HomeView.TxFilter = .all
-        @State private var showModeMenu: Bool = false
 
         @EnvironmentObject var homeVM: HomeViewModel
         // FIX v23: Replaced @ObservedObject with computed singleton access (same pattern as RecentTransactionsSection)
@@ -2342,23 +2341,23 @@ struct WhaleActivityPreviewSection: View {
     // MARK: - Skeleton Loading (Compact design to minimize empty space)
     
     private var skeletonLoadingView: some View {
-        HStack(spacing: 12) {
-            // Animated loading indicator
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                .scaleEffect(0.8)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Scanning blockchains...")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(DS.Adaptive.textSecondary)
-                
-                Text("Bitcoin • Ethereum • Solana")
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundColor(DS.Adaptive.textTertiary)
+        VStack(spacing: 10) {
+            ForEach(0..<2, id: \.self) { _ in
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(DS.Adaptive.textTertiary.opacity(0.15))
+                        .frame(width: 24, height: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        ShimmerBar(height: 11, cornerRadius: 3)
+                            .frame(width: 100)
+                        ShimmerBar(height: 8, cornerRadius: 2)
+                            .frame(width: 60)
+                    }
+                    Spacer()
+                    ShimmerBar(height: 11, cornerRadius: 3)
+                        .frame(width: 55)
+                }
             }
-            
-            Spacer()
         }
         .padding(.vertical, 8)
     }

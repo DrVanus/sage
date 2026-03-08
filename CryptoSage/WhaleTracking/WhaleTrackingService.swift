@@ -192,16 +192,10 @@ public final class WhaleTrackingService: ObservableObject {
         // Connect to NotificationsManager as alert delegate
         alertDelegate = NotificationsManager.shared
         
-        // Defer cache loading to background - whale data isn't visible on first screen
-        Task { @MainActor in
-            // Small delay to let the critical startup path complete first
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            self.loadCachedData() // loadCachedData already calls calculateStatistics() internally
-            self.loadWatchedWallets()
-            // FIX v23: Removed redundant calculateStatistics() call.
-            // loadCachedData() already calls calculateStatistics() at line 1980,
-            // so calling it again here produced duplicate TIMESTAMP DEBUG logs.
-        }
+        // Load cached whale data immediately so the home preview shows data without delay.
+        // loadCachedData() reads from UserDefaults (fast) and calls calculateStatistics().
+        self.loadCachedData()
+        self.loadWatchedWallets()
     }
     
     // MARK: - Public Methods
@@ -1674,7 +1668,7 @@ public final class WhaleTrackingService: ObservableObject {
         
         // Fetch from CoinGecko simple price endpoint as last resort
         let curr = CurrencyManager.apiValue
-        let urlString = "https://api.coingecko.com/api/v3/simple/price?ids=\(coinId)&vs_currencies=\(curr)"
+        let urlString = "\(APIConfig.coingeckoBaseURL)/simple/price?ids=\(coinId)&vs_currencies=\(curr)"
         guard let url = URL(string: urlString) else { return 0 }
         
         do {

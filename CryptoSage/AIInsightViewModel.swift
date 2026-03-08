@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// ViewModel for managing the AI Insight section
+@MainActor
 final class AIInsightViewModel: ObservableObject {
     @Published var insight: AIInsight?
     @Published var isLoading: Bool = false

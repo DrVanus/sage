@@ -122,8 +122,9 @@ struct AgentPortfolioView: View {
     private var recentTradesSection: some View {
         Group {
             if !agentService.recentTrades.isEmpty {
+                let recentTrades = Array(agentService.recentTrades.prefix(10))
                 SettingsSection(title: "RECENT TRADES") {
-                    ForEach(agentService.recentTrades.prefix(10)) { trade in
+                    ForEach(recentTrades) { trade in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(trade.action)
@@ -168,7 +169,7 @@ struct AgentPortfolioView: View {
                         }
                         .padding(.vertical, 4)
 
-                        if trade.id != agentService.recentTrades.prefix(10).last?.id {
+                        if trade.id != recentTrades.last?.id {
                             SettingsDivider()
                         }
                     }

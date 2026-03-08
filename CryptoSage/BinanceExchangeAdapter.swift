@@ -24,6 +24,9 @@ public final class BinanceExchangeAdapter: ExchangeAdapter {
     public func fetchTickers(for pairs: [MMEMarketPair]) async throws -> [MMETicker] {
         guard !pairs.isEmpty else { return [] }
 
+        // Early exit if Binance is known to be geo-blocked
+        if UserDefaults.standard.bool(forKey: "BinanceGlobalGeoBlocked") { return [] }
+
         var out: [MMETicker] = []
         let batchSize = 50 // batched request size
         let fallbackBatchSize = 10 // limit per-symbol concurrency on fallback

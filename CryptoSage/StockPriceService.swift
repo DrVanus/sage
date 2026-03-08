@@ -446,19 +446,31 @@ actor StockPriceService {
     /// - Returns: Array of historical price points
     func fetchHistoricalData(ticker: String, rangeString: String, intervalString: String) async -> [HistoricalPoint] {
         let symbol = ticker.uppercased()
-        
+
         // Yahoo Finance chart endpoint
-        guard var urlComponents = URLComponents(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)") else {
+        // NOTE: Use percentEncodedPath to prevent URLComponents from percent-encoding
+        // the '=' in futures symbols like GC=F, SI=F, CL=F (which would become GC%3DF and fail)
+        guard var urlComponents = URLComponents(string: "https://query1.finance.yahoo.com") else {
             return []
         }
-        
+        urlComponents.percentEncodedPath = "/v8/finance/chart/\(symbol)"
+
         urlComponents.queryItems = [
             URLQueryItem(name: "range", value: rangeString),
             URLQueryItem(name: "interval", value: intervalString),
             URLQueryItem(name: "includePrePost", value: "false")
         ]
-        
-        guard let url = urlComponents.url else { return [] }
+
+        guard let url = urlComponents.url else {
+            #if DEBUG
+            print("❌ [StockPriceService] Failed to construct chart URL for \(symbol)")
+            #endif
+            return []
+        }
+
+        #if DEBUG
+        print("[StockPriceService] Chart URL for \(symbol): \(url.absoluteString)")
+        #endif
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -472,17 +484,22 @@ actor StockPriceService {
             
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 #if DEBUG
-                print("❌ [StockPriceService] Chart HTTP error for \(symbol)")
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                print("❌ [StockPriceService] Chart HTTP \(statusCode) for \(symbol) (range: \(rangeString), interval: \(intervalString))")
                 #endif
                 return []
             }
-            
+
             // Parse Yahoo Finance chart response
             let chartResponse = try decoder.decode(YahooChartResponse.self, from: data)
-            
+
             guard let result = chartResponse.chart?.result?.first,
                   let timestamps = result.timestamp,
                   let quote = result.indicators?.quote?.first else {
+                #if DEBUG
+                let errorDesc = chartResponse.chart?.error?.description ?? "no result/timestamps/quotes"
+                print("❌ [StockPriceService] Chart parse issue for \(symbol): \(errorDesc)")
+                #endif
                 return []
             }
             

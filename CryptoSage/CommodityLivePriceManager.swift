@@ -148,13 +148,9 @@ final class CommodityLivePriceManager: ObservableObject {
         
         logger.info("Starting commodity price polling for \(self.trackedCommodities.count) commodities")
         
-        // PERFORMANCE FIX: Defer initial fetch during startup to avoid overwhelming the system
-        // Firebase handles commodity prices, so defer the Yahoo Finance fallback
+        // Firebase handles commodity prices — fetch immediately (view .task already gates startup)
+        // FIX: Removed 1s startup sleep that was double-gating with view's isInGlobalStartupPhase()
         Task {
-            // Wait for startup to complete before first fetch
-            if shouldBlockHeavyOperationsDuringStartup() {
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            }
             await refreshAllPrices()
         }
         
@@ -341,7 +337,7 @@ final class CommodityLivePriceManager: ObservableObject {
             for (batchIndex, batch) in batches.enumerated() {
                 // Small delay between batches to avoid rate limiting (skip first batch)
                 if batchIndex > 0 {
-                    try? await Task.sleep(nanoseconds: 300_000_000) // 300ms between batches
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms between batches (reduced from 300ms)
                 }
                 
                 let quotes = await StockPriceService.shared.fetchQuotes(tickers: batch)
@@ -802,7 +798,7 @@ final class CommodityLivePriceManager: ObservableObject {
         for (batchIndex, batch) in batches.enumerated() {
             // Small delay between batches to avoid rate limiting (skip first batch)
             if batchIndex > 0 {
-                try? await Task.sleep(nanoseconds: 300_000_000) // 300ms between batches
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms between batches (reduced from 300ms)
             }
             
             let quotes = await StockPriceService.shared.fetchQuotes(tickers: batch)

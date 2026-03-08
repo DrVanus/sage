@@ -12,13 +12,17 @@ import Foundation
 public final class GeminiExchangeAdapter: ExchangeAdapter {
     public var id: String { "gemini" }
     public var name: String { "Gemini" }
-    
+
     private let session: URLSession
     private let baseURL: URL
     private let v2URL: URL
-    
+    /// Rate-limit error logging to avoid console spam when Gemini is down
+    private var lastErrorLogAt: Date = .distantPast
+    private var suppressedErrorCount: Int = 0
+    private let errorLogInterval: TimeInterval = 30
+
     // MARK: - Initialization
-    
+
     public init(session: URLSession = .shared) {
         self.session = session
         self.baseURL = URL(string: "https://api.gemini.com/v1")!
@@ -56,9 +60,7 @@ public final class GeminiExchangeAdapter: ExchangeAdapter {
                         do {
                             return try await self.fetchTicker(for: pair)
                         } catch {
-                            #if DEBUG
-                            print("[GeminiExchangeAdapter] error: \(error)")
-                            #endif
+                            // Errors logged in batch summary below to avoid console spam
                             return nil
                         }
                     }
@@ -74,14 +76,36 @@ public final class GeminiExchangeAdapter: ExchangeAdapter {
             }
             
             results.append(contentsOf: batchResults)
+            let failedInBatch = batch.count - batchResults.count
+            // If entire batch failed, Gemini is likely down — skip remaining batches
+            if batchResults.isEmpty && batch.count >= 3 {
+                #if DEBUG
+                let now = Date()
+                if now.timeIntervalSince(lastErrorLogAt) > errorLogInterval {
+                    print("[GeminiExchangeAdapter] batch failed (\(failedInBatch)/\(batch.count)) — skipping remaining \(pairs.count - index) pairs")
+                    lastErrorLogAt = now
+                }
+                #endif
+                break
+            }
             index = end
-            
+
             // Rate limit pause
             if index < pairs.count {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
             }
         }
-        
+
+        #if DEBUG
+        if results.count < pairs.count {
+            let now = Date()
+            if now.timeIntervalSince(lastErrorLogAt) > errorLogInterval {
+                print("[GeminiExchangeAdapter] \(results.count)/\(pairs.count) tickers succeeded")
+                lastErrorLogAt = now
+            }
+        }
+        #endif
+
         return results
     }
     
@@ -184,7 +208,12 @@ private struct GeminiTicker: Codable {
             
             for key in container.allKeys {
                 if key.stringValue == "timestamp" {
-                    foundTimestamp = try container.decode(String.self, forKey: key)
+                    // Gemini API may return timestamp as String or Number
+                    if let str = try? container.decode(String.self, forKey: key) {
+                        foundTimestamp = str
+                    } else if let num = try? container.decode(Double.self, forKey: key) {
+                        foundTimestamp = String(Int(num))
+                    }
                 } else if key.stringValue != "USD" && key.stringValue != "USDT" {
                     // This is likely the base currency volume
                     if let val = try? container.decode(String.self, forKey: key) {

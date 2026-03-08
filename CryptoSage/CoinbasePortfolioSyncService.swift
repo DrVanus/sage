@@ -78,12 +78,13 @@ public actor CoinbasePortfolioSyncService {
             #endif
 
             // Update LivePortfolioDataService
+            let finalHoldings = holdings  // capture immutable copy for Sendable closure
             await MainActor.run {
                 // Store holdings in a way that LivePortfolioDataService can access
                 NotificationCenter.default.post(
                     name: NSNotification.Name("CoinbasePortfolioSynced"),
                     object: nil,
-                    userInfo: ["holdings": holdings]
+                    userInfo: ["holdings": finalHoldings]
                 )
             }
 

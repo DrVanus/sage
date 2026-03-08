@@ -426,7 +426,8 @@ final class FirestoreMarketSync: ObservableObject {
                 guard let self = self else { return }
                 self.scrollEndWorkItem = nil
                 // Re-check scroll state - user might have started scrolling again
-                guard !ScrollStateManager.shared.shouldBlockHeavyOperation() else {
+                // THREAD SAFETY: This DispatchWorkItem runs on DispatchQueue.main, so MainActor is safe
+                guard !MainActor.assumeIsolated({ ScrollStateManager.shared.shouldBlockHeavyOperation() }) else {
                     self.scheduleScrollEndFlush()
                     return
                 }

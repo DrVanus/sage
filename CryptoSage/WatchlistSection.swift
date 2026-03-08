@@ -487,17 +487,38 @@ struct WatchlistSection: View {
         return !effectiveWatchlist.isEmpty
     }
     
-    // Minimal loading card shown until enough market data is available
+    // Professional shimmer skeleton shown until enough market data is available
     private var loadingWatchlistPlaceholder: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-            Text("Loading live market data…")
-                .font(.callout)
-                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .secondary)
+        VStack(spacing: 0) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: 10) {
+                    // Coin icon placeholder
+                    Circle()
+                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                        .frame(width: 28, height: 28)
+                    // Name + symbol
+                    VStack(alignment: .leading, spacing: 4) {
+                        ShimmerBar(height: 12, cornerRadius: 3)
+                            .frame(width: 72)
+                        ShimmerBar(height: 8, cornerRadius: 2)
+                            .frame(width: 36)
+                    }
+                    Spacer()
+                    // Sparkline placeholder
+                    ShimmerBar(height: 24, cornerRadius: 4)
+                        .frame(width: 80)
+                    // Price + change
+                    VStack(alignment: .trailing, spacing: 4) {
+                        ShimmerBar(height: 12, cornerRadius: 3)
+                            .frame(width: 60)
+                        ShimmerBar(height: 8, cornerRadius: 2)
+                            .frame(width: 40)
+                    }
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding()
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
@@ -971,23 +992,28 @@ struct WatchlistSection: View {
             #endif
         }
         
-        // Phase 2: Deferred network calls with a short stagger.
-        // Keep the anti-burst behavior, but tighten delays so watchlist rows populate
-        // in under a second on healthy startup paths.
+        // Phase 2: Deferred network calls — load persisted data first, then kick off
+        // network fetches in parallel. Tighter delays for sub-second watchlist population.
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000) // 0.25s stagger
+            try? await Task.sleep(nanoseconds: 150_000_000) // 0.15s settle
             guard isActive else { return }
             loadPersistedSparklines()
-            // Stagger network calls further
-            try? await Task.sleep(nanoseconds: 250_000_000) // +0.25s
+            // Kick off sparkline fetch AND percentage prefetch in parallel
+            try? await Task.sleep(nanoseconds: 100_000_000) // +0.10s
             guard isActive else { return }
             fetchSparklines()
-            try? await Task.sleep(nanoseconds: 300_000_000) // +0.30s
-            guard isActive else { return }
             prefetchPercentagesForWatchlist()
             startSparklineRefreshTimer()
             // FIX v14c: Mark setup as complete to prevent re-running on tab return
             self.hasCompletedFullSetup = true
+
+            // FRESH DATA FIX: Run a second prefetch after CoinGecko data has likely arrived.
+            // The first prefetch may return sidecar cache values or nil (during grace period).
+            // By 10s, CoinGecko via Firebase proxy should have responded with accurate 1h/24h/7d data.
+            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10s
+            guard isActive else { return }
+            self.effectiveCache.result = [] // Force effectiveWatchlist to recompute with fresh coins
+            prefetchPercentagesForWatchlist()
         }
     }
     
@@ -1055,34 +1081,30 @@ struct WatchlistSection: View {
         }
     }
     
-    /// Proactively fetches percentage changes (1h/24h) for watchlist coins that are missing them.
-    /// This ensures coins have valid percentages displayed even when CoinGecko data is incomplete.
+    /// Proactively fetches percentage changes (1h/24h) for watchlist coins.
+    /// ALWAYS fetches to ensure LivePriceManager sidecar cache has the latest values,
+    /// even when the coin object has a stale embedded value from a previous session.
     private func prefetchPercentagesForWatchlist() {
         let coins = effectiveWatchlist
         guard !coins.isEmpty else { return }
-        
+
         // Capture coins for the task to avoid capturing self
         let coinsToFetch = coins
-        
+
         Task {
             let manager = LivePriceManager.shared
-            
+
             for coin in coinsToFetch {
-                // Check if 1h percent needs fetching (provider value is nil)
-                if coin.priceChangePercentage1hInCurrency == nil {
-                    // Use the async variant which will await the Binance fetch
-                    let _ = await manager.bestChange1hPercentAsync(for: coin)
-                }
-                
-                // Check if 24h percent needs fetching (provider value is nil)
-                if coin.priceChangePercentage24hInCurrency == nil {
-                    // Use the async variant which will await the Binance 24h fetch
-                    let _ = await manager.bestChange24hPercentAsync(for: coin)
-                }
+                // Always fetch 1h and 24h to refresh LivePriceManager's sidecar cache.
+                // Previously only fetched when coin.priceChangePercentage* was nil,
+                // which left stale values in the cache when the coin had a wrong embedded value.
+                let _ = await manager.bestChange1hPercentAsync(for: coin)
+                let _ = await manager.bestChange24hPercentAsync(for: coin)
             }
-            
-            // After all fetches complete, trigger a UI refresh
+
+            // After all fetches complete, trigger a UI refresh + force cache invalidation
             await MainActor.run {
+                self.lastRowDataComputeAt = .distantPast // Force cache refresh
                 self.scheduleTickUpdate()
             }
         }
@@ -1201,9 +1223,18 @@ struct WatchlistSection: View {
                 if fromCoin.count >= 10 { return fromCoin }
                 return fromCache.count >= fromCoin.count ? fromCache : fromCoin
             }()
-            // Use coin's embedded percentages (from cache) if available, otherwise nil
-            let p1h: Double? = coin.priceChangePercentage1hInCurrency.flatMap { $0.isFinite ? $0 / 100.0 : nil }
-            let p24h: Double? = coin.priceChangePercentage24hInCurrency.flatMap { $0.isFinite ? $0 / 100.0 : nil }
+            // Use coin's embedded percentages if available, with LivePriceManager sidecar fallback
+            let lpm = LivePriceManager.shared
+            let p1h: Double? = {
+                if let v = coin.priceChangePercentage1hInCurrency, v.isFinite { return v / 100.0 }
+                if let v = lpm.bestChange1hPercent(for: coin), v.isFinite { return v / 100.0 }
+                return nil
+            }()
+            let p24h: Double? = {
+                if let v = coin.priceChangePercentage24hInCurrency, v.isFinite { return v / 100.0 }
+                if let v = lpm.bestChange24hPercent(for: coin), v.isFinite { return v / 100.0 }
+                return nil
+            }()
             let pos: Bool = {
                 if let p7 = coin.priceChangePercentage7dInCurrency, p7.isFinite { return p7 >= 0 }
                 if let p24 = coin.priceChangePercentage24hInCurrency, p24.isFinite { return p24 >= 0 }
@@ -1730,10 +1761,22 @@ struct WatchlistSection: View {
             rowData = cachedRowData
         } else if cachedRowData.isEmpty {
             // First render: compute minimal data synchronously (no @State mutation)
+            // STALE DATA FIX: Also check LivePriceManager sidecar cache for coins with nil
+            // embedded percentages. The sidecar persists across sessions and often has fresh values
+            // when the coin objects haven't been augmented yet.
+            let lpm = LivePriceManager.shared
             let minimalData = coinsToShow.map { coin -> RowDataItem in
                 let isStable = coin.isStable
-                let p1h: Double? = coin.priceChangePercentage1hInCurrency.flatMap { $0.isFinite ? $0 / 100.0 : nil }
-                let p24h: Double? = coin.priceChangePercentage24hInCurrency.flatMap { $0.isFinite ? $0 / 100.0 : nil }
+                let p1h: Double? = {
+                    if let v = coin.priceChangePercentage1hInCurrency, v.isFinite { return v / 100.0 }
+                    if let v = lpm.bestChange1hPercent(for: coin), v.isFinite { return v / 100.0 }
+                    return nil
+                }()
+                let p24h: Double? = {
+                    if let v = coin.priceChangePercentage24hInCurrency, v.isFinite { return v / 100.0 }
+                    if let v = lpm.bestChange24hPercent(for: coin), v.isFinite { return v / 100.0 }
+                    return nil
+                }()
                 let pos: Bool = {
                     if let p7 = coin.priceChangePercentage7dInCurrency, p7.isFinite { return p7 >= 0 }
                     if let p24 = coin.priceChangePercentage24hInCurrency, p24.isFinite { return p24 >= 0 }

@@ -34,15 +34,12 @@ import os
 private let globalAppLaunchTime = Date()
 
 /// Duration of the "critical" startup phase - no onChange processing
-/// PERFORMANCE FIX v17: Increased from 3.0 to 4.0 seconds to fully cover Firestore initial sync
-/// Console logs show first Firestore ticker emission happens ~3-4s after launch,
-/// triggering onChange(of: Double) warnings on multiple views simultaneously
-private let globalStartupPhaseDuration: TimeInterval = 4.0
+/// Covers Firestore initial sync while allowing data to populate quickly.
+private let globalStartupPhaseDuration: TimeInterval = 2.5
 
 /// Duration of the "heavy operations blocked" phase - no background data fetching
-/// This is longer to allow the UI to fully settle before triggering network requests
-/// PERFORMANCE FIX v17: Increased from 4.0 to 5.0 seconds for consistency
-private let globalHeavyOperationBlockDuration: TimeInterval = 5.0
+/// Brief window to let the initial UI settle before triggering network requests.
+private let globalHeavyOperationBlockDuration: TimeInterval = 3.0
 
 /// Returns true if the app is still in the startup phase (first 2 seconds after launch).
 /// During this phase, views should skip processing onChange handlers to prevent warnings.

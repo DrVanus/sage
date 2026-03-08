@@ -531,11 +531,20 @@ final class ExchangePriceComparisonViewModel: ObservableObject {
         return quotes
     }
     
+    /// Symbols that will never have meaningful exchange comparison pairs.
+    /// Stablecoins can't trade against themselves (USDT/USDT), and obscure tokens
+    /// aren't listed on major exchanges — skip them to avoid wasted network calls.
+    private static let exchangeSkipSymbols: Set<String> = [
+        "USDT", "USDC", "USDS", "BUSD", "DAI", "TUSD", "FDUSD", "USDP", "GUSD", "PAX",
+        "WBT", "LEO"
+    ]
+
     private func clampSymbols(_ list: [String]) -> [String] {
         let defaults = ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "BNB", "AVAX", "LINK", "MATIC", "DOT", "ATOM"]
-        let cleaned = list.map { $0.uppercased() }.filter { !$0.isEmpty }
+        let cleaned = list.map { $0.uppercased() }
+            .filter { !$0.isEmpty && !Self.exchangeSkipSymbols.contains($0) && !$0.contains("_") }
         if cleaned.isEmpty { return defaults }
-        return Array(cleaned.prefix(16)) // Increased from 12 to 16
+        return Array(cleaned.prefix(16))
     }
     
     // MARK: - Batch Fetching for Better Performance

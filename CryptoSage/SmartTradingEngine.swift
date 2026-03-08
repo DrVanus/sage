@@ -538,7 +538,7 @@ public final class SmartTradingEngine: ObservableObject {
         // Check if signals agree on direction
         let bullishCount = scores.filter { $0 > 10 }.count
         let bearishCount = scores.filter { $0 < -10 }.count
-        let neutralCount = scores.count - bullishCount - bearishCount
+        _ = scores.count - bullishCount - bearishCount  // neutralCount computed for potential future use
 
         let maxDirectional = max(bullishCount, bearishCount)
         let directionalAgreement = Double(maxDirectional) / Double(scores.count)

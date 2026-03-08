@@ -65,7 +65,7 @@ struct CommodityDetailView: View {
     
     // Chart state
     @State private var selectedChartType: CommodityChartType = .cryptoSageAI
-    @State private var selectedInterval: ChartInterval = .oneDay
+    @State private var selectedInterval: ChartInterval = .oneMonth
     @State private var indicators: Set<IndicatorType> = [.volume]
     @AppStorage("TV.Indicators.Selected") private var tvIndicatorsRaw: String = ""
     @State private var showIndicatorMenu: Bool = false
@@ -1750,12 +1750,32 @@ struct CommodityDetailView: View {
     
     private func fetchChartData() async {
         await MainActor.run { isLoadingChart = true }
-        
+
         let yahooSymbol = commodityInfo.yahooSymbol
         let range = selectedInterval.toStockChartRange()
-        
-        let historicalData = await StockPriceService.shared.fetchHistoricalData(ticker: yahooSymbol, range: range)
-        
+
+        var historicalData = await StockPriceService.shared.fetchHistoricalData(ticker: yahooSymbol, range: range)
+
+        // Fallback: if chart data is empty (common for futures outside trading hours
+        // or for intraday intervals), try daily data instead
+        if historicalData.isEmpty {
+            let isIntraday: Bool = {
+                switch selectedInterval {
+                case .oneMin, .fiveMin, .fifteenMin, .thirtyMin, .oneHour, .fourHour, .oneDay:
+                    return true
+                default:
+                    return false
+                }
+            }()
+            if isIntraday {
+                #if DEBUG
+                print("[CommodityDetail] Intraday chart empty for \(yahooSymbol), falling back to 1mo daily data")
+                #endif
+                historicalData = await StockPriceService.shared.fetchHistoricalData(
+                    ticker: yahooSymbol, range: .oneMonth)
+            }
+        }
+
         await MainActor.run {
             chartData = historicalData.map { point in
                 CommodityChartPoint(timestamp: point.date, price: point.close, volume: Double(point.volume))

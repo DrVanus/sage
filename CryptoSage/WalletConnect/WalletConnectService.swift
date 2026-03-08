@@ -12,6 +12,7 @@ import Combine
 // MARK: - WalletConnect Service
 
 /// Service for connecting to mobile wallets via WalletConnect
+@MainActor
 public final class WalletConnectService: ObservableObject {
     public static let shared = WalletConnectService()
     
@@ -101,23 +102,19 @@ public final class WalletConnectService: ObservableObject {
         lastError = nil
         
         defer {
-            DispatchQueue.main.async { [weak self] in
-                self?.isConnecting = false
-            }
+            isConnecting = false
         }
-        
+
         // Generate pairing topic
         let pairingTopic = generateRandomTopic()
-        
+
         // Build connection URI
         // WalletConnect v2 URI format:
         // wc:{topic}@2?relay-protocol=irn&symKey={symmetricKey}
         let symKey = generateSymmetricKey()
         let uri = "wc:\(pairingTopic)@2?relay-protocol=irn&symKey=\(symKey)"
-        
-        await MainActor.run {
-            connectionURI = uri
-        }
+
+        connectionURI = uri
         
         // In production, you'd initiate the actual WalletConnect session here
         // using the WalletConnectSwift SDK
@@ -132,14 +129,12 @@ public final class WalletConnectService: ObservableObject {
         }
         
         // In production, send disconnect message via WalletConnect
-        
-        await MainActor.run {
-            activeSessions.removeAll()
-            connectedAccount = nil
-            isConnected = false
-            connectionURI = nil
-        }
-        
+
+        activeSessions.removeAll()
+        connectedAccount = nil
+        isConnected = false
+        connectionURI = nil
+
         saveSessions()
     }
     

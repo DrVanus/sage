@@ -208,9 +208,10 @@ actor WatchlistSparklineService {
         }
         
         let freshCachedCount = coins.count - coinsToFetch.count
-        if !coins.isEmpty {
+        // Only log when actually fetching (skip if all cached) and keep it concise
+        if !coinsToFetch.isEmpty {
             #if DEBUG
-            print("[WatchlistSparklineService] request=\(coins.count) freshCache=\(freshCachedCount) fetch=\(coinsToFetch.count)")
+            print("[SparklineService] fetch=\(coinsToFetch.count) cached=\(freshCachedCount) of \(coins.count)")
             #endif
         }
         

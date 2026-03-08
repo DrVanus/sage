@@ -674,14 +674,35 @@ struct StockDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             
             VStack(spacing: 0) {
-                // Chart area - switches between Native and TradingView
-                stockChartArea
+                // Chart area - extracted to separate struct to fix stack overflow crash
+                StockChartAreaView(
+                    chartData: chartData,
+                    indicators: indicators,
+                    isDark: isDark,
+                    selectedInterval: selectedInterval,
+                    selectedChartType: selectedChartType,
+                    isLoadingChart: isLoadingChart,
+                    tvStockSymbol: tvStockSymbol,
+                    tvStudies: tvStudies,
+                    crosshairPrice: $crosshairPrice,
+                    crosshairDate: $crosshairDate,
+                    showCrosshair: $showCrosshair,
+                    showIndicatorMenu: $showIndicatorMenu
+                )
                     .padding(.horizontal, 8)
                     .padding(.top, 2)
                     .padding(.bottom, 6)
-                
-                // Controls row
-                chartControlsRow
+
+                // Controls row - extracted to separate struct
+                StockChartControlsRow(
+                    selectedChartType: $selectedChartType,
+                    selectedInterval: $selectedInterval,
+                    showIndicatorMenu: $showIndicatorMenu,
+                    showSetAlert: $showSetAlert,
+                    indicatorsCount: indicators.count,
+                    isDark: isDark,
+                    onIntervalChanged: { _ in Task { await loadChartData() } }
+                )
                     .padding(.top, 4)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, 10)
@@ -715,621 +736,16 @@ struct StockDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .allowsHitTesting(false)
         )
-        .sheet(isPresented: $showIndicatorMenu) {
-            ChartIndicatorMenu(isPresented: $showIndicatorMenu)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
     }
-    
-    // MARK: - Chart Area (Native or TradingView)
-    
-    private var stockChartArea: some View {
-        ZStack {
-            // Native chart
-            if selectedChartType == .native {
-                if isLoadingChart && chartData.isEmpty {
-                    ProgressView()
-                        .frame(height: 240)
-                } else if chartData.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.largeTitle)
-                            .foregroundColor(DS.Adaptive.textTertiary)
-                        Text("Chart data unavailable")
-                            .font(.subheadline)
-                            .foregroundColor(DS.Adaptive.textTertiary)
-                    }
-                    .frame(height: 240)
-                } else {
-                    VStack(spacing: 0) {
-                        stockChartWithCrosshair
-                        
-                        // Indicator legend (matching crypto chart)
-                        if !indicators.isEmpty {
-                            stockIndicatorLegend
-                                .padding(.top, 4)
-                                .padding(.horizontal, 8)
-                        }
-                        
-                        // RSI sub-pane (volume is now integrated into the main chart)
-                        if indicators.contains(.rsi) {
-                            stockRSIChart
-                                .frame(height: 50)
-                                .padding(.top, 4)
-                        }
-                    }
-                }
-            }
-            
-            // TradingView chart
-            if selectedChartType == .tradingView {
-                TradingViewChartWebView(
-                    symbol: tvStockSymbol,
-                    interval: selectedInterval.tvInterval,
-                    theme: isDark ? "dark" : "light",
-                    studies: tvStudies,
-                    altSymbols: [],
-                    interactive: true
-                )
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 240, maxHeight: 240)
-            }
-        }
-    }
-    
-    // MARK: - Native Stock Chart with Crosshair & Indicators
-    
-    // Indicator computation helpers (matching commodity chart)
-    private func stockSMA(_ period: Int) -> [(date: Date, value: Double)] {
-        guard chartData.count >= period else { return [] }
-        var result: [(date: Date, value: Double)] = []
-        for i in (period - 1)..<chartData.count {
-            let slice = chartData[(i - period + 1)...i]
-            let avg = slice.reduce(0.0) { $0 + $1.price } / Double(period)
-            result.append((date: chartData[i].date, value: avg))
-        }
-        return result
-    }
-    
-    private func stockEMA(_ period: Int) -> [(date: Date, value: Double)] {
-        guard chartData.count >= period else { return [] }
-        let multiplier = 2.0 / Double(period + 1)
-        var ema = chartData.prefix(period).reduce(0.0) { $0 + $1.price } / Double(period)
-        var result: [(date: Date, value: Double)] = [(date: chartData[period - 1].date, value: ema)]
-        for i in period..<chartData.count {
-            ema = (chartData[i].price - ema) * multiplier + ema
-            result.append((date: chartData[i].date, value: ema))
-        }
-        return result
-    }
-    
-    private func stockBB(_ period: Int = 20, mult: Double = 2.0) -> [(date: Date, upper: Double, middle: Double, lower: Double)] {
-        guard chartData.count >= period else { return [] }
-        var result: [(date: Date, upper: Double, middle: Double, lower: Double)] = []
-        for i in (period - 1)..<chartData.count {
-            let slice = Array(chartData[(i - period + 1)...i])
-            let mean = slice.reduce(0.0) { $0 + $1.price } / Double(period)
-            let variance = slice.reduce(0.0) { $0 + pow($1.price - mean, 2) } / Double(period)
-            let stdDev = sqrt(variance)
-            result.append((date: chartData[i].date, upper: mean + mult * stdDev, middle: mean, lower: mean - mult * stdDev))
-        }
-        return result
-    }
-    
-    private func stockRSIValues(_ period: Int = 14) -> [Double] {
-        let prices = chartData.map(\.price)
-        guard prices.count > period else { return Array(repeating: 50, count: prices.count) }
-        var rsiValues: [Double] = Array(repeating: 50, count: period)
-        var avgGain: Double = 0
-        var avgLoss: Double = 0
-        for i in 1...period {
-            let change = prices[i] - prices[i - 1]
-            if change > 0 { avgGain += change } else { avgLoss += abs(change) }
-        }
-        avgGain /= Double(period)
-        avgLoss /= Double(period)
-        let firstRS = avgLoss == 0 ? 100.0 : avgGain / avgLoss
-        rsiValues.append(100 - (100 / (1 + firstRS)))
-        for i in (period + 1)..<prices.count {
-            let change = prices[i] - prices[i - 1]
-            let gain = change > 0 ? change : 0
-            let loss = change < 0 ? abs(change) : 0
-            avgGain = (avgGain * Double(period - 1) + gain) / Double(period)
-            avgLoss = (avgLoss * Double(period - 1) + loss) / Double(period)
-            let rs = avgLoss == 0 ? 100.0 : avgGain / avgLoss
-            rsiValues.append(100 - (100 / (1 + rs)))
-        }
-        return rsiValues
-    }
-    
-    private var stockChartWithCrosshair: some View {
-        let minVal = chartData.map(\.price).min() ?? 0
-        let maxVal = chartData.map(\.price).max() ?? 100
-        let chartColor: Color = (chartData.last?.price ?? 0) >= (chartData.first?.price ?? 0) ? .green : .red
-        
-        // Compute BB bounds for y-axis scaling
-        let bbData = indicators.contains(.bb) ? stockBB() : []
-        let bbMin = bbData.map(\.lower).min() ?? minVal
-        let bbMax = bbData.map(\.upper).max() ?? maxVal
-        let effectiveMin = min(minVal, bbMin)
-        let effectiveMax = max(maxVal, bbMax)
-        let range = effectiveMax - effectiveMin
-        let padding = range * 0.08
-        
-        // Integrated volume: scale to bottom 22% of chart (matching crypto chart)
-        let showVol = indicators.contains(.volume) && chartData.contains(where: { $0.volume > 0 })
-        // Use 98th percentile to prevent outlier spikes from crushing normal bars
-        let sortedVols = showVol ? chartData.map(\.volume).sorted() : []
-        let p98Idx = max(0, Int(Double(sortedVols.count) * 0.98) - 1)
-        let volCap = showVol ? max(sortedVols.isEmpty ? 1 : sortedVols[min(p98Idx, sortedVols.count - 1)], 1) : 1.0
-        let chartBottom = effectiveMin - padding
-        let chartRange = (effectiveMax + padding) - chartBottom
-        let volScale = chartRange * 0.22 / max(volCap, 1)
-        
-        return Chart {
-            // ── Integrated Volume Bars (rendered first so they sit behind everything) ──
-            if showVol {
-                ForEach(Array(chartData.enumerated()), id: \.element.id) { index, point in
-                    let isUp = index == 0 || point.price >= chartData[index - 1].price
-                    let volH = min(point.volume, volCap * 1.2) * volScale
-                    let baseColor = isUp ? Color.green : Color.red
-                    BarMark(
-                        x: .value("Date", point.date),
-                        yStart: .value("VolBase", chartBottom),
-                        yEnd: .value("Vol", chartBottom + volH)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [baseColor.opacity(0.35), baseColor.opacity(0.12)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                }
-            }
-            
-            // ── Bollinger Bands (background, matching crypto chart) ──
-            if indicators.contains(.bb) {
-                ForEach(Array(bbData.enumerated()), id: \.offset) { _, point in
-                    LineMark(x: .value("Date", point.date), y: .value("BB Upper", point.upper))
-                        .foregroundStyle(Color.purple.opacity(0.45))
-                        .lineStyle(StrokeStyle(lineWidth: 1.0, dash: [4, 3]))
-                    LineMark(x: .value("Date", point.date), y: .value("BB Lower", point.lower))
-                        .foregroundStyle(Color.purple.opacity(0.45))
-                        .lineStyle(StrokeStyle(lineWidth: 1.0, dash: [4, 3]))
-                }
-                ForEach(Array(bbData.enumerated()), id: \.offset) { _, point in
-                    AreaMark(
-                        x: .value("Date", point.date),
-                        yStart: .value("BB Lower", point.lower),
-                        yEnd: .value("BB Upper", point.upper)
-                    )
-                    .foregroundStyle(Color.purple.opacity(0.08))
-                }
-            }
-            
-            // ── SMA (20-period, matching crypto chart line weight) ──
-            if indicators.contains(.sma) {
-                let smaData = stockSMA(20)
-                ForEach(Array(smaData.enumerated()), id: \.offset) { _, point in
-                    LineMark(x: .value("Date", point.date), y: .value("SMA", point.value))
-                        .foregroundStyle(Color.orange.opacity(0.8))
-                        .lineStyle(StrokeStyle(lineWidth: 1.8))
-                        .interpolationMethod(.monotone)
-                }
-            }
-            
-            // ── EMA (12-period, matching crypto chart line weight) ──
-            if indicators.contains(.ema) {
-                let emaData = stockEMA(12)
-                ForEach(Array(emaData.enumerated()), id: \.offset) { _, point in
-                    LineMark(x: .value("Date", point.date), y: .value("EMA", point.value))
-                        .foregroundStyle(Color.cyan.opacity(0.8))
-                        .lineStyle(StrokeStyle(lineWidth: 1.6))
-                        .interpolationMethod(.monotone)
-                }
-            }
-            
-            // ── Price Line (bolder, matching crypto chart) ──
-            ForEach(chartData) { point in
-                LineMark(
-                    x: .value("Date", point.date),
-                    y: .value("Price", point.price)
-                )
-                .foregroundStyle(chartColor.gradient)
-                .interpolationMethod(.monotone)
-                .lineStyle(StrokeStyle(lineWidth: 2.2))
-                
-                AreaMark(
-                    x: .value("Date", point.date),
-                    yStart: .value("Min", effectiveMin - padding),
-                    yEnd: .value("Price", point.price)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        gradient: Gradient(stops: [
-                            .init(color: chartColor.opacity(0.38), location: 0.0),
-                            .init(color: chartColor.opacity(0.22), location: 0.3),
-                            .init(color: chartColor.opacity(0.08), location: 0.6),
-                            .init(color: .clear, location: 1.0)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .interpolationMethod(.monotone)
-            }
-            
-            // ── Crosshair ── LIGHT MODE FIX: Adaptive colors
-            if showCrosshair, let date = crosshairDate {
-                RuleMark(x: .value("Selected", date))
-                    .foregroundStyle(isDark ? Color.white.opacity(0.5) : Color.black.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
-                if let price = crosshairPrice {
-                    RuleMark(y: .value("Price", price))
-                        .foregroundStyle(isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.20))
-                        .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-                }
-            }
-        }
-        .chartYScale(domain: (effectiveMin - padding)...(effectiveMax + padding))
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
-                    .foregroundStyle(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                AxisValueLabel()
-                    .foregroundStyle(DS.Adaptive.textTertiary)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3, dash: [4, 4]))
-                    .foregroundStyle(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                AxisValueLabel {
-                    if let price = value.as(Double.self) {
-                        Text(formatCompactCurrency(price))
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(DS.Adaptive.textTertiary)
-                    }
-                }
-            }
-        }
-        .chartOverlay { proxy in
-            GeometryReader { geo in
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                guard let plotAnchor = proxy.plotFrame else { return }
-                                let x = value.location.x - geo[plotAnchor].origin.x
-                                if let date: Date = proxy.value(atX: x) {
-                                    if let closest = chartData.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }) {
-                                        if crosshairDate != closest.date {
-                                            crosshairDate = closest.date
-                                            crosshairPrice = closest.price
-                                            #if os(iOS)
-                                            ChartHaptics.shared.tickIfNeeded()
-                                            #endif
-                                        }
-                                        showCrosshair = true
-                                    }
-                                }
-                            }
-                            .onEnded { _ in
-                                showCrosshair = false
-                                crosshairDate = nil
-                                crosshairPrice = nil
-                            }
-                    )
-                
-                // Premium crosshair tooltip with indicator values
-                if showCrosshair, let price = crosshairPrice, let date = crosshairDate, let plotAnchor = proxy.plotFrame {
-                    if let xPos = proxy.position(forX: date) {
-                        let tooltipBgColors: [Color] = isDark
-                            ? [Color(red: 0.12, green: 0.12, blue: 0.14).opacity(0.95),
-                               Color(red: 0.06, green: 0.06, blue: 0.08).opacity(0.95)]
-                            : [Color.white.opacity(0.98),
-                               Color(red: 0.96, green: 0.96, blue: 0.97).opacity(0.98)]
-                        let tooltipTextColor: Color = isDark ? .white.opacity(0.8) : .primary.opacity(0.7)
-                        
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(formatCurrency(price))
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundColor(DS.Colors.gold)
-                            Text(formatChartDate(date))
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundColor(tooltipTextColor)
-                            
-                            // Indicator values at crosshair position (with colored dots)
-                            if indicators.contains(.sma) || indicators.contains(.ema) || (indicators.contains(.volume) && chartData.first(where: { $0.date == date })?.volume ?? 0 > 0) {
-                                Divider().background(isDark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
-                                if indicators.contains(.sma) {
-                                    let smaVal = stockSMA(20).last(where: { $0.date <= date })?.value
-                                    if let v = smaVal {
-                                        HStack(spacing: 4) {
-                                            Circle().fill(Color.orange).frame(width: 5, height: 5)
-                                            Text("SMA₂₀ \(formatCompactCurrency(v))")
-                                                .font(.system(size: 9, weight: .medium))
-                                                .foregroundColor(.orange)
-                                        }
-                                    }
-                                }
-                                if indicators.contains(.ema) {
-                                    let emaVal = stockEMA(12).last(where: { $0.date <= date })?.value
-                                    if let v = emaVal {
-                                        HStack(spacing: 4) {
-                                            Circle().fill(Color.cyan).frame(width: 5, height: 5)
-                                            Text("EMA₁₂ \(formatCompactCurrency(v))")
-                                                .font(.system(size: 9, weight: .medium))
-                                                .foregroundColor(.cyan)
-                                        }
-                                    }
-                                }
-                                // Volume at crosshair
-                                if indicators.contains(.volume),
-                                   let volPoint = chartData.first(where: { $0.date == date }),
-                                   volPoint.volume > 0 {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "chart.bar.fill")
-                                            .font(.system(size: 7))
-                                            .foregroundColor(DS.Colors.gold.opacity(0.8))
-                                        Text(formatStockVolume(volPoint.volume))
-                                            .font(.system(size: 9, weight: .medium))
-                                            .foregroundColor(DS.Colors.gold.opacity(0.8))
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: tooltipBgColors,
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [DS.Colors.gold.opacity(0.5), DS.Colors.gold.opacity(0.2)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
-                        )
-                        .position(x: min(max(xPos + geo[plotAnchor].origin.x, 70), geo.size.width - 70), y: 30)
-                    }
-                }
-            }
-        }
-        .frame(height: 240)
-    }
-    
-    // MARK: - Indicator Legend (matching crypto chart)
-    
-    @ViewBuilder
-    private var stockIndicatorLegend: some View {
-        HStack(spacing: 10) {
-            if indicators.contains(.sma) {
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 1).fill(Color.orange.opacity(0.8)).frame(width: 12, height: 3)
-                    Text("SMA 20")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                }
-            }
-            if indicators.contains(.ema) {
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 1).fill(Color.cyan.opacity(0.8)).frame(width: 12, height: 3)
-                    Text("EMA 12")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                }
-            }
-            if indicators.contains(.bb) {
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 1).fill(Color.purple.opacity(0.45)).frame(width: 12, height: 3)
-                    Text("BB 20")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                }
-            }
-            if indicators.contains(.volume) {
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 1).fill(Color.green.opacity(0.35)).frame(width: 12, height: 3)
-                    Text("Vol")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(DS.Adaptive.textTertiary)
-                }
-            }
-            Spacer()
-        }
-    }
-    
-    // MARK: - RSI Sub-Pane
-    
-    @ViewBuilder
-    private var stockRSIChart: some View {
-        let rsiVals = stockRSIValues()
-        Chart {
-            RuleMark(y: .value("Overbought", 70))
-                .foregroundStyle(Color.red.opacity(0.3))
-                .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
-            RuleMark(y: .value("Oversold", 30))
-                .foregroundStyle(Color.green.opacity(0.3))
-                .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
-            RuleMark(y: .value("Mid", 50))
-                .foregroundStyle(isDark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
-                .lineStyle(StrokeStyle(lineWidth: 0.3))
-            
-            ForEach(Array(rsiVals.enumerated()), id: \.offset) { index, rsi in
-                LineMark(
-                    x: .value("Idx", index),
-                    y: .value("RSI", rsi)
-                )
-                .foregroundStyle(Color.yellow.opacity(0.85))
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
-                .interpolationMethod(.monotone)
-            }
-        }
-        .chartYScale(domain: 0...100)
-        .chartXAxis(.hidden)
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: [30, 50, 70]) { value in
-                AxisValueLabel {
-                    if let v = value.as(Int.self) {
-                        Text("\(v)")
-                            .font(.system(size: 8))
-                            .foregroundStyle(DS.Adaptive.textTertiary.opacity(0.6))
-                    }
-                }
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            Text("RSI (14)")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(.yellow.opacity(0.6))
-                .padding(.leading, 4)
-                .padding(.top, 2)
-        }
-    }
-    
-    private func formatStockVolume(_ v: Double) -> String {
-        if v >= 1_000_000_000 { return String(format: "%.1fB", v / 1_000_000_000) }
-        if v >= 1_000_000 { return String(format: "%.1fM", v / 1_000_000) }
-        if v >= 1_000 { return String(format: "%.0fK", v / 1_000) }
-        return String(format: "%.0f", v)
-    }
-    
-    // PERFORMANCE FIX: Cached date formatters
-    private static let _intradayDateFmt: DateFormatter = {
-        let df = DateFormatter(); df.dateFormat = "MMM d, h:mm a"; return df
-    }()
-    private static let _dailyDateFmt: DateFormatter = {
-        let df = DateFormatter(); df.dateFormat = "MMM d, yyyy"; return df
-    }()
-    private static let _timestampFmt: DateFormatter = {
-        let df = DateFormatter(); df.dateStyle = .short; df.timeStyle = .medium; return df
-    }()
 
-    private func formatChartDate(_ date: Date) -> String {
-        let formatter = selectedInterval.isIntraday ? Self._intradayDateFmt : Self._dailyDateFmt
-        return formatter.string(from: date)
-    }
+    // MARK: - Chart Area (extracted to StockChartAreaView struct)
     
-    // MARK: - Chart Controls Row
+    // MARK: - Chart views extracted to separate structs (StockChartWithCrosshairView, StockRSIChartView, StockIndicatorLegendView)
+    // See bottom of file for extracted struct definitions
     
+    // MARK: - Chart Controls Row (extracted to StockChartControlsRow struct)
+
     @State private var showTimeframePicker = false
-    
-    private var chartControlsRow: some View {
-        // No ScrollView - fixed width, perfectly fitted (matching coin page layout)
-        HStack(spacing: 6) {
-            // Chart source segmented toggle - expands to fill remaining width
-            ChartSourceSegmentedToggle(selected: $selectedChartType)
-            
-            // Timeframe dropdown button - styled to match the coin page
-            Menu {
-                Section("Intraday") {
-                    ForEach([StockChartInterval.oneMin, .fiveMin, .fifteenMin, .thirtyMin, .oneHour, .fourHour], id: \.self) { interval in
-                        Button {
-                            #if os(iOS)
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            #endif
-                            selectedInterval = interval
-                            Task { await loadChartData() }
-                        } label: {
-                            HStack {
-                                Text(interval.displayName)
-                                if selectedInterval == interval {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                }
-                Section("Daily & Longer") {
-                    ForEach([StockChartInterval.oneDay, .oneWeek, .oneMonth, .threeMonths, .sixMonths, .oneYear, .fiveYears, .all], id: \.self) { interval in
-                        Button {
-                            #if os(iOS)
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            #endif
-                            selectedInterval = interval
-                            Task { await loadChartData() }
-                        } label: {
-                            HStack {
-                                Text(interval.displayName)
-                                if selectedInterval == interval {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Text(selectedInterval.displayName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                }
-                .foregroundColor(DS.Adaptive.textPrimary)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(
-                    Capsule()
-                        .fill(isDark ? DS.Neutral.bg(0.06) : Color(uiColor: .systemGray5))
-                )
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(isDark ? ctaRimStrokeGradient : LinearGradient(colors: [Color.black.opacity(0.12), Color.black.opacity(0.06)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                )
-            }
-            .fixedSize(horizontal: true, vertical: false)
-            
-            // Indicators button - shared component for consistency
-            IndicatorsButton(count: indicators.count) {
-                showIndicatorMenu = true
-            }
-            .fixedSize(horizontal: true, vertical: false)
-            
-            // Alert button - compact icon-only to save space (matching coin page density)
-            Button {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                #endif
-                showSetAlert = true
-            } label: {
-                Image(systemName: "bell.badge")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(DS.Adaptive.textSecondary)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        Circle()
-                            .fill(isDark ? DS.Neutral.bg(0.06) : Color(uiColor: .systemGray5))
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.5)
-                    )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-    }
     
     // MARK: - Info Tabs Section
     
@@ -3024,6 +2440,700 @@ struct StockChartPoint: Identifiable {
     let date: Date
     let price: Double
     var volume: Double = 0
+}
+
+// MARK: - Stock Chart Formatters (shared across extracted chart structs)
+
+private enum StockChartFormatters {
+    static let currency2: NumberFormatter = {
+        let nf = NumberFormatter(); nf.numberStyle = .currency
+        nf.currencyCode = CurrencyManager.currencyCode; nf.maximumFractionDigits = 2; return nf
+    }()
+    static let currency4: NumberFormatter = {
+        let nf = NumberFormatter(); nf.numberStyle = .currency
+        nf.currencyCode = CurrencyManager.currencyCode; nf.maximumFractionDigits = 4; return nf
+    }()
+    static let intradayDateFmt: DateFormatter = {
+        let df = DateFormatter(); df.dateFormat = "MMM d, h:mm a"; return df
+    }()
+    static let dailyDateFmt: DateFormatter = {
+        let df = DateFormatter(); df.dateFormat = "MMM d, yyyy"; return df
+    }()
+
+    static func formatCurrency(_ value: Double) -> String {
+        let formatter = value >= 1 ? currency2 : currency4
+        return formatter.string(from: NSNumber(value: value)) ?? "$\(value)"
+    }
+
+    static func formatCompactCurrency(_ value: Double) -> String {
+        if value >= 1000 { return "$\(Int(value / 1000))K" }
+        return formatCurrency(value)
+    }
+
+    static func formatChartDate(_ date: Date, isIntraday: Bool) -> String {
+        let formatter = isIntraday ? intradayDateFmt : dailyDateFmt
+        return formatter.string(from: date)
+    }
+
+    static func formatStockVolume(_ v: Double) -> String {
+        if v >= 1_000_000_000 { return String(format: "%.1fB", v / 1_000_000_000) }
+        if v >= 1_000_000 { return String(format: "%.1fM", v / 1_000_000) }
+        if v >= 1_000 { return String(format: "%.0fK", v / 1_000) }
+        return String(format: "%.0f", v)
+    }
+}
+
+// MARK: - Stock Indicator Legend View (extracted to reduce type nesting)
+
+private struct StockIndicatorLegendView: View {
+    let indicators: Set<IndicatorType>
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if indicators.contains(.sma) {
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 1).fill(Color.orange.opacity(0.8)).frame(width: 12, height: 3)
+                    Text("SMA 20")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+            }
+            if indicators.contains(.ema) {
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 1).fill(Color.cyan.opacity(0.8)).frame(width: 12, height: 3)
+                    Text("EMA 12")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+            }
+            if indicators.contains(.bb) {
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 1).fill(Color.purple.opacity(0.45)).frame(width: 12, height: 3)
+                    Text("BB 20")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+            }
+            if indicators.contains(.volume) {
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 1).fill(Color.green.opacity(0.35)).frame(width: 12, height: 3)
+                    Text("Vol")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(DS.Adaptive.textTertiary)
+                }
+            }
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Stock RSI Chart View (extracted to reduce type nesting)
+
+private struct StockRSIChartView: View {
+    let chartData: [StockChartPoint]
+    let isDark: Bool
+
+    private func rsiValues(_ period: Int = 14) -> [Double] {
+        let prices = chartData.map(\.price)
+        guard prices.count > period else { return Array(repeating: 50, count: prices.count) }
+        var rsiVals: [Double] = Array(repeating: 50, count: period)
+        var avgGain: Double = 0
+        var avgLoss: Double = 0
+        for i in 1...period {
+            let change = prices[i] - prices[i - 1]
+            if change > 0 { avgGain += change } else { avgLoss += abs(change) }
+        }
+        avgGain /= Double(period)
+        avgLoss /= Double(period)
+        let firstRS = avgLoss == 0 ? 100.0 : avgGain / avgLoss
+        rsiVals.append(100 - (100 / (1 + firstRS)))
+        for i in (period + 1)..<prices.count {
+            let change = prices[i] - prices[i - 1]
+            let gain = change > 0 ? change : 0
+            let loss = change < 0 ? abs(change) : 0
+            avgGain = (avgGain * Double(period - 1) + gain) / Double(period)
+            avgLoss = (avgLoss * Double(period - 1) + loss) / Double(period)
+            let rs = avgLoss == 0 ? 100.0 : avgGain / avgLoss
+            rsiVals.append(100 - (100 / (1 + rs)))
+        }
+        return rsiVals
+    }
+
+    var body: some View {
+        let rsiVals = rsiValues()
+        Chart {
+            RuleMark(y: .value("Overbought", 70))
+                .foregroundStyle(Color.red.opacity(0.3))
+                .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+            RuleMark(y: .value("Oversold", 30))
+                .foregroundStyle(Color.green.opacity(0.3))
+                .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+            RuleMark(y: .value("Mid", 50))
+                .foregroundStyle(isDark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+                .lineStyle(StrokeStyle(lineWidth: 0.3))
+
+            ForEach(Array(rsiVals.enumerated()), id: \.offset) { index, rsi in
+                LineMark(
+                    x: .value("Idx", index),
+                    y: .value("RSI", rsi)
+                )
+                .foregroundStyle(Color.yellow.opacity(0.85))
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                .interpolationMethod(.monotone)
+            }
+        }
+        .chartYScale(domain: 0...100)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: [30, 50, 70]) { value in
+                AxisValueLabel {
+                    if let v = value.as(Int.self) {
+                        Text("\(v)")
+                            .font(.system(size: 8))
+                            .foregroundStyle(DS.Adaptive.textTertiary.opacity(0.6))
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            Text("RSI (14)")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.yellow.opacity(0.6))
+                .padding(.leading, 4)
+                .padding(.top, 2)
+        }
+    }
+}
+
+// MARK: - Stock Chart With Crosshair View (extracted to fix stack overflow crash)
+
+private struct StockChartWithCrosshairView: View {
+    let chartData: [StockChartPoint]
+    let indicators: Set<IndicatorType>
+    let isDark: Bool
+    let selectedInterval: StockChartInterval
+
+    @Binding var crosshairPrice: Double?
+    @Binding var crosshairDate: Date?
+    @Binding var showCrosshair: Bool
+
+    // MARK: - Indicator Computations
+
+    private func sma(_ period: Int) -> [(date: Date, value: Double)] {
+        guard chartData.count >= period else { return [] }
+        var result: [(date: Date, value: Double)] = []
+        for i in (period - 1)..<chartData.count {
+            let slice = chartData[(i - period + 1)...i]
+            let avg = slice.reduce(0.0) { $0 + $1.price } / Double(period)
+            result.append((date: chartData[i].date, value: avg))
+        }
+        return result
+    }
+
+    private func ema(_ period: Int) -> [(date: Date, value: Double)] {
+        guard chartData.count >= period else { return [] }
+        let multiplier = 2.0 / Double(period + 1)
+        var emaVal = chartData.prefix(period).reduce(0.0) { $0 + $1.price } / Double(period)
+        var result: [(date: Date, value: Double)] = [(date: chartData[period - 1].date, value: emaVal)]
+        for i in period..<chartData.count {
+            emaVal = (chartData[i].price - emaVal) * multiplier + emaVal
+            result.append((date: chartData[i].date, value: emaVal))
+        }
+        return result
+    }
+
+    private func bb(_ period: Int = 20, mult: Double = 2.0) -> [(date: Date, upper: Double, middle: Double, lower: Double)] {
+        guard chartData.count >= period else { return [] }
+        var result: [(date: Date, upper: Double, middle: Double, lower: Double)] = []
+        for i in (period - 1)..<chartData.count {
+            let slice = Array(chartData[(i - period + 1)...i])
+            let mean = slice.reduce(0.0) { $0 + $1.price } / Double(period)
+            let variance = slice.reduce(0.0) { $0 + pow($1.price - mean, 2) } / Double(period)
+            let stdDev = sqrt(variance)
+            result.append((date: chartData[i].date, upper: mean + mult * stdDev, middle: mean, lower: mean - mult * stdDev))
+        }
+        return result
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        let minVal = chartData.map(\.price).min() ?? 0
+        let maxVal = chartData.map(\.price).max() ?? 100
+        let chartColor: Color = (chartData.last?.price ?? 0) >= (chartData.first?.price ?? 0) ? .green : .red
+
+        // Compute BB bounds for y-axis scaling
+        let bbData = indicators.contains(.bb) ? bb() : []
+        let bbMin = bbData.map(\.lower).min() ?? minVal
+        let bbMax = bbData.map(\.upper).max() ?? maxVal
+        let effectiveMin = min(minVal, bbMin)
+        let effectiveMax = max(maxVal, bbMax)
+        let range = effectiveMax - effectiveMin
+        let padding = range * 0.08
+
+        // Integrated volume: scale to bottom 22% of chart
+        let showVol = indicators.contains(.volume) && chartData.contains(where: { $0.volume > 0 })
+        let sortedVols = showVol ? chartData.map(\.volume).sorted() : []
+        let p98Idx = max(0, Int(Double(sortedVols.count) * 0.98) - 1)
+        let volCap = showVol ? max(sortedVols.isEmpty ? 1 : sortedVols[min(p98Idx, sortedVols.count - 1)], 1) : 1.0
+        let chartBottom = effectiveMin - padding
+        let chartRange = (effectiveMax + padding) - chartBottom
+        let volScale = chartRange * 0.22 / max(volCap, 1)
+
+        Chart {
+            // Volume bars
+            if showVol {
+                ForEach(Array(chartData.enumerated()), id: \.element.id) { index, point in
+                    let isUp = index == 0 || point.price >= chartData[index - 1].price
+                    let volH = min(point.volume, volCap * 1.2) * volScale
+                    let baseColor = isUp ? Color.green : Color.red
+                    BarMark(
+                        x: .value("Date", point.date),
+                        yStart: .value("VolBase", chartBottom),
+                        yEnd: .value("Vol", chartBottom + volH)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [baseColor.opacity(0.35), baseColor.opacity(0.12)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+            }
+
+            // Bollinger Bands
+            if indicators.contains(.bb) {
+                ForEach(Array(bbData.enumerated()), id: \.offset) { _, point in
+                    LineMark(x: .value("Date", point.date), y: .value("BB Upper", point.upper))
+                        .foregroundStyle(Color.purple.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1.0, dash: [4, 3]))
+                    LineMark(x: .value("Date", point.date), y: .value("BB Lower", point.lower))
+                        .foregroundStyle(Color.purple.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1.0, dash: [4, 3]))
+                }
+                ForEach(Array(bbData.enumerated()), id: \.offset) { _, point in
+                    AreaMark(
+                        x: .value("Date", point.date),
+                        yStart: .value("BB Lower", point.lower),
+                        yEnd: .value("BB Upper", point.upper)
+                    )
+                    .foregroundStyle(Color.purple.opacity(0.08))
+                }
+            }
+
+            // SMA
+            if indicators.contains(.sma) {
+                let smaData = sma(20)
+                ForEach(Array(smaData.enumerated()), id: \.offset) { _, point in
+                    LineMark(x: .value("Date", point.date), y: .value("SMA", point.value))
+                        .foregroundStyle(Color.orange.opacity(0.8))
+                        .lineStyle(StrokeStyle(lineWidth: 1.8))
+                        .interpolationMethod(.monotone)
+                }
+            }
+
+            // EMA
+            if indicators.contains(.ema) {
+                let emaData = ema(12)
+                ForEach(Array(emaData.enumerated()), id: \.offset) { _, point in
+                    LineMark(x: .value("Date", point.date), y: .value("EMA", point.value))
+                        .foregroundStyle(Color.cyan.opacity(0.8))
+                        .lineStyle(StrokeStyle(lineWidth: 1.6))
+                        .interpolationMethod(.monotone)
+                }
+            }
+
+            // Price line
+            ForEach(chartData) { point in
+                LineMark(
+                    x: .value("Date", point.date),
+                    y: .value("Price", point.price)
+                )
+                .foregroundStyle(chartColor.gradient)
+                .interpolationMethod(.monotone)
+                .lineStyle(StrokeStyle(lineWidth: 2.2))
+
+                AreaMark(
+                    x: .value("Date", point.date),
+                    yStart: .value("Min", effectiveMin - padding),
+                    yEnd: .value("Price", point.price)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: chartColor.opacity(0.38), location: 0.0),
+                            .init(color: chartColor.opacity(0.22), location: 0.3),
+                            .init(color: chartColor.opacity(0.08), location: 0.6),
+                            .init(color: .clear, location: 1.0)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .interpolationMethod(.monotone)
+            }
+
+            // Crosshair
+            if showCrosshair, let date = crosshairDate {
+                RuleMark(x: .value("Selected", date))
+                    .foregroundStyle(isDark ? Color.white.opacity(0.5) : Color.black.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
+                if let price = crosshairPrice {
+                    RuleMark(y: .value("Price", price))
+                        .foregroundStyle(isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.20))
+                        .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                }
+            }
+        }
+        .chartYScale(domain: (effectiveMin - padding)...(effectiveMax + padding))
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                    .foregroundStyle(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                AxisValueLabel()
+                    .foregroundStyle(DS.Adaptive.textTertiary)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3, dash: [4, 4]))
+                    .foregroundStyle(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                AxisValueLabel {
+                    if let price = value.as(Double.self) {
+                        Text(StockChartFormatters.formatCompactCurrency(price))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(DS.Adaptive.textTertiary)
+                    }
+                }
+            }
+        }
+        .chartOverlay { proxy in
+            chartOverlayContent(proxy: proxy)
+        }
+        .frame(height: 240)
+    }
+
+    // MARK: - Chart Overlay
+
+    @ViewBuilder
+    private func chartOverlayContent(proxy: ChartProxy) -> some View {
+        GeometryReader { geo in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard let plotAnchor = proxy.plotFrame else { return }
+                            let x = value.location.x - geo[plotAnchor].origin.x
+                            if let date: Date = proxy.value(atX: x) {
+                                if let closest = chartData.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }) {
+                                    if crosshairDate != closest.date {
+                                        crosshairDate = closest.date
+                                        crosshairPrice = closest.price
+                                        #if os(iOS)
+                                        ChartHaptics.shared.tickIfNeeded()
+                                        #endif
+                                    }
+                                    showCrosshair = true
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            showCrosshair = false
+                            crosshairDate = nil
+                            crosshairPrice = nil
+                        }
+                )
+
+            chartTooltipContent(proxy: proxy, geo: geo)
+        }
+    }
+
+    // MARK: - Chart Tooltip
+
+    @ViewBuilder
+    private func chartTooltipContent(proxy: ChartProxy, geo: GeometryProxy) -> some View {
+        if showCrosshair, let price = crosshairPrice, let date = crosshairDate, let plotAnchor = proxy.plotFrame {
+            if let xPos = proxy.position(forX: date) {
+                let tooltipBgColors: [Color] = isDark
+                    ? [Color(red: 0.12, green: 0.12, blue: 0.14).opacity(0.95),
+                       Color(red: 0.06, green: 0.06, blue: 0.08).opacity(0.95)]
+                    : [Color.white.opacity(0.98),
+                       Color(red: 0.96, green: 0.96, blue: 0.97).opacity(0.98)]
+                let tooltipTextColor: Color = isDark ? .white.opacity(0.8) : .primary.opacity(0.7)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(StockChartFormatters.formatCurrency(price))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(DS.Colors.gold)
+                    Text(StockChartFormatters.formatChartDate(date, isIntraday: selectedInterval.isIntraday))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(tooltipTextColor)
+
+                    if indicators.contains(.sma) || indicators.contains(.ema) || (indicators.contains(.volume) && chartData.first(where: { $0.date == date })?.volume ?? 0 > 0) {
+                        Divider().background(isDark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+                        if indicators.contains(.sma) {
+                            let smaVal = sma(20).last(where: { $0.date <= date })?.value
+                            if let v = smaVal {
+                                HStack(spacing: 4) {
+                                    Circle().fill(Color.orange).frame(width: 5, height: 5)
+                                    Text("SMA\u{2082}\u{2080} \(StockChartFormatters.formatCompactCurrency(v))")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                        }
+                        if indicators.contains(.ema) {
+                            let emaVal = ema(12).last(where: { $0.date <= date })?.value
+                            if let v = emaVal {
+                                HStack(spacing: 4) {
+                                    Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                                    Text("EMA\u{2081}\u{2082} \(StockChartFormatters.formatCompactCurrency(v))")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(.cyan)
+                                }
+                            }
+                        }
+                        if indicators.contains(.volume),
+                           let volPoint = chartData.first(where: { $0.date == date }),
+                           volPoint.volume > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chart.bar.fill")
+                                    .font(.system(size: 7))
+                                    .foregroundColor(DS.Colors.gold.opacity(0.8))
+                                Text(StockChartFormatters.formatStockVolume(volPoint.volume))
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(DS.Colors.gold.opacity(0.8))
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: tooltipBgColors,
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [DS.Colors.gold.opacity(0.5), DS.Colors.gold.opacity(0.2)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                )
+                .position(x: min(max(xPos + geo[plotAnchor].origin.x, 70), geo.size.width - 70), y: 30)
+            }
+        }
+    }
+}
+
+// MARK: - Stock Chart Area View (extracted to fix stack overflow crash)
+
+private struct StockChartAreaView: View {
+    let chartData: [StockChartPoint]
+    let indicators: Set<IndicatorType>
+    let isDark: Bool
+    let selectedInterval: StockChartInterval
+    let selectedChartType: StockChartType
+    let isLoadingChart: Bool
+    let tvStockSymbol: String
+    let tvStudies: [String]
+
+    @Binding var crosshairPrice: Double?
+    @Binding var crosshairDate: Date?
+    @Binding var showCrosshair: Bool
+    @Binding var showIndicatorMenu: Bool
+
+    var body: some View {
+        ZStack {
+            // Native chart
+            if selectedChartType == .native {
+                if isLoadingChart && chartData.isEmpty {
+                    ProgressView()
+                        .frame(height: 240)
+                } else if chartData.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.largeTitle)
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                        Text("Chart data unavailable")
+                            .font(.subheadline)
+                            .foregroundColor(DS.Adaptive.textTertiary)
+                    }
+                    .frame(height: 240)
+                } else {
+                    VStack(spacing: 0) {
+                        StockChartWithCrosshairView(
+                            chartData: chartData,
+                            indicators: indicators,
+                            isDark: isDark,
+                            selectedInterval: selectedInterval,
+                            crosshairPrice: $crosshairPrice,
+                            crosshairDate: $crosshairDate,
+                            showCrosshair: $showCrosshair
+                        )
+
+                        // Indicator legend
+                        if !indicators.isEmpty {
+                            StockIndicatorLegendView(indicators: indicators)
+                                .padding(.top, 4)
+                                .padding(.horizontal, 8)
+                        }
+
+                        // RSI sub-pane
+                        if indicators.contains(.rsi) {
+                            StockRSIChartView(chartData: chartData, isDark: isDark)
+                                .frame(height: 50)
+                                .padding(.top, 4)
+                        }
+                    }
+                }
+            }
+
+            // TradingView chart
+            if selectedChartType == .tradingView {
+                TradingViewChartWebView(
+                    symbol: tvStockSymbol,
+                    interval: selectedInterval.tvInterval,
+                    theme: isDark ? "dark" : "light",
+                    studies: tvStudies,
+                    altSymbols: [],
+                    interactive: true
+                )
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 240, maxHeight: 240)
+            }
+        }
+        .sheet(isPresented: $showIndicatorMenu) {
+            ChartIndicatorMenu(isPresented: $showIndicatorMenu)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+// MARK: - Stock Chart Controls Row (extracted to reduce type nesting)
+
+private struct StockChartControlsRow: View {
+    @Binding var selectedChartType: StockChartType
+    @Binding var selectedInterval: StockChartInterval
+    @Binding var showIndicatorMenu: Bool
+    @Binding var showSetAlert: Bool
+    let indicatorsCount: Int
+    let isDark: Bool
+    let onIntervalChanged: (StockChartInterval) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // Chart source segmented toggle
+            ChartSourceSegmentedToggle(selected: $selectedChartType)
+
+            // Timeframe dropdown button
+            Menu {
+                Section("Intraday") {
+                    ForEach([StockChartInterval.oneMin, .fiveMin, .fifteenMin, .thirtyMin, .oneHour, .fourHour], id: \.self) { interval in
+                        Button {
+                            #if os(iOS)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            #endif
+                            selectedInterval = interval
+                            onIntervalChanged(interval)
+                        } label: {
+                            HStack {
+                                Text(interval.displayName)
+                                if selectedInterval == interval {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+                Section("Daily & Longer") {
+                    ForEach([StockChartInterval.oneDay, .oneWeek, .oneMonth, .threeMonths, .sixMonths, .oneYear, .fiveYears, .all], id: \.self) { interval in
+                        Button {
+                            #if os(iOS)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            #endif
+                            selectedInterval = interval
+                            onIntervalChanged(interval)
+                        } label: {
+                            HStack {
+                                Text(interval.displayName)
+                                if selectedInterval == interval {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Text(selectedInterval.displayName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                }
+                .foregroundColor(DS.Adaptive.textPrimary)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(
+                    Capsule()
+                        .fill(isDark ? DS.Neutral.bg(0.06) : Color(uiColor: .systemGray5))
+                )
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(isDark ? ctaRimStrokeGradient : LinearGradient(colors: [Color.black.opacity(0.12), Color.black.opacity(0.06)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                )
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            // Indicators button
+            IndicatorsButton(count: indicatorsCount) {
+                showIndicatorMenu = true
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            // Alert button
+            Button {
+                #if os(iOS)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
+                showSetAlert = true
+            } label: {
+                Image(systemName: "bell.badge")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(DS.Adaptive.textSecondary)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(isDark ? DS.Neutral.bg(0.06) : Color(uiColor: .systemGray5))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.5)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+    }
 }
 
 // MARK: - Stock Deep Dive Sheet

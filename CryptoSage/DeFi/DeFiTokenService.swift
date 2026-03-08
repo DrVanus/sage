@@ -646,7 +646,7 @@ public final class DeFiTokenService: ObservableObject {
         guard let platform = chain.coingeckoPlatform else { return nil }
         
         let curr = CurrencyManager.apiValue
-        let urlString = "https://api.coingecko.com/api/v3/simple/token_price/\(platform)?contract_addresses=\(contractAddress)&vs_currencies=\(curr)"
+        let urlString = "\(APIConfig.coingeckoBaseURL)/simple/token_price/\(platform)?contract_addresses=\(contractAddress)&vs_currencies=\(curr)"
         guard let url = URL(string: urlString) else { return nil }
         
         do {

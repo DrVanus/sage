@@ -12,7 +12,7 @@ import Foundation
 ///    let cachedCoins = CacheManager.shared.load([Coin].self, from: "coins_cache.json")
 ///    CacheManager.shared.save(coinsArray, to: "coins_cache.json")
 ///
-final class CacheManager {
+final class CacheManager: @unchecked Sendable {
     static let shared = CacheManager()
     private init() { }
     
@@ -32,7 +32,9 @@ final class CacheManager {
         // THREAD SAFETY: Use MainActor to safely check scroll state
         // Since file I/O is already expensive, this check is negligible
         if Thread.isMainThread {
-            return ScrollStateManager.shared.shouldBlockHeavyOperation()
+            return MainActor.assumeIsolated {
+                ScrollStateManager.shared.shouldBlockHeavyOperation()
+            }
         }
         // If not on main thread, don't skip - background operations should proceed
         return false
@@ -239,24 +241,24 @@ final class CacheManager {
     /// Use this instead of load() to avoid blocking the main thread during startup.
     /// THREAD SAFETY: Uses fileAccessQueue internally for synchronization.
     func loadAsync<T: Decodable>(_ type: T.Type, from filename: String) async -> T? {
-        await withCheckedContinuation { continuation in
-            fileAccessQueue.async { [self] in
-                let result = loadUnsafe(type, from: filename)
-                continuation.resume(returning: result)
+        // SENDABLE FIX: Perform file I/O synchronously on the serial queue via a detached task
+        // to avoid capturing non-Sendable T.Type in a @Sendable closure
+        await Task.detached(priority: .utility) { [self] in
+            self.fileAccessQueue.sync {
+                self.loadUnsafe(type, from: filename)
             }
-        }
+        }.value
     }
-    
+
     /// Async variant of loadFromDocumentsOnly() - NO bundle fallback.
     /// Use this when you want REAL previously-fetched data only, not stale bundled placeholder data.
     /// THREAD SAFETY: Uses fileAccessQueue internally for synchronization.
     func loadFromDocumentsOnlyAsync<T: Decodable>(_ type: T.Type, from filename: String) async -> T? {
-        await withCheckedContinuation { continuation in
-            fileAccessQueue.async { [self] in
-                let result = loadFromDocumentsOnlyUnsafe(type, from: filename)
-                continuation.resume(returning: result)
+        await Task.detached(priority: .utility) { [self] in
+            self.fileAccessQueue.sync {
+                self.loadFromDocumentsOnlyUnsafe(type, from: filename)
             }
-        }
+        }.value
     }
     
     /// Async variant of save() that performs file I/O on a background thread.

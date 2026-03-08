@@ -53,6 +53,13 @@ final class RSSFetcher: NSObject {
     private static let lock = NSLock()
     /// Flag to ensure first RSS fetch on app launch always completes (bypasses throttling)
     private static var hasCompletedFirstFetch = false
+
+    // MARK: - Feed Health Tracking
+    /// Tracks feeds that have failed recently to avoid blocking batch slots on chronically unreachable feeds.
+    /// Key = feed host, Value = timestamp of last failure. Feeds are skipped if they failed within the cooldown period.
+    private static var feedFailureTimes: [String: Date] = [:]
+    /// How long to skip a feed after it fails (seconds). Prevents repeated 8s+ timeouts.
+    private static let feedFailureCooldown: TimeInterval = 300 // 5 minutes
     
     /// Public fetch method - uses Task.detached to prevent parent cancellation from killing the fetch
     static func fetch(limit: Int = 30, before: Date? = nil) async -> [CryptoNewsArticle] {
@@ -123,11 +130,24 @@ final class RSSFetcher: NSObject {
         var all: [CryptoNewsArticle] = []
         var successfulFeeds = 0
         
-        // Fetch feeds in batches to limit concurrency and prevent network saturation
-        let batches = stride(from: 0, to: feedURLs.count, by: maxConcurrentFeeds).map {
-            Array(feedURLs[$0..<min($0 + maxConcurrentFeeds, feedURLs.count)])
+        // Filter out feeds that have failed recently (avoid blocking batch slots with 8s+ timeouts)
+        let now = Date()
+        let healthyFeeds = lock.withLock {
+            feedURLs.filter { url in
+                guard let host = url.host, let failTime = feedFailureTimes[host] else { return true }
+                return now.timeIntervalSince(failTime) >= feedFailureCooldown
+            }
         }
-        
+        let skippedCount = feedURLs.count - healthyFeeds.count
+        if skippedCount > 0 {
+            DebugLog.log("RSS", "Skipping \(skippedCount) recently-failed feed(s)")
+        }
+
+        // Fetch feeds in batches to limit concurrency and prevent network saturation
+        let batches = stride(from: 0, to: healthyFeeds.count, by: maxConcurrentFeeds).map {
+            Array(healthyFeeds[$0..<min($0 + maxConcurrentFeeds, healthyFeeds.count)])
+        }
+
         for batch in batches {
             await withTaskGroup(of: (String, [CryptoNewsArticle]).self) { group in
                 for url in batch {
@@ -136,10 +156,12 @@ final class RSSFetcher: NSObject {
                         return (url.host ?? "unknown", articles)
                     }
                 }
-                for await (_, result) in group {
+                for await (host, result) in group {
                     if !result.isEmpty {
                         successfulFeeds += 1
                         all.append(contentsOf: result)
+                        // Clear failure tracking on success
+                        lock.withLock { _ = feedFailureTimes.removeValue(forKey: host) }
                     }
                 }
             }
@@ -263,10 +285,17 @@ final class RSSFetcher: NSObject {
             if error.code == .timedOut && retryCount < maxRetries {
                 return await fetchSingle(url: url, retryCount: retryCount + 1)
             }
-            DebugLog.log("RSS", "URLError fetching \(url.host ?? "unknown"): \(error.localizedDescription)")
+            // Record failure so this feed is skipped for a cooldown period
+            if let host = url.host {
+                lock.withLock { feedFailureTimes[host] = Date() }
+            }
+            DebugLog.log("RSS", "URLError fetching \(url.host ?? "unknown"): \(error.localizedDescription) (will skip for 5min)")
             return []
         } catch {
-            DebugLog.log("RSS", "Error fetching \(url.host ?? "unknown"): \(error.localizedDescription)")
+            if let host = url.host {
+                lock.withLock { feedFailureTimes[host] = Date() }
+            }
+            DebugLog.log("RSS", "Error fetching \(url.host ?? "unknown"): \(error.localizedDescription) (will skip for 5min)")
             return []
         }
     }

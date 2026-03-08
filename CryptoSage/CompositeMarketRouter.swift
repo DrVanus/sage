@@ -28,6 +28,40 @@ public actor CompositeMarketRouter {
     private let rateService: ExchangeRateService
     private let composite: CompositePriceService
 
+    // Circuit breaker: skip adapters that fail repeatedly
+    private var adapterFailureCounts: [String: Int] = [:]
+    private var adapterCooldownUntil: [String: Date] = [:]
+    private let circuitBreakerThreshold = 3  // failures before cooldown
+    private let circuitBreakerCooldown: TimeInterval = 120  // 2 min cooldown
+
+    // Error log throttling: suppress duplicate errors per exchange
+    private var lastErrorLogAt: [String: Date] = [:]
+    private let errorLogSuppressWindow: TimeInterval = 10.0  // one error log per exchange per 10s
+
+    // MARK: - Cross-Call Circuit Breaker (thread-safe)
+    // Prevents redundant network calls when many concurrent calls to
+    // listPairSnapshotsFast() interleave due to actor reentrancy.
+    // Task group closures run outside actor isolation, so they need
+    // a thread-safe mechanism to check if an adapter is blocked.
+    private static let _blockedLock = NSLock()
+    private static var _fastBlocked: Set<String> = []
+
+    private static func isFastBlocked(_ id: String) -> Bool {
+        _blockedLock.withLock { _fastBlocked.contains(id) }
+    }
+
+    private static func setFastBlocked(_ id: String, duration: TimeInterval) {
+        _blockedLock.withLock { _fastBlocked.insert(id) }
+        Task.detached {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            _blockedLock.withLock { _ = _fastBlocked.remove(id) }
+        }
+    }
+
+    private static func clearFastBlocked(_ id: String) {
+        _blockedLock.withLock { _ = _fastBlocked.remove(id) }
+    }
+
     public init(adapters: [ExchangeAdapter]? = nil, rateService: ExchangeRateService? = nil) {
         // Default to all available exchange adapters for comprehensive market data
         let adps: [ExchangeAdapter] = adapters ?? [
@@ -89,24 +123,51 @@ public actor CompositeMarketRouter {
         }
         let pairs = Array(pairsSet)
         if pairs.isEmpty { return [] }
-        // Fetch tickers per adapter
-        let tickers: [MMETicker] = await withTaskGroup(of: [MMETicker].self) { group in
+        // Fetch tickers per adapter (with circuit breaker to skip failing adapters)
+        let now = Date()
+        let tickers: [MMETicker] = await withTaskGroup(of: (String, [MMETicker]).self) { group in
             for adapter in adapters {
-                let sub = pairs.filter { $0.exchangeID == adapter.id }
+                let adapterID = adapter.id
+                // Circuit breaker: skip adapters in cooldown
+                if let cooldownEnd = adapterCooldownUntil[adapterID], now < cooldownEnd {
+                    continue
+                }
+                let sub = pairs.filter { $0.exchangeID == adapterID }
                 if sub.isEmpty { continue }
                 group.addTask {
+                    // Cross-call check: another concurrent call may have tripped the breaker
+                    if Self.isFastBlocked(adapterID) { return (adapterID, []) }
                     do {
-                        return try await adapter.fetchTickers(for: sub)
+                        let result = try await adapter.fetchTickers(for: sub)
+                        return (adapterID, result)
                     } catch {
-                        #if DEBUG
-                        print("[CompositeMarketRouter] fetchTickers error: \(error)")
-                        #endif
-                        return []
+                        // Error logged when circuit breaker trips (avoids 10x spam from concurrent tasks)
+                        return (adapterID, [])
                     }
                 }
             }
             var out: [MMETicker] = []
-            for await arr in group { out.append(contentsOf: arr) }
+            for await (adapterID, arr) in group {
+                if arr.isEmpty {
+                    // Track failures for circuit breaker
+                    adapterFailureCounts[adapterID, default: 0] += 1
+                    if adapterFailureCounts[adapterID, default: 0] >= circuitBreakerThreshold {
+                        let alreadyBlocked = adapterCooldownUntil[adapterID].map { now < $0 } ?? false
+                        adapterCooldownUntil[adapterID] = now.addingTimeInterval(circuitBreakerCooldown)
+                        if !alreadyBlocked {
+                            Self.setFastBlocked(adapterID, duration: circuitBreakerCooldown)
+                            #if DEBUG
+                            print("[CompositeMarketRouter] ⚡ Circuit breaker tripped for \(adapterID) — cooling down 2min")
+                            #endif
+                        }
+                    }
+                } else {
+                    adapterFailureCounts[adapterID] = 0  // reset on success
+                    adapterCooldownUntil.removeValue(forKey: adapterID)
+                    Self.clearFastBlocked(adapterID)
+                    out.append(contentsOf: arr)
+                }
+            }
             return out
         }
         // Convert to USD and pick top by volume
@@ -179,24 +240,50 @@ public actor CompositeMarketRouter {
         let pairs = Array(pairsSet)
         if pairs.isEmpty { return [] }
         
-        // Fetch tickers from all adapters in parallel
-        let tickers: [MMETicker] = await withTaskGroup(of: [MMETicker].self) { group in
+        // Fetch tickers from all adapters in parallel (with circuit breaker)
+        let now = Date()
+        let tickers: [MMETicker] = await withTaskGroup(of: (String, [MMETicker]).self) { group in
             for adapter in adapters {
-                let sub = pairs.filter { $0.exchangeID == adapter.id }
+                let adapterID = adapter.id
+                // Circuit breaker: skip adapters in cooldown
+                if let cooldownEnd = adapterCooldownUntil[adapterID], now < cooldownEnd {
+                    continue
+                }
+                let sub = pairs.filter { $0.exchangeID == adapterID }
                 if sub.isEmpty { continue }
                 group.addTask {
+                    // Cross-call check: another concurrent call may have tripped the breaker
+                    if Self.isFastBlocked(adapterID) { return (adapterID, []) }
                     do {
-                        return try await adapter.fetchTickers(for: sub)
+                        let result = try await adapter.fetchTickers(for: sub)
+                        return (adapterID, result)
                     } catch {
-                        #if DEBUG
-                        print("[CompositeMarketRouter] fetchTickers error: \(error)")
-                        #endif
-                        return []
+                        // Error logged when circuit breaker trips (avoids 10x spam from concurrent tasks)
+                        return (adapterID, [])
                     }
                 }
             }
             var out: [MMETicker] = []
-            for await arr in group { out.append(contentsOf: arr) }
+            for await (adapterID, arr) in group {
+                if arr.isEmpty {
+                    adapterFailureCounts[adapterID, default: 0] += 1
+                    if adapterFailureCounts[adapterID, default: 0] >= circuitBreakerThreshold {
+                        let alreadyBlocked = adapterCooldownUntil[adapterID].map { now < $0 } ?? false
+                        adapterCooldownUntil[adapterID] = now.addingTimeInterval(circuitBreakerCooldown)
+                        if !alreadyBlocked {
+                            Self.setFastBlocked(adapterID, duration: circuitBreakerCooldown)
+                            #if DEBUG
+                            print("[CompositeMarketRouter] ⚡ Circuit breaker tripped for \(adapterID) — cooling down 2min")
+                            #endif
+                        }
+                    }
+                } else {
+                    adapterFailureCounts[adapterID] = 0
+                    adapterCooldownUntil.removeValue(forKey: adapterID)
+                    Self.clearFastBlocked(adapterID)
+                    out.append(contentsOf: arr)
+                }
+            }
             return out
         }
 

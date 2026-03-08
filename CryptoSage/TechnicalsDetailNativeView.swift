@@ -187,7 +187,7 @@ struct TechnicalsDetailNativeView: View {
 
             var success = false
             for id in candidates where !id.isEmpty {
-                guard let url = URL(string: "https://api.coingecko.com/api/v3/coins/\(id)?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false") else { continue }
+                guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/coins/\(id)?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false") else { continue }
                 do {
                     let req = APIConfig.coinGeckoRequest(url: url)
                     let (data, _) = try await session.data(for: req)

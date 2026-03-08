@@ -98,13 +98,13 @@ enum FirebaseSecurityConfig {
         let keychainAccount = "signing_key"
         
         // Try to read existing key
-        if let existingKey = try? KeychainHelper.shared.readData(
+        if let existingKey = KeychainHelper.shared.readData(
             service: keychainService,
             account: keychainAccount
         ) {
             return existingKey
         }
-        
+
         // Generate new key
         var keyData = Data(count: 32)
         let result = keyData.withUnsafeMutableBytes { ptr in
@@ -156,7 +156,7 @@ enum FirebaseSecurityConfig {
         let keychainAccount = "data_key"
         
         // Try to read existing key
-        if let existingKey = try? KeychainHelper.shared.readData(
+        if let existingKey = KeychainHelper.shared.readData(
             service: keychainService,
             account: keychainAccount
         ) {

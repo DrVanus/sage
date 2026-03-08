@@ -155,19 +155,30 @@ final class LiveStockPriceManager: ObservableObject {
         }
     }
     
+    /// Tracks whether we've already logged that polling is stopped, to suppress duplicate messages.
+    private var hasLoggedPollingStopped = false
+
     private func applyPollingState() {
         guard !trackedTickers.isEmpty else {
-            stopPollingTask()
-            logger.info("No tracked stock tickers remain; polling paused")
+            let wasPolling = pollingTask != nil
+            stopPollingTask(silent: true)
+            if wasPolling || !hasLoggedPollingStopped {
+                logger.info("No tracked stock tickers remain; polling paused")
+                hasLoggedPollingStopped = true
+            }
             return
         }
-        
+
         guard shouldPoll() else {
-            stopPollingTask()
-            logger.info("Polling paused by user settings or market-hours policy")
+            let wasPolling = pollingTask != nil
+            stopPollingTask(silent: true)
+            if wasPolling {
+                logger.info("Polling paused by user settings or market-hours policy")
+            }
             return
         }
-        
+
+        hasLoggedPollingStopped = false
         startPollingTaskIfNeeded()
     }
     
@@ -181,11 +192,14 @@ final class LiveStockPriceManager: ObservableObject {
         }
     }
     
-    private func stopPollingTask() {
+    private func stopPollingTask(silent: Bool = false) {
+        let wasActive = pollingTask != nil
         pollingTask?.cancel()
         pollingTask = nil
         isPolling = false
-        logger.info("Stopped stock price polling")
+        if wasActive && !silent {
+            logger.info("Stopped stock price polling")
+        }
     }
     
     /// Force an immediate refresh

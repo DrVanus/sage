@@ -2644,7 +2644,7 @@ final class MarketViewModel: ObservableObject {
                 }
             }
             do {
-                guard let url = URL(string: "https://api.coingecko.com/api/v3/global") else { return }
+                guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/global") else { return }
                 var req = APIConfig.coinGeckoRequest(url: url)
                 req.cachePolicy = .reloadIgnoringLocalCacheData
                 req.timeoutInterval = 10  // FIX: Increased timeout from 5 to 10
@@ -4071,7 +4071,7 @@ final class MarketViewModel: ObservableObject {
 
         func attempt(perPage: Int, timeout: TimeInterval) async -> [MarketCoin] {
             let curr = CurrencyManager.apiValue
-            guard let url = URL(string: "https://api.coingecko.com/api/v3/coins/markets?vs_currency=\(curr)&order=market_cap_desc&per_page=\(perPage)&page=1&sparkline=true&price_change_percentage=1h,24h,7d") else { return [] }
+            guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/coins/markets?vs_currency=\(curr)&order=market_cap_desc&per_page=\(perPage)&page=1&sparkline=true&price_change_percentage=1h,24h,7d") else { return [] }
             var req = APIConfig.coinGeckoRequest(url: url)
             req.cachePolicy = .reloadIgnoringLocalCacheData
             req.timeoutInterval = timeout

@@ -373,6 +373,7 @@ public enum PremiumFeature: String, CaseIterable {
 
 // MARK: - Subscription Manager
 
+@MainActor
 public final class SubscriptionManager: ObservableObject {
     public static let shared = SubscriptionManager()
     
@@ -530,6 +531,15 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Update the user's subscription tier (call after successful purchase)
     public func setTier(_ tier: SubscriptionTierType) {
+        // Guard: ensure @Published mutations always happen on the main thread.
+        // StoreKit async sequences can resume off-main despite @MainActor isolation,
+        // causing "Publishing changes from background threads" runtime warnings.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [self] in
+                setTier(tier)
+            }
+            return
+        }
         let oldTier = currentTier
         currentTier = tier
         saveState()
@@ -548,22 +558,26 @@ public final class SubscriptionManager: ObservableObject {
     public func validateWithStoreKit() async {
         #if DEBUG
         // In debug builds, developer mode may override the tier — skip StoreKit validation.
-        if isDeveloperMode {
-            hasVerifiedWithStoreKit = true
+        // Use MainActor.run to guarantee main-thread @Published property access,
+        // preventing "Publishing changes from background threads" runtime warnings.
+        let devMode = await MainActor.run { isDeveloperMode }
+        if devMode {
+            await MainActor.run { hasVerifiedWithStoreKit = true }
             print("[SubscriptionManager] Skipping StoreKit validation (developer mode)")
             return
         }
         #endif
 
-        let cachedTier = currentTier
+        let cachedTier = await MainActor.run { currentTier }
         await StoreKitManager.shared.updateSubscriptionStatus()
-        hasVerifiedWithStoreKit = true
+        await MainActor.run { hasVerifiedWithStoreKit = true }
 
         #if DEBUG
-        if currentTier != cachedTier {
-            print("[SubscriptionManager] StoreKit validation corrected tier: \(cachedTier.rawValue) -> \(currentTier.rawValue)")
+        let newTier = await MainActor.run { currentTier }
+        if newTier != cachedTier {
+            print("[SubscriptionManager] StoreKit validation corrected tier: \(cachedTier.rawValue) -> \(newTier.rawValue)")
         } else {
-            print("[SubscriptionManager] StoreKit validation confirmed tier: \(currentTier.rawValue)")
+            print("[SubscriptionManager] StoreKit validation confirmed tier: \(newTier.rawValue)")
         }
         #endif
     }

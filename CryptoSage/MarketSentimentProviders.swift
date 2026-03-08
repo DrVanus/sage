@@ -963,7 +963,7 @@ private struct HistoricalPricePoint {
 private func fetchHistoricalPricesWithTimestamps(coinID: String, days: Int = 31) async -> [HistoricalPricePoint] {
     var components = URLComponents()
     components.scheme = "https"
-    components.host = "api.coingecko.com"
+    components.host = APIConfig.coingeckoHost
     components.path = "/api/v3/coins/\(coinID)/market_chart"
     components.queryItems = [
         URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),

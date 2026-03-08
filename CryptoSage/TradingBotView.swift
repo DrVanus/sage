@@ -1152,7 +1152,7 @@ class AiChatViewModel: ObservableObject {
         let message = "Request timed out. Please try again."
     }
     
-    func sendMessage(_ text: String) {
+    @MainActor func sendMessage(_ text: String) {
         // Rate limit check (abuse protection)
         if SubscriptionManager.shared.isRateLimited {
             errorMessage = "Slow down — try again in \(SubscriptionManager.shared.rateLimitSecondsRemaining)s"
@@ -1304,7 +1304,7 @@ class AiChatViewModel: ObservableObject {
         }
     }
     
-    func generateBotConfig() {
+    @MainActor func generateBotConfig() {
         // Send a specific prompt to generate a bot configuration
         let configPrompt = "Based on current market conditions, generate a recommended bot configuration for me. I'm interested in a moderate-risk strategy for Bitcoin trading."
         sendMessage(configPrompt)

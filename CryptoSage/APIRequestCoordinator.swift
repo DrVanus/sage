@@ -109,9 +109,9 @@ final class APIRequestCoordinator {
     /// Users see wrong percentages if we delay too long - better to fetch immediately
     /// PERFORMANCE FIX v5.0.15: Further reduced news/sentiment delays to match faster phase loading
     private let startupDelays: [APIService: TimeInterval] = [
-        .coinGecko: 0.5,       // PRIMARY DATA - fetch immediately for fresh percentages (was 2.0)
-        .binance: 0.9,         // Overlay prices - near-immediate after CoinGecko
-        .coinbase: 0.7,        // Faster reliability fallback
+        .coinGecko: 0.0,       // PRIMARY DATA - zero delay for BTC price (was 0.5, was 2.0)
+        .binance: 0.5,         // Overlay prices - near-immediate after CoinGecko (was 0.9)
+        .coinbase: 0.3,        // Faster reliability fallback (was 0.7)
         .pumpFun: 20.0,        // Optional data - later
         .news: 1.5,            // Home-critical content
         .sentiment: 2.0,       // Home-critical content

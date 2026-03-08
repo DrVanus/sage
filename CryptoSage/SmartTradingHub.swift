@@ -35,12 +35,12 @@ enum TradingHubMode: String, CaseIterable, Identifiable {
     /// Whether this mode is available in the current app configuration
     /// In developer mode, all features are available
     /// For regular users, bots/derivatives/strategies require Premium subscription
-    var isAvailable: Bool {
+    @MainActor var isAvailable: Bool {
         // Developer mode gets everything
         if SubscriptionManager.shared.isDeveloperMode {
             return true
         }
-        
+
         switch self {
         case .assistant, .spot, .predictions:
             return true

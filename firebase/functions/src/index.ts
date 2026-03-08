@@ -82,16 +82,17 @@ const storage = admin.storage();
 //
 // NOTE: App Check is recommended for production to prevent API abuse.
 // In development, use debug tokens (valid for 7 days).
-const ENFORCE_APP_CHECK = process.env.ENABLE_APP_CHECK === "true" ||
-                          (process.env.NODE_ENV === "production" &&
-                           process.env.ENABLE_APP_CHECK !== "false");
+// App Check is OPT-IN: set ENABLE_APP_CHECK=true to enforce.
+// Without proper setup (registered debug tokens or App Attest),
+// enforcing App Check will reject ALL callable requests.
+const ENFORCE_APP_CHECK = process.env.ENABLE_APP_CHECK === "true";
 
 // Set global options for all functions
 setGlobalOptions({
   maxInstances: 10,
   region: "us-central1",
   // App Check prevents unauthorized API access from non-app clients
-  // Set to false during initial testing, then enable for production
+  // Opt-in only: set ENABLE_APP_CHECK=true after configuring App Check in Firebase Console
   enforceAppCheck: ENFORCE_APP_CHECK,
 });
 
@@ -146,7 +147,7 @@ function getOpenAIClient(): OpenAI {
   if (!apiKey) {
     throw new HttpsError("failed-precondition", "OpenAI API key not configured");
   }
-  return new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, fetch: globalThis.fetch });
 }
 
 /**
@@ -155,21 +156,24 @@ function getOpenAIClient(): OpenAI {
  * Priority chain (best to worst for crypto predictions):
  * 1. DeepSeek Direct API (DEEPSEEK_API_KEY) - Alpha Arena winner: +116% return
  * 2. OpenRouter Free DeepSeek (OPENROUTER_API_KEY) - Same model, $0 cost via free tier
- * 3. OpenAI GPT-4o (OPENAI_API_KEY) - Fallback, worst for crypto but always available
+ * 3. OpenAI GPT-4.1-mini (OPENAI_API_KEY) - Fallback, worst for crypto but always available
  * 
  * DeepSeek V3.2 uses an OpenAI-compatible API, so we use the OpenAI SDK with custom baseURL.
  */
 function getDeepSeekClient(): { client: OpenAI; model: string; provider: string } {
+  // Use native fetch — SDK's built-in HTTP client fails on Cloud Run
+  const fetchFn = globalThis.fetch;
+
   // Priority 1: DeepSeek Direct API (best performance, ~$0.28/1M tokens)
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
   if (deepseekKey) {
     return {
-      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com" }),
+      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com/v1", timeout: 30000, maxRetries: 1, fetch: fetchFn }),
       model: "deepseek-chat", // DeepSeek V3.2 (auto-resolves to latest)
       provider: "deepseek",
     };
   }
-  
+
   // Priority 2: OpenRouter Free DeepSeek (same model, $0 cost)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
@@ -178,6 +182,9 @@ function getDeepSeekClient(): { client: OpenAI; model: string; provider: string 
       client: new OpenAI({
         apiKey: openrouterKey,
         baseURL: "https://openrouter.ai/api/v1",
+        timeout: 30000,
+        maxRetries: 1,
+        fetch: fetchFn,
         defaultHeaders: {
           "HTTP-Referer": "https://cryptosage.app",
           "X-Title": "CryptoSage",
@@ -188,15 +195,15 @@ function getDeepSeekClient(): { client: OpenAI; model: string; provider: string 
     };
   }
   
-  // Priority 3: OpenAI GPT-4o fallback (worst for crypto, but always available)
-  console.log("[getDeepSeekClient] No DeepSeek or OpenRouter key, falling back to OpenAI gpt-4o");
+  // Priority 3: OpenAI GPT-4.1-mini fallback (worst for crypto, but always available)
+  console.log("[getDeepSeekClient] No DeepSeek or OpenRouter key, falling back to OpenAI gpt-4.1-mini");
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
     throw new HttpsError("failed-precondition", "No AI API key configured (tried DEEPSEEK_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY)");
   }
   return {
-    client: new OpenAI({ apiKey: openaiKey }),
-    model: "gpt-4o",
+    client: new OpenAI({ apiKey: openaiKey, fetch: fetchFn }),
+    model: "gpt-4.1-mini",
     provider: "openai-fallback",
   };
 }
@@ -212,7 +219,7 @@ function getDeepSeekReasonerClient(): { client: OpenAI; model: string; provider:
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
   if (deepseekKey) {
     return {
-      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com" }),
+      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com/v1", timeout: 30000, maxRetries: 1, fetch: globalThis.fetch }),
       model: "deepseek-reasoner", // DeepSeek R1 - advanced reasoning
       provider: "deepseek-r1",
     };
@@ -225,7 +232,7 @@ function getDeepSeekReasonerClient(): { client: OpenAI; model: string; provider:
  * Rate-limit-aware AI completion wrapper.
  * Tries the primary provider first. If it returns 429 (rate limited) or 5xx,
  * automatically retries with the next provider in the fallback chain.
- * This distributes load across DeepSeek Direct → OpenRouter Free → OpenAI GPT-4o,
+ * This distributes load across DeepSeek Direct → OpenRouter Free → OpenAI GPT-4.1-mini,
  * giving 3x the effective rate limit capacity.
  */
 async function callAIWithFallback(params: {
@@ -238,21 +245,28 @@ async function callAIWithFallback(params: {
   // Build ordered list of providers to try
   const providers: Array<{ client: OpenAI; model: string; provider: string }> = [];
   
+  // Use native fetch for all OpenAI SDK clients — the SDK's built-in HTTP client
+  // fails with "Connection error" on Cloud Run, but native fetch works fine.
+  const fetchFn = globalThis.fetch;
+
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
   if (deepseekKey) {
     providers.push({
-      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com" }),
+      client: new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com/v1", timeout: 30000, maxRetries: 1, fetch: fetchFn }),
       model: "deepseek-chat",
       provider: "deepseek",
     });
   }
-  
+
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     providers.push({
       client: new OpenAI({
         apiKey: openrouterKey,
         baseURL: "https://openrouter.ai/api/v1",
+        timeout: 30000,
+        maxRetries: 1,
+        fetch: fetchFn,
         defaultHeaders: {
           "HTTP-Referer": "https://cryptosage.app",
           "X-Title": "CryptoSage",
@@ -262,12 +276,12 @@ async function callAIWithFallback(params: {
       provider: "openrouter-deepseek-free",
     });
   }
-  
+
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
     providers.push({
-      client: new OpenAI({ apiKey: openaiKey }),
-      model: "gpt-4o",
+      client: new OpenAI({ apiKey: openaiKey, timeout: 30000, maxRetries: 1, fetch: fetchFn }),
+      model: "gpt-4.1-mini",
       provider: "openai-fallback",
     });
   }
@@ -277,8 +291,10 @@ async function callAIWithFallback(params: {
   }
   
   let lastError: unknown = null;
-  
-  for (const { client, model, provider } of providers) {
+  const errors: string[] = [];
+
+  for (let i = 0; i < providers.length; i++) {
+    const { client, model, provider } = providers[i];
     try {
       const completionParams: Record<string, unknown> = {
         model,
@@ -289,34 +305,33 @@ async function callAIWithFallback(params: {
       if (params.response_format) {
         completionParams.response_format = params.response_format;
       }
-      
+
       const completion = await client.chat.completions.create(completionParams as never);
       const content = (completion as { choices: Array<{ message: { content: string } }> }).choices[0]?.message?.content || "";
       const tokens = (completion as { usage?: { total_tokens?: number } }).usage?.total_tokens || 0;
-      
+
       return { content, model, provider, tokens };
     } catch (err: unknown) {
       lastError = err;
       const status = (err as { status?: number }).status;
-      const isRetryable = status === 429 || (status !== undefined && status >= 500);
-      
-      if (isRetryable && providers.indexOf({ client, model, provider }) < providers.length - 1) {
-        console.warn(`[${params.functionName}] Provider ${provider} returned ${status}, falling back to next provider`);
+      const errMsg = (err as { message?: string }).message || String(err);
+      const errCode = (err as { code?: string }).code;
+      errors.push(`${provider}: ${status || errCode || "unknown"} - ${errMsg.substring(0, 100)}`);
+
+      // Log detailed error for debugging
+      console.warn(`[${params.functionName}] Provider ${provider} failed: status=${status}, code=${errCode}, message=${errMsg.substring(0, 200)}`);
+
+      // Try next provider if available
+      if (i < providers.length - 1) {
         continue;
       }
-      
-      // Non-retryable error or last provider - check if there are more providers
-      const currentIndex = providers.findIndex(p => p.provider === provider);
-      if (currentIndex < providers.length - 1) {
-        console.warn(`[${params.functionName}] Provider ${provider} failed (${status}), trying next`);
-        continue;
-      }
-      
-      // Last provider failed
+
+      // Last provider failed — throw with context
+      console.error(`[${params.functionName}] All ${providers.length} AI providers failed:\n${errors.join("\n")}`);
       throw err;
     }
   }
-  
+
   throw lastError || new HttpsError("internal", "All AI providers failed");
 }
 
@@ -958,72 +973,108 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format:
     const userPrompt = `Analyze the current cryptocurrency market sentiment. Today is ${new Date().toISOString().split('T')[0]}.
 Provide your analysis as structured JSON only.`;
 
-    const aiResult = await callAIWithFallback({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 400,
-      temperature: 0.5,
-      functionName: "getMarketSentiment",
-    });
-    const modelUsed = aiResult.model;
-    const rawContent = aiResult.content;
-    
-    // Parse the JSON response
     let score = 50;
     let verdict = "Neutral";
     let confidence = 50;
     let keyFactors: string[] = [];
     let summary = "Market sentiment updating...";
     let content = "Market sentiment analysis unavailable.";
-    
+    let modelUsed = "fallback";
+    let providerUsed = "none";
+    let tokensUsed = 0;
+
     try {
-      // Extract JSON from response (handle markdown code blocks)
-      let jsonStr = rawContent;
-      const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1].trim();
-      } else if (rawContent.includes("{")) {
-        jsonStr = rawContent.substring(rawContent.indexOf("{"));
-        const lastBrace = jsonStr.lastIndexOf("}");
-        if (lastBrace > 0) {
-          jsonStr = jsonStr.substring(0, lastBrace + 1);
+      const aiResult = await callAIWithFallback({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 400,
+        temperature: 0.5,
+        functionName: "getMarketSentiment",
+      });
+      modelUsed = aiResult.model;
+      providerUsed = aiResult.provider;
+      tokensUsed = aiResult.tokens;
+      const rawContent = aiResult.content;
+
+      try {
+        // Extract JSON from response (handle markdown code blocks)
+        let jsonStr = rawContent;
+        const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+        } else if (rawContent.includes("{")) {
+          jsonStr = rawContent.substring(rawContent.indexOf("{"));
+          const lastBrace = jsonStr.lastIndexOf("}");
+          if (lastBrace > 0) {
+            jsonStr = jsonStr.substring(0, lastBrace + 1);
+          }
+        }
+
+        const parsed = JSON.parse(jsonStr);
+        score = Math.max(0, Math.min(100, Math.round(parsed.score || 50)));
+        verdict = parsed.verdict || getVerdictFromScore(score);
+        confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence || 50)));
+        keyFactors = Array.isArray(parsed.keyFactors) ? parsed.keyFactors.slice(0, 5) : [];
+        summary = parsed.summary || (parsed.analysis ? parsed.analysis.split('.')[0] + '.' : "Market conditions evolving.");
+        content = parsed.analysis || rawContent;
+      } catch {
+        // Fallback to raw content if JSON parsing fails
+        content = rawContent;
+        summary = rawContent.split('.')[0] + '.';
+        verdict = getVerdictFromScore(score);
+      }
+    } catch (aiError) {
+      // All AI providers failed — return stale cache if available, or static fallback
+      console.error("[getMarketSentiment] All AI providers failed, using fallback:", aiError);
+
+      // Try returning expired cache rather than crashing
+      const staleCache = await cacheRef.get();
+      if (staleCache.exists) {
+        const data = staleCache.data();
+        if (data) {
+          const staleSummary = data.summary || (data.content ? data.content.split('.')[0] + '.' : "Market conditions evolving.");
+          return {
+            content: data.content || "Market sentiment analysis temporarily unavailable.",
+            summary: staleSummary,
+            score: data.score ?? 50,
+            verdict: data.verdict || "Neutral",
+            confidence: data.confidence ?? 30,
+            keyFactors: data.keyFactors || [],
+            cached: true,
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+            model: data.model || "stale-cache",
+          };
         }
       }
-      
-      const parsed = JSON.parse(jsonStr);
-      score = Math.max(0, Math.min(100, Math.round(parsed.score || 50)));
-      verdict = parsed.verdict || getVerdictFromScore(score);
-      confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence || 50)));
-      keyFactors = Array.isArray(parsed.keyFactors) ? parsed.keyFactors.slice(0, 5) : [];
-      // Summary: use provided summary, or extract first sentence from analysis as fallback
-      summary = parsed.summary || (parsed.analysis ? parsed.analysis.split('.')[0] + '.' : "Market conditions evolving.");
-      content = parsed.analysis || rawContent;
-    } catch {
-      // Fallback to raw content if JSON parsing fails
-      content = rawContent;
-      summary = rawContent.split('.')[0] + '.'; // First sentence as summary
-      verdict = getVerdictFromScore(score);
+
+      // No cache at all — return static default instead of INTERNAL error
+      summary = "AI analysis temporarily unavailable.";
+      content = "Market sentiment analysis is temporarily unavailable. All AI providers are currently unreachable. Please try again later.";
+      keyFactors = ["AI providers unavailable"];
+      modelUsed = "static-fallback";
     }
-    
-    // Cache the result
-    await cacheRef.set({
-      content,
-      summary,
-      score,
-      verdict,
-      confidence,
-      keyFactors,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      model: modelUsed,
-      provider: aiResult.provider,
-      tokens: aiResult.tokens,
-    });
-    
-    // Audit log for cache miss (costs money)
-    await logAuditEvent("ai_cache_miss", request, { function: "getMarketSentiment", provider: aiResult.provider });
-    
+
+    // Cache the result (only if we got AI data, not static fallback)
+    if (modelUsed !== "static-fallback") {
+      await cacheRef.set({
+        content,
+        summary,
+        score,
+        verdict,
+        confidence,
+        keyFactors,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        model: modelUsed,
+        provider: providerUsed,
+        tokens: tokensUsed,
+      });
+
+      // Audit log for cache miss (costs money)
+      await logAuditEvent("ai_cache_miss", request, { function: "getMarketSentiment", provider: providerUsed });
+    }
+
     return {
       content,
       summary,
@@ -1031,7 +1082,7 @@ Provide your analysis as structured JSON only.`;
       verdict,
       confidence,
       keyFactors,
-      cached: false,
+      cached: modelUsed === "static-fallback",
       updatedAt: new Date().toISOString(),
       model: modelUsed,
     };
@@ -2990,34 +3041,73 @@ Keep responses to 1-2 sentences. Be practical and avoid excessive drama.`;
     const userPrompt = `The Crypto Fear & Greed Index is currently at ${value} (${classification}).
 What does this mean for traders in 1-2 sentences?`;
 
-    const aiResult = await callAIWithFallback({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 100,
-      temperature: 0.7,
-      functionName: "getFearGreedCommentary",
-    });
-    const modelUsed = aiResult.model;
-    const commentary = aiResult.content || "Unable to generate commentary.";
-    
-    // Audit log for cache miss (costs money)
-    await logAuditEvent("ai_cache_miss", request, { function: "getFearGreedCommentary", value, provider: aiResult.provider });
-    
-    // Cache the result
-    await cacheRef.set({
-      commentary,
-      value,
-      classification,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      model: modelUsed,
-      provider: aiResult.provider,
-    });
-    
+    let commentary: string;
+    let modelUsed: string;
+    let providerUsed = "none";
+
+    try {
+      const aiResult = await callAIWithFallback({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 100,
+        temperature: 0.7,
+        functionName: "getFearGreedCommentary",
+      });
+      modelUsed = aiResult.model;
+      providerUsed = aiResult.provider;
+      commentary = aiResult.content || "Unable to generate commentary.";
+    } catch (aiError) {
+      // All AI providers failed — return stale cache or static fallback
+      console.error("[getFearGreedCommentary] All AI providers failed, using fallback:", aiError);
+
+      // Try returning expired cache
+      const staleCache = await cacheRef.get();
+      if (staleCache.exists) {
+        const data = staleCache.data();
+        if (data?.commentary) {
+          return {
+            commentary: data.commentary,
+            cached: true,
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+            model: data.model || "stale-cache",
+          };
+        }
+      }
+
+      // Generate a simple template-based commentary without AI
+      if (value < 20) {
+        commentary = `Extreme fear at ${value} often signals potential buying opportunities, as markets tend to overreact to negative sentiment.`;
+      } else if (value < 40) {
+        commentary = `Fear at ${value} suggests cautious sentiment. Historically, moderate fear can precede market recoveries.`;
+      } else if (value < 60) {
+        commentary = `Neutral sentiment at ${value} indicates balanced market conditions with no strong directional bias.`;
+      } else if (value < 80) {
+        commentary = `Greed at ${value} suggests growing optimism. Consider taking partial profits as sentiment heats up.`;
+      } else {
+        commentary = `Extreme greed at ${value} signals potential overextension. Exercise caution as markets may be due for a correction.`;
+      }
+      modelUsed = "template-fallback";
+    }
+
+    // Cache and return (only cache AI-generated results)
+    if (modelUsed !== "template-fallback") {
+      await logAuditEvent("ai_cache_miss", request, { function: "getFearGreedCommentary", value, provider: providerUsed });
+
+      await cacheRef.set({
+        commentary,
+        value,
+        classification,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        model: modelUsed,
+        provider: providerUsed,
+      });
+    }
+
     return {
       commentary,
-      cached: false,
+      cached: modelUsed === "template-fallback",
       updatedAt: new Date().toISOString(),
       model: modelUsed,
     };
@@ -4635,6 +4725,7 @@ export const getPumpFunTokens = onCall({
         // Fallback to CoinGecko meme-token category
         try {
           const cgUrl = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=meme-token&order=market_cap_desc&per_page=50&page=1&sparkline=false";
+          await trackCoinGeckoCall("getPumpFunTokens", "coins_markets_meme");
           const cgResponse = await fetch(cgUrl, {
             headers: getCoinGeckoHeaders(),
           });
@@ -4797,7 +4888,7 @@ export const prewarmMarketSentiment = onSchedule({
     const userPrompt = `Provide a brief market sentiment analysis for the cryptocurrency market. 2-3 sentences maximum.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o", // Premium model for pre-warmed shared content
+      model: "gpt-4.1-mini", // Premium model for pre-warmed shared content
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -4811,7 +4902,7 @@ export const prewarmMarketSentiment = onSchedule({
     await db.collection("sharedAICache").doc("marketSentiment").set({
       content,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      model: "gpt-4o",
+      model: "gpt-4.1-mini",
       tokens: completion.usage?.total_tokens || 0,
       prewarmed: true,
     });
@@ -5154,7 +5245,7 @@ export const prewarmTopCoinInsights = onSchedule({
         const userPrompt = `Provide a brief analysis for ${coin.name} (${coin.symbol}). Focus on what traders should know.`;
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o", // Premium model for pre-warmed shared content
+          model: "gpt-4.1-mini", // Premium model for pre-warmed shared content
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -5171,7 +5262,7 @@ export const prewarmTopCoinInsights = onSchedule({
           coinId: coin.id,
           symbol: coin.symbol,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          model: "gpt-4o",
+          model: "gpt-4.1-mini",
           prewarmed: true,
         });
         
@@ -9985,4 +10076,5 @@ export {
   agentHeartbeat,
   agentGetCommands,
   agentCompleteCommand,
+  agentDashboard,
 } from "./agentApi";

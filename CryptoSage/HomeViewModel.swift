@@ -95,14 +95,12 @@ class HomeViewModel: ObservableObject {
             self.portfolioVM = PortfolioViewModel(repository: repository)
         }
         self.marketVM = MarketViewModel.shared
-        // PERFORMANCE FIX v18: Defer market data fetching further to avoid competing with
+        // PERFORMANCE FIX v18: Defer market data fetching to avoid competing with
         // startHeavyLoading() which also calls marketVM.loadAllData() at Phase 3 (800ms).
-        // The splash screen shows for 2.5s anyway, so we don't need to rush this.
         Task { [weak self] in
             guard let self = self else { return }
-            // Wait longer - startHeavyLoading Phase 3 calls loadAllData at 800ms
-            // We wait for that to complete rather than duplicating the work
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+            // Brief wait for startHeavyLoading Phase 3 to finish its loadAllData call
+            try? await Task.sleep(nanoseconds: 900_000_000) // 0.9s
             
             // Only fetch if marketVM didn't already load (e.g. from startHeavyLoading)
             if self.marketVM.allCoins.isEmpty && self.marketVM.coins.isEmpty {
@@ -204,8 +202,8 @@ class HomeViewModel: ObservableObject {
         // PERFORMANCE FIX v18: Same deferred approach as init()
         Task { [weak self] in
             guard let self = self else { return }
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
-            
+            try? await Task.sleep(nanoseconds: 900_000_000) // 0.9s
+
             if self.marketVM.allCoins.isEmpty && self.marketVM.coins.isEmpty {
                 await self.fetchMarketData()
             }
@@ -302,14 +300,14 @@ class HomeViewModel: ObservableObject {
         switch phase {
         case 1:
             // Phase 1: Critical data only (portfolio, watchlist prices)
-            async let portfolio = portfolioVM.refreshAllPortfolioData()
-            async let watchlistPrices = marketVM.loadWatchlistData()
-            await [portfolio, watchlistPrices]
+            async let p: Void = portfolioVM.refreshAllPortfolioData()
+            async let w: Void = marketVM.loadWatchlistData()
+            _ = await (p, w)
             
         case 2:
             // Phase 2: Context data (news, sentiment, market stats)
-            // Small delay to prevent network congestion from Phase 1
-            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+            // Brief settle to let Phase 1 UI render before adding more work
+            try? await Task.sleep(nanoseconds: 80_000_000) // 80ms
             
             // Load news data on main actor since CryptoNewsFeedViewModel methods aren't async
             await MainActor.run {
@@ -317,9 +315,9 @@ class HomeViewModel: ObservableObject {
             }
             
         case 3:
-            // Phase 3: Heavy/optional data (heatmap, whale activity, detailed analytics)  
-            // Longer delay to ensure core UI is responsive first
-            try? await Task.sleep(nanoseconds: 400_000_000) // 400ms
+            // Phase 3: Heavy/optional data (heatmap, whale activity, detailed analytics)
+            // Brief delay to ensure core UI is responsive first
+            try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
             
             // HeatMapViewModel doesn't have async methods, so this is lightweight
             // The actual heavy work happens when the view appears

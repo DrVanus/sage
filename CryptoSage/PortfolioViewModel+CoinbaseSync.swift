@@ -16,21 +16,15 @@ extension PortfolioViewModel {
     public func syncCoinbasePortfolio() async {
         isRefreshing = true
 
-        do {
-            // Trigger Coinbase sync
-            await CoinbasePortfolioSyncService.shared.syncPortfolio()
+        // Trigger Coinbase sync
+        await CoinbasePortfolioSyncService.shared.syncPortfolio()
 
-            // Reload holdings
-            await refreshHoldings()
+        // Reload holdings
+        await refreshHoldings()
 
-            #if DEBUG
-            print("✅ Coinbase portfolio synced successfully")
-            #endif
-        } catch {
-            #if DEBUG
-            print("❌ Coinbase sync failed: \(error.localizedDescription)")
-            #endif
-        }
+        #if DEBUG
+        print("✅ Coinbase portfolio synced successfully")
+        #endif
 
         isRefreshing = false
     }

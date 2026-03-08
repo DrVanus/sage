@@ -1,13 +1,8 @@
 //
 //  ContentManagerView.swift
-//  CSAI1
+//  CryptoSage
 //
 //  Created by DM on 3/16/25.
-//
-
-//
-//  ContentManagerView.swift
-//  CRYPTOSAI
 //
 //  Manages the TabView and switches between tabs.
 //  PERFORMANCE: Uses lazy tab loading - only active tab is rendered.
@@ -41,6 +36,10 @@ struct ContentManagerView: View {
             }
 
             CustomTabBar(selectedTab: $appState.selectedTab)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAgentTrading)) { _ in
+            // Switch to Portfolio tab where the agent dashboard section lives
+            appState.selectedTab = .portfolio
         }
         .onChange(of: appState.selectedTab) { _, newTab in
             // Mark TradeView as visited for persistence

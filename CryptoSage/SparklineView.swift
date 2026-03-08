@@ -50,15 +50,20 @@ enum SparklineConsistency {
         provider24h: Double?,
         fallback: Bool
     ) -> Bool {
-        // Keep color semantics aligned with metrics shown in rows.
+        // Priority 1: 7D % change from provider — most authoritative for a 7D sparkline.
         if let p7 = provider7d, p7.isFinite { return p7 >= 0 }
-        if let p24 = provider24h, p24.isFinite { return p24 >= 0 }
 
+        // Priority 2: Sparkline data trend (first vs last) — more accurate than 24H for
+        // determining the 7-day direction when provider % is missing.
         let valid = spark.filter { $0.isFinite && $0 > 0 }
         if valid.count > 10, let first = valid.first, let last = valid.last {
             let relDiff = (last - first) / first
             if abs(relDiff) > relativeTrendThreshold { return relDiff >= 0 }
         }
+
+        // Priority 3: 24H % change — last resort when both 7D% and sparkline are unavailable.
+        if let p24 = provider24h, p24.isFinite { return p24 >= 0 }
+
         return fallback
     }
 }

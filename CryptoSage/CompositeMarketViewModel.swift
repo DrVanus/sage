@@ -46,21 +46,14 @@ public final class CompositeMarketViewModel: ObservableObject {
         defer { isLoading = false }
         async let aggTask = router.loadCompositeSnapshot(for: sym)
         async let pairsTask = router.listPairSnapshots(for: sym, preferredQuotes: ["USD","USDT","FDUSD","BUSD"], limit: 4)
-        do {
-            let agg = try await aggTask
-            let pr = try await pairsTask
-            if let a = agg {
-                aggregate[sym] = a
-                cacheTS[sym] = Date().timeIntervalSince1970
-                lastUpdated = Date()
-            }
-            pairs[sym] = pr
-        } catch {
-            errorMessage = "Failed to load market data: \(error.localizedDescription)"
-            #if DEBUG
-            print("[CompositeMarketVM] load(\(sym)) error: \(error)")
-            #endif
+        let agg = await aggTask
+        let pr = await pairsTask
+        if let a = agg {
+            aggregate[sym] = a
+            cacheTS[sym] = Date().timeIntervalSince1970
+            lastUpdated = Date()
         }
+        pairs[sym] = pr
     }
 
     public func refresh(symbols: [String], force: Bool = false) async {

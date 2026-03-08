@@ -1173,6 +1173,10 @@ extension PortfolioView {
                     } else {
                         VStack(spacing: 6) {
                             headerCard
+
+                            // Agent Dashboard — only visible when agent is connected
+                            AgentPortfolioSection()
+
                             PortfolioChartView(
                                 portfolioVM: portfolioVM,
                                 showMetrics: false,
@@ -1263,8 +1267,7 @@ extension PortfolioView {
 
     private var headerBackground: some View {
         let isDark = colorScheme == .dark
-        let plColor = portfolioVM.unrealizedPL >= 0 ? Color.green : Color.red
-        
+
         let goldColor = Color(red: 0.85, green: 0.65, blue: 0.13)
         return RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(

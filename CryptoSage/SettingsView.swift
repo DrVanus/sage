@@ -73,6 +73,8 @@ struct SettingsView: View {
     
     // State for developer quick access panel
     @State private var showDeveloperPanelSheet = false
+    // Confirmation alert before enabling live trading
+    @State private var showLiveTradingConfirmation = false
     
     // MARK: - Developer Quick Access Section (Top of Settings)
     private var developerQuickAccessSection: some View {
@@ -110,7 +112,7 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
             }
             
-            // Live Trading Toggle
+            // Live Trading Toggle (with confirmation)
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Live Trading")
@@ -120,10 +122,19 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(subscriptionManager.developerLiveTradingEnabled ? .red : DS.Adaptive.textSecondary)
                 }
-                
+
                 Spacer()
-                
-                Toggle("", isOn: $subscriptionManager.developerLiveTradingEnabled)
+
+                Toggle("", isOn: Binding(
+                    get: { subscriptionManager.developerLiveTradingEnabled },
+                    set: { newValue in
+                        if newValue {
+                            showLiveTradingConfirmation = true
+                        } else {
+                            subscriptionManager.developerLiveTradingEnabled = false
+                        }
+                    }
+                ))
                     .labelsHidden()
                     .tint(.red)
             }
@@ -217,7 +228,7 @@ struct SettingsView: View {
                         SettingsSection(title: "ACCOUNT") {
                             AccountSignInSection()
                         }
-                        // MARK: - Subscription (prominent position for discoverability)
+                        // MARK: - Subscription
                         SettingsSection(title: "SUBSCRIPTION") {
                             NavigationLink(destination: SubscriptionPricingView()) {
                                 HStack(spacing: 12) {
@@ -256,12 +267,12 @@ struct SettingsView: View {
                                 .accessibilityAddTraits(.isButton)
                             }
                             .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
-                        }
 
-                        // MARK: - AI Agent
-                        SettingsSection(title: "AI AGENT") {
+                            SettingsDivider()
+
+                            // AI Agent — nested under subscription since it's a premium feature
                             NavigationLink(destination: AgentSettingsView()) {
-                                SettingsRow(icon: "brain.head.profile", title: "AI Agent")
+                                SettingsRow(icon: "antenna.radiowaves.left.and.right", title: "Agent Connection", iconColor: AgentConnectionService.shared.isAgentOnline ? .green : BrandColors.goldBase)
                             }
                             .simultaneousGesture(TapGesture().onEnded { impactLight.impactOccurred() })
 
@@ -652,6 +663,14 @@ struct SettingsView: View {
             Button("Clear", role: .destructive) { clearCache() }
         } message: {
             Text("This will clear cached images and data. Your portfolio and settings will not be affected.")
+        }
+        .alert("Enable Live Trading?", isPresented: $showLiveTradingConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Enable", role: .destructive) {
+                subscriptionManager.developerLiveTradingEnabled = true
+            }
+        } message: {
+            Text("This will execute real trades with real money. All trading bots, AI trades, and manual orders will use your connected exchange account. Are you sure?")
         }
         // NAVIGATION: Enable native iOS pop gesture + custom edge swipe
         .enableInteractivePopGesture()
@@ -1109,12 +1128,13 @@ struct DeveloperModeEntryView: View {
     var onSubmit: (String) -> Void
     var onDisable: () -> Void
     var isDeveloperMode: Bool
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isCodeFieldFocused: Bool
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
-    
+    @State private var showLiveTradingConfirmation = false
+
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     
     var body: some View {
@@ -1279,9 +1299,17 @@ struct DeveloperModeEntryView: View {
                 }
             }
         }
+        .alert("Enable Live Trading?", isPresented: $showLiveTradingConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Enable", role: .destructive) {
+                subscriptionManager.developerLiveTradingEnabled = true
+            }
+        } message: {
+            Text("This will execute real trades with real money. All trading bots, AI trades, and manual orders will use your connected exchange account. Are you sure?")
+        }
         .presentationDetents([.medium, .large])
     }
-    
+
     // MARK: - Tier Info Card
     private var tierInfoCard: some View {
         let tier = subscriptionManager.developerSimulatedTier
@@ -1372,6 +1400,71 @@ struct DeveloperModeEntryView: View {
         }
     }
     
+    // MARK: - Live Trading Toggle Row (extracted to reduce type-check complexity)
+    private var liveTradingToggleRow: some View {
+        let isEnabled = subscriptionManager.developerLiveTradingEnabled
+        return HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Enable Live Trading")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DS.Adaptive.textPrimary)
+                Text(isEnabled
+                    ? "Real trades will execute with real money!"
+                    : "Safe mode - all trades are paper/simulated")
+                    .font(.caption)
+                    .foregroundColor(isEnabled ? .red : DS.Adaptive.textSecondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { subscriptionManager.developerLiveTradingEnabled },
+                set: { newValue in
+                    if newValue {
+                        showLiveTradingConfirmation = true
+                    } else {
+                        subscriptionManager.developerLiveTradingEnabled = false
+                    }
+                }
+            ))
+                .labelsHidden()
+                .tint(.red)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isEnabled ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isEnabled ? Color.red.opacity(0.5) : Color.green.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Live Trading Safety Info
+    @ViewBuilder
+    private var liveTradingSafetyInfo: some View {
+        if subscriptionManager.developerLiveTradingEnabled {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.caption)
+                Text("3Commas bots, AI trades, and all trading features will use REAL MONEY")
+                    .font(.caption2)
+            }
+            .foregroundColor(.red)
+            .padding(.horizontal, 8)
+
+            Divider().padding(.vertical, 8)
+
+            algoTradingExchangeSelector
+        } else {
+            Text("You can safely test all tiers and features without executing real trades.")
+                .font(.caption)
+                .foregroundColor(DS.Adaptive.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
     // MARK: - Live Trading Toggle Section
     private var liveTradingToggleSection: some View {
         VStack(spacing: 12) {
@@ -1383,62 +1476,9 @@ struct DeveloperModeEntryView: View {
                     .font(.caption.weight(.bold))
                     .foregroundColor(subscriptionManager.developerLiveTradingEnabled ? .red : .green)
             }
-            
-            // Toggle Row
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Enable Live Trading")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(DS.Adaptive.textPrimary)
-                    Text(subscriptionManager.developerLiveTradingEnabled 
-                        ? "Real trades will execute with real money!"
-                        : "Safe mode - all trades are paper/simulated")
-                        .font(.caption)
-                        .foregroundColor(subscriptionManager.developerLiveTradingEnabled ? .red : DS.Adaptive.textSecondary)
-                }
-                
-                Spacer()
-                
-                Toggle("", isOn: $subscriptionManager.developerLiveTradingEnabled)
-                    .labelsHidden()
-                    .tint(.red)
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(subscriptionManager.developerLiveTradingEnabled 
-                        ? Color.red.opacity(0.1) 
-                        : Color.green.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(subscriptionManager.developerLiveTradingEnabled 
-                                ? Color.red.opacity(0.5) 
-                                : Color.green.opacity(0.3), lineWidth: 1)
-                    )
-            )
-            
-            // Safety Info
-            if subscriptionManager.developerLiveTradingEnabled {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.caption)
-                    Text("3Commas bots, AI trades, and all trading features will use REAL MONEY")
-                        .font(.caption2)
-                }
-                .foregroundColor(.red)
-                .padding(.horizontal, 8)
-                
-                Divider().padding(.vertical, 8)
-                
-                // Exchange Selector for Algo Trading
-                algoTradingExchangeSelector
-                
-            } else {
-                Text("You can safely test all tiers and features without executing real trades.")
-                    .font(.caption)
-                    .foregroundColor(DS.Adaptive.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
+
+            liveTradingToggleRow
+            liveTradingSafetyInfo
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
@@ -4434,7 +4474,8 @@ struct HomeCustomizationView: View {
     @AppStorage("Home.showPromos")              private var showPromos: Bool = true
     @AppStorage("Home.showTransactions")        private var showTransactions: Bool = true
     @AppStorage("Home.showCommunity")           private var showCommunity: Bool = true
-    
+    @AppStorage("Home.showAgentTrading")        private var showAgentTrading: Bool = true
+
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
@@ -4534,6 +4575,7 @@ struct HomeCustomizationView: View {
         case .promos:              return $showPromos
         case .transactions:        return $showTransactions
         case .community:           return $showCommunity
+        case .agentTrading:        return $showAgentTrading
         default:                   return .constant(true)
         }
     }

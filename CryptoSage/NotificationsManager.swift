@@ -314,12 +314,11 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
                 "version": FieldValue.increment(Int64(1))
             ]
             
-            alertsRef.setData(data, merge: true) { [weak self] error in
-                if let error = error {
-                    self?.logger.error("🔔 [NotificationsManager] Failed to sync to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.logger.debug("🔔 [NotificationsManager] Synced \(currentAlerts.count + currentAdvanced.count) alerts to Firestore")
-                }
+            do {
+                try await alertsRef.setData(data, merge: true)
+                self.logger.debug("🔔 [NotificationsManager] Synced \(currentAlerts.count + currentAdvanced.count) alerts to Firestore")
+            } catch {
+                self.logger.error("🔔 [NotificationsManager] Failed to sync to Firestore: \(error.localizedDescription)")
             }
         }
     }
@@ -368,12 +367,11 @@ final class NotificationsManager: NSObject, ObservableObject, UNUserNotification
                 "version": 1
             ]
             
-            alertsRef.setData(data) { [weak self] error in
-                if let error = error {
-                    self?.logger.error("🔔 [NotificationsManager] Failed to upload to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.logger.info("🔔 [NotificationsManager] Uploaded local alerts to Firestore")
-                }
+            do {
+                try await alertsRef.setData(data)
+                self.logger.info("🔔 [NotificationsManager] Uploaded local alerts to Firestore")
+            } catch {
+                self.logger.error("🔔 [NotificationsManager] Failed to upload to Firestore: \(error.localizedDescription)")
             }
         }
     }

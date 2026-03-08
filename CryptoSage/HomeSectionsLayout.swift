@@ -19,6 +19,7 @@ public enum HomeSection: String, Hashable, CaseIterable {
     case events
     case news
     case transactions
+    case agentTrading       // Agent trading status card (visible when connected)
     case community          // Social Trading preview
     case communityLinks     // Discord, X, Telegram links
     case footer
@@ -47,12 +48,13 @@ extension HomeSection {
         case .events:              return "Events & Catalysts"
         case .news:                return "News"
         case .transactions:        return "Recent Activity"
+        case .agentTrading:        return "Agent Trading"
         case .community:           return "Community"
         case .communityLinks:      return "Community Links"
         case .footer:              return "Footer"
         }
     }
-    
+
     /// SF Symbol icon name
     var icon: String {
         switch self {
@@ -73,12 +75,13 @@ extension HomeSection {
         case .events:              return "calendar.badge.clock"
         case .news:                return "newspaper.fill"
         case .transactions:        return "clock.arrow.circlepath"
+        case .agentTrading:        return "cpu.fill"
         case .community:           return "bubble.left.and.bubble.right.fill"
         case .communityLinks:      return "link"
         case .footer:              return "doc.text"
         }
     }
-    
+
     /// Short description for the customization row
     var sectionDescription: String {
         switch self {
@@ -99,16 +102,16 @@ extension HomeSection {
         case .events:              return "Upcoming crypto events and launches"
         case .news:                return "Latest cryptocurrency news"
         case .transactions:        return "Your recent transactions and trades"
+        case .agentTrading:        return "AI agent trading status and daily summary"
         case .community:           return "Social trading and community insights"
         case .communityLinks:      return "Discord, X, Telegram links"
         case .footer:              return "App footer"
         }
     }
-    
+
     /// Accent color for the icon circle in the customization screen
     var accentColor: Color {
-        // Gold (#D4AF37) for brand-accent sections; matches BrandColors.goldBase
-        let gold = Color(red: 212/255, green: 175/255, blue: 55/255)
+        let gold = BrandColors.goldBase
         switch self {
         case .portfolio:           return gold
         case .aiInsights:          return .purple
@@ -127,6 +130,7 @@ extension HomeSection {
         case .events:              return .mint
         case .news:                return .teal
         case .transactions:        return .gray
+        case .agentTrading:        return gold
         case .community:           return .pink
         case .communityLinks:      return .blue
         case .footer:              return .gray
@@ -229,6 +233,13 @@ public struct HomeSectionPreferences {
         // Show commodities section by default (gold, silver, oil, etc.)
         defaults.object(forKey: "Home.showCommoditiesOverview") as? Bool ?? true
     }
+
+    /// Whether the user wants to show the agent trading section.
+    /// Connection state is checked separately at render time (in HomeView/AgentHomeCard).
+    /// This avoids circular coupling between preferences and the agent service singleton.
+    public static var showAgentTrading: Bool {
+        defaults.object(forKey: "Home.showAgentTrading") as? Bool ?? true
+    }
 }
 
 public struct HomeSectionPreferencesExtended {
@@ -253,6 +264,7 @@ public final class HomeSectionOrderManager {
     public static let defaultOrder: [HomeSection] = [
         // Core experience
         .portfolio,
+        .agentTrading,
         .aiInsights,
         .aiPredictions,
         
@@ -331,6 +343,7 @@ public struct HomeSectionsLayout {
     public static let order: [HomeSection] = [
         // Core experience - what users care about most
         .portfolio,
+        .agentTrading,
         .aiInsights,
         // .aiPredictions - now integrated into Watchlist section as CTA button
         .watchlist,
@@ -428,6 +441,8 @@ public struct HomeSectionsLayout {
             return HomeSectionPreferences.showPromos
         case .transactions:
             return HomeSectionPreferences.showTransactions
+        case .agentTrading:
+            return HomeSectionPreferences.showAgentTrading
         case .community:
             return HomeSectionPreferences.showCommunity
         case .communityLinks, .footer:

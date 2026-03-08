@@ -379,47 +379,67 @@ public final class StoreKitManager: ObservableObject {
     // MARK: - Subscription Status
     
     /// Update subscription status from current entitlements
+    ///
+    /// THREAD SAFETY FIX: StoreKit's `Transaction.currentEntitlements` async sequence may
+    /// deliver values on a background thread. Even though this class is @MainActor, the
+    /// `for await` loop can resume off the main thread. To prevent "Publishing changes from
+    /// background threads" warnings, we collect entitlement data in a detached task
+    /// (value types only), then update @Published properties once we're guaranteed
+    /// back on @MainActor after the detached work completes.
     public func updateSubscriptionStatus() async {
-        var foundActiveSubscription = false
-        
-        // Check for active subscription entitlements
-        for await result in StoreKit.Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else { continue }
-            
-            // Check if this is one of our subscription products
-            if SubscriptionProductID.allIDs.contains(transaction.productID) {
-                // Check if subscription is still active
-                if transaction.revocationDate == nil {
-                    activeSubscriptionID = transaction.productID
-                    subscriptionExpirationDate = transaction.expirationDate
-                    foundActiveSubscription = true
-                    
-                    // Update the subscription tier in SubscriptionManager
-                    if let productID = SubscriptionProductID(rawValue: transaction.productID) {
-                        SubscriptionManager.shared.setTier(productID.tier)
+        // Phase 1: Iterate StoreKit entitlements in a detached task — the async
+        // sequence delivers on arbitrary threads, so we must NOT touch @Published
+        // properties here.  We only collect Sendable value types.
+        struct EntitlementInfo: Sendable {
+            let productID: String
+            let expirationDate: Date?
+        }
+
+        let allIDs = SubscriptionProductID.allIDs          // capture Sendable [String]
+
+        let foundEntitlement: EntitlementInfo? = await Task.detached {
+            for await result in StoreKit.Transaction.currentEntitlements {
+                guard case .verified(let transaction) = result else { continue }
+
+                if allIDs.contains(transaction.productID) {
+                    if transaction.revocationDate == nil {
+                        return EntitlementInfo(
+                            productID: transaction.productID,
+                            expirationDate: transaction.expirationDate
+                        )
                     }
-                    
-                    // Check auto-renewal status
-                    await updateAutoRenewalStatus(for: transaction)
-                    
-                    #if DEBUG
-                    print("[StoreKit] Active subscription: \(transaction.productID)")
-                    if let expiry = transaction.expirationDate {
-                        print("[StoreKit] Expires: \(expiry)")
-                    }
-                    #endif
-                    
-                    break
                 }
             }
-        }
-        
-        // If no active subscription found, set tier to free
-        if !foundActiveSubscription {
+            return nil
+        }.value
+
+        // Phase 2: We're back on @MainActor now — safe to update @Published properties
+        if let entitlement = foundEntitlement {
+            activeSubscriptionID = entitlement.productID
+            subscriptionExpirationDate = entitlement.expirationDate
+
+            // Update the subscription tier in SubscriptionManager
+            if let productID = SubscriptionProductID(rawValue: entitlement.productID) {
+                SubscriptionManager.shared.setTier(productID.tier)
+            }
+
+            // Check auto-renewal status (runs after for-await loop, safely on MainActor)
+            if let product = products.first(where: { $0.id == entitlement.productID }) {
+                await updateAutoRenewalStatus(for: product)
+            }
+
+            #if DEBUG
+            print("[StoreKit] Active subscription: \(entitlement.productID)")
+            if let expiry = entitlement.expirationDate {
+                print("[StoreKit] Expires: \(expiry)")
+            }
+            #endif
+        } else {
+            // No active subscription found — set tier to free
             activeSubscriptionID = nil
             subscriptionExpirationDate = nil
             willAutoRenew = false
-            
+
             // Only reset to free if not in developer mode
             if !SubscriptionManager.shared.isDeveloperMode {
                 SubscriptionManager.shared.setTier(.free)
@@ -427,11 +447,9 @@ public final class StoreKitManager: ObservableObject {
         }
     }
     
-    /// Check auto-renewal status for a transaction
-    private func updateAutoRenewalStatus(for transaction: StoreKit.Transaction) async {
-        // Get subscription status from the product's subscription info
-        guard let product = products.first(where: { $0.id == transaction.productID }),
-              let subscription = product.subscription else {
+    /// Check auto-renewal status for a product
+    private func updateAutoRenewalStatus(for product: Product) async {
+        guard let subscription = product.subscription else {
             willAutoRenew = true // Default to true if we can't check
             return
         }

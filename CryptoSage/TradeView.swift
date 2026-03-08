@@ -3,6 +3,10 @@ import SwiftUI
 import Combine
 import QuartzCore
 
+extension Notification.Name {
+    static let openAgentTrading = Notification.Name("openAgentTrading")
+}
+
 fileprivate enum QuotePreferenceMode: String, CaseIterable { case auto, usd, usdt }
 
 enum ChartSource { case sage, trading }
@@ -363,7 +367,7 @@ struct TradeFormView: View {
     private var isSubmitDisabled: Bool {
         let qty = Double(quantity) ?? 0
         if qty <= 0 { return true }
-        
+
         // Validate order type specific inputs
         if orderType == .limit {
             let lp = Double(limitPrice) ?? 0
@@ -372,17 +376,20 @@ struct TradeFormView: View {
             let sp = Double(stopPrice) ?? 0
             let lp = Double(limitPrice) ?? 0
             if sp <= 0 || lp <= 0 { return true }
+            // Stop-limit validation: for buys, stop must be above limit (trigger then fill lower);
+            // for sells, stop must be below limit (trigger then fill higher) — but both must be positive.
+            // Most exchanges just require both > 0, so we validate that here and warn separately.
         } else if orderType == .stop {
             let sp = Double(stopPrice) ?? 0
             if sp <= 0 { return true }
         }
-        
-        // Skip balance check if balance is still loading
-        if vm.isLoadingBalance { return false }
-        
+
+        // Don't allow submission while balance is loading — wait for actual data
+        if vm.isLoadingBalance { return true }
+
         // Use trading price (exchange-specific if available, otherwise aggregate)
         let priceForCalc = vm.tradingPrice > 0 ? vm.tradingPrice : vm.currentPrice
-        
+
         // Validate sufficient balance (with small buffer for fees/slippage)
         if selectedSide == .buy {
             guard priceForCalc > 0 else { return true }  // Need valid price for buy calc
@@ -391,8 +398,31 @@ struct TradeFormView: View {
         } else {
             if qty > vm.balance { return true }
         }
-        
+
         return false
+    }
+
+    /// Warning text for questionable price configurations (shown but doesn't block submission)
+    private var priceValidationWarning: String? {
+        guard orderType == .stopLimit else { return nil }
+        let sp = Double(stopPrice) ?? 0
+        let lp = Double(limitPrice) ?? 0
+        guard sp > 0, lp > 0 else { return nil }
+
+        if selectedSide == .sell && sp > lp {
+            return "Stop price is above limit price — order may not fill."
+        }
+        if selectedSide == .buy && sp < lp {
+            return "Stop price is below limit price — order may not fill."
+        }
+
+        let priceForCalc = vm.tradingPrice > 0 ? vm.tradingPrice : vm.currentPrice
+        guard priceForCalc > 0 else { return nil }
+        let slippage = abs(lp - priceForCalc) / priceForCalc
+        if slippage > 0.10 {
+            return "Limit price is \(String(format: "%.0f", slippage * 100))% away from market — large slippage risk."
+        }
+        return nil
     }
 
     private func formatPriceWithCommas(_ value: Double) -> String { formatUSD(value) }
@@ -501,6 +531,19 @@ struct TradeFormView: View {
                 }
             }
             .padding(.horizontal, 10)
+
+            // Stop-limit price validation warning
+            if let warning = priceValidationWarning {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                    Text(warning)
+                        .font(.caption2)
+                }
+                .foregroundColor(.orange)
+                .padding(.horizontal, 14)
+                .padding(.top, 2)
+            }
         }
     }
 
@@ -1283,7 +1326,7 @@ private struct TradeFormConfirmationModifiers: ViewModifier {
 // MARK: - TradeView
 struct TradeView: View {
     @Namespace private var depthNamespace
-    
+
     // The symbol to trade (default "BTC")
     @State private var symbol: String
     
@@ -1460,6 +1503,9 @@ struct TradeView: View {
             let sp = Double(stopPrice) ?? 0
             let lp = Double(limitPrice) ?? 0
             return sp <= 0 || lp <= 0
+        } else if orderType == .stop || orderType == .stopLoss {
+            let sp = Double(stopPrice) ?? 0
+            return sp <= 0
         }
         return false
     }
@@ -1888,7 +1934,7 @@ struct TradeView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 0) {
                             navBar
-                            
+
                             // Show banner if no exchange connected
                             exchangeConnectionBanner
 
@@ -1909,13 +1955,13 @@ struct TradeView: View {
                                 .padding(.horizontal, contentHPad)
 
                             orderBookSection
-                            
+
                             // Open Orders Section - shows pending limit orders for the current symbol
                             OpenOrdersSection(symbol: symbol)
                                 .padding(.horizontal, contentHPad)
                                 .padding(.top, 10)
                                 .padding(.bottom, 16)
-                            
+
                             // Extra padding when keyboard is visible to ensure content can scroll above keyboard
                             if keyboardHeight > 0 {
                                 Spacer()

@@ -1809,12 +1809,11 @@ public final class PaperTradingManager: ObservableObject {
             
             let docRef = db.collection("users").document(userId).collection("paper_trading").document("state")
             
-            docRef.setData(paperData, merge: true) { [weak self] error in
-                if let error = error {
-                    self?.ptLogger.error("🔥 [PaperTradingSync] Failed to sync to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.ptLogger.debug("🔥 [PaperTradingSync] Paper trading data synced to Firestore")
-                }
+            do {
+                try await docRef.setData(paperData, merge: true)
+                ptLogger.debug("🔥 [PaperTradingSync] Paper trading data synced to Firestore")
+            } catch {
+                ptLogger.error("🔥 [PaperTradingSync] Failed to sync to Firestore: \(error.localizedDescription)")
             }
         }
     }

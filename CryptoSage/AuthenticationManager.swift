@@ -734,7 +734,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
                 try? await Task.sleep(nanoseconds: 45 * 60 * 1_000_000_000)
                 guard !Task.isCancelled else { break }
                 guard let firebaseUser = Auth.auth().currentUser,
-                      let self = self else { break }
+                      let _ = self else { break }
                 do {
                     let newToken = try await firebaseUser.getIDTokenResult(forcingRefresh: true).token
                     await MainActor.run {

@@ -394,7 +394,7 @@ public final class AnalyticsService: @unchecked Sendable {
     /// - Parameters:
     ///   - source: Where the paywall was triggered from (e.g., "feature_gate", "periodic", "settings")
     ///   - feature: The feature that triggered the paywall (if any)
-    public func trackPaywallViewed(source: String, feature: String? = nil) {
+    @MainActor public func trackPaywallViewed(source: String, feature: String? = nil) {
         var params = ["source": source]
         if let feature = feature {
             params["trigger_feature"] = feature
@@ -405,7 +405,7 @@ public final class AnalyticsService: @unchecked Sendable {
     
     /// Track when user dismisses the paywall without upgrading
     /// - Parameter source: Where the paywall was triggered from
-    public func trackPaywallDismissed(source: String) {
+    @MainActor public func trackPaywallDismissed(source: String) {
         track(.paywallDismissed, parameters: [
             "source": source,
             "current_tier": SubscriptionManager.shared.effectiveTier.rawValue
@@ -557,7 +557,7 @@ public final class AnalyticsService: @unchecked Sendable {
     /// - Parameters:
     ///   - feature: The feature being accessed
     ///   - granted: Whether access was granted
-    public func trackFeatureAccess(feature: PremiumFeature, granted: Bool) {
+    @MainActor public func trackFeatureAccess(feature: PremiumFeature, granted: Bool) {
         let params: [String: String] = [
             "feature": feature.rawValue,
             "feature_name": feature.displayName,
@@ -580,7 +580,7 @@ public final class AnalyticsService: @unchecked Sendable {
     ///   - promptNumber: Which prompt number this is today
     ///   - limit: The user's daily limit
     ///   - modelUsed: Which AI model was used
-    public func trackAIPromptUsed(promptNumber: Int, limit: Int, modelUsed: String) {
+    @MainActor public func trackAIPromptUsed(promptNumber: Int, limit: Int, modelUsed: String) {
         let tier = SubscriptionManager.shared.effectiveTier
         track(.aiPromptUsed, parameters: [
             "prompt_number": String(promptNumber),
@@ -627,7 +627,7 @@ public final class AnalyticsService: @unchecked Sendable {
     
     /// Track AI insight generation
     /// - Parameter insightType: Type of insight (e.g., "portfolio", "market", "coin")
-    public func trackAIInsightGenerated(insightType: String) {
+    @MainActor public func trackAIInsightGenerated(insightType: String) {
         track(.aiInsightGenerated, parameters: [
             "insight_type": insightType,
             "tier": SubscriptionManager.shared.effectiveTier.rawValue

@@ -247,7 +247,7 @@ final class TechnicalsViewModel: ObservableObject {
         let coinID = staticCoingeckoID(for: symbol)
         let days = staticDaysForInterval(interval)
         
-        var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/\(coinID)/market_chart")
+        var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/\(coinID)/market_chart")
         comps?.queryItems = [
             URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
             URLQueryItem(name: "days", value: String(days))
@@ -290,7 +290,7 @@ final class TechnicalsViewModel: ObservableObject {
         APIRequestCoordinator.shared.recordRequest(for: .coinGecko)
         
         let up = symbol.uppercased()
-        guard var comps = URLComponents(string: "https://api.coingecko.com/api/v3/search") else { return nil }
+        guard var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/search") else { return nil }
         comps.queryItems = [URLQueryItem(name: "query", value: up)]
         guard let url = comps.url else { return nil }
         var request = APIConfig.coinGeckoRequest(url: url)
@@ -992,7 +992,7 @@ final class TechnicalsViewModel: ObservableObject {
     // MARK: - Data
     private func fetchCloses(coinID: String, interval: ChartInterval) async -> [Double]? {
         let days = daysForInterval(interval)
-        var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/\(coinID)/market_chart")
+        var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/\(coinID)/market_chart")
         comps?.queryItems = [
             URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
             URLQueryItem(name: "days", value: String(days))

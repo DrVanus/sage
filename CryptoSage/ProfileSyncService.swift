@@ -332,12 +332,11 @@ final class ProfileSyncService: ObservableObject {
             
             let profileRef = db.collection("users").document(userId).collection("profile").document("data")
             
-            profileRef.setData(profileData, merge: true) { [weak self] error in
-                if let error = error {
-                    self?.logger.error("🔥 [ProfileSync] Failed to sync profile to Firestore: \(error.localizedDescription)")
-                } else {
-                    self?.logger.debug("🔥 [ProfileSync] Profile synced to Firestore successfully")
-                }
+            do {
+                try await profileRef.setData(profileData, merge: true)
+                logger.debug("🔥 [ProfileSync] Profile synced to Firestore successfully")
+            } catch {
+                logger.error("🔥 [ProfileSync] Failed to sync profile to Firestore: \(error.localizedDescription)")
             }
         }
     }

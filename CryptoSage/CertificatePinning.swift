@@ -24,7 +24,8 @@ final class CertificatePinningManager: NSObject {
         "api.binance.com",
         "api.coinbase.com",
         "api.3commas.io",
-        "api.coingecko.com"
+        "api.coingecko.com",
+        "pro-api.coingecko.com"
     ]
     
     // MARK: - Public Key Hashes (SHA-256)
@@ -68,6 +69,11 @@ final class CertificatePinningManager: NSObject {
         ],
         "api.coingecko.com": [
             // CoinGecko uses CloudFlare
+            "hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=", // DigiCert Global Root CA
+            "RQeZkB42znUfsDIIFWIRiYEcKl7nHwNFwWCrnMMJbVc=", // DigiCert SHA2 EV CA
+        ],
+        "pro-api.coingecko.com": [
+            // CoinGecko Pro uses same CloudFlare/DigiCert infrastructure
             "hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=", // DigiCert Global Root CA
             "RQeZkB42znUfsDIIFWIRiYEcKl7nHwNFwWCrnMMJbVc=", // DigiCert SHA2 EV CA
         ]

@@ -984,7 +984,7 @@ final class CoinGeckoPriceService: PriceService {
                 // Construct URL for non-empty ID list
                 var comps = URLComponents()
                 comps.scheme = "https"
-                comps.host = "api.coingecko.com"
+                comps.host = APIConfig.coingeckoHost
                 comps.path = "/api/v3/simple/price"
                 comps.queryItems = [
                     URLQueryItem(name: "ids", value: idList),
@@ -999,14 +999,6 @@ final class CoinGeckoPriceService: PriceService {
 
                 var req = APIConfig.coinGeckoRequest(url: url)
                 req.httpMethod = "GET"
-                // Optional API key support via Info.plist
-                if let info = Bundle.main.infoDictionary {
-                    if let proKey = info["COINGECKO_API_KEY"] as? String, !proKey.isEmpty {
-                        req.setValue(proKey, forHTTPHeaderField: "x-cg-pro-api-key")
-                    } else if let demoKey = info["COINGECKO_DEMO_API_KEY"] as? String, !demoKey.isEmpty {
-                        req.setValue(demoKey, forHTTPHeaderField: "x-cg-demo-api-key")
-                    }
-                }
 
                 return self.session.dataTaskPublisher(for: req)
                     .timeout(.seconds(10), scheduler: DispatchQueue.main)

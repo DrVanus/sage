@@ -9,7 +9,7 @@
 //  ChartDetailView.swift
 //  CryptoSage
 //
-//  Created by ChatGPT on 05/27/25
+//  Created by DM on 05/27/25
 //
 
 

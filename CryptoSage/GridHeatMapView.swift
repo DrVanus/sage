@@ -163,7 +163,6 @@ public struct GridHeatMapView: View {
                 let fill = HeatMapSharedLib.color(for: ch, bound: b, palette: effectivePalette, timeframe: timeframe, isLightMode: isLightMode)
                 let labels = HeatMapSharedLib.labelColors(for: ch, bound: b, palette: effectivePalette, forceWhite: forceWhiteLabels, timeframe: timeframe, selected: selected, isLightMode: isLightMode)
                 let badgeLabels = HeatMapSharedLib.badgeLabelColors(for: ch, bound: b, palette: effectivePalette, forceWhite: forceWhiteLabels, timeframe: timeframe, selected: selected, isLightMode: isLightMode)
-                let outlineOpacity = HeatMapSharedLib.labelOutlineOpacity(for: ch, bound: b, palette: effectivePalette, timeframe: timeframe, isLightMode: isLightMode)
                 let width = proxy.size.width
                 let small = width < 110
                 let symbol = tile.id == "Others" ? tile.symbol : tile.symbol.uppercased()

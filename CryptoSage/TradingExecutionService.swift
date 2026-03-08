@@ -236,7 +236,7 @@ public enum TradingExchange: String, Codable, CaseIterable, Identifiable {
     
     public var requiresPassphrase: Bool {
         switch self {
-        case .coinbase, .kucoin, .okx: return true
+        case .kucoin, .okx: return true
         default: return false
         }
     }
@@ -1300,31 +1300,38 @@ public actor TradingExecutionService {
         ) {
             return OrderResult(success: false, errorMessage: validationError, exchange: credentials.exchange.rawValue)
         }
-        
+
+        // Use Advanced Trade API v3 order format
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "POST"
-        let path = "/orders"
-        
-        var body: [String: Any] = [
-            "product_id": productId,
-            "side": side.rawValue.lowercased(),
-            "size": formatQuantity(quantity)
-        ]
-        
+        let path = "/api/v3/brokerage/orders"
+        let clientOrderId = UUID().uuidString
+
+        // Build order_configuration per Advanced Trade API spec
+        var orderConfig: [String: Any] = [:]
         if type == .market {
-            body["type"] = "market"
+            orderConfig["market_market_ioc"] = ["base_size": formatQuantity(quantity)]
         } else if type == .limit, let price = price {
-            body["type"] = "limit"
-            body["price"] = formatPrice(price)
-            body["time_in_force"] = "GTC"
+            orderConfig["limit_limit_gtc"] = [
+                "base_size": formatQuantity(quantity),
+                "limit_price": formatPrice(price),
+                "post_only": false
+            ]
         }
-        
+
+        let body: [String: Any] = [
+            "client_order_id": clientOrderId,
+            "product_id": productId,
+            "side": side.rawValue.uppercased(),
+            "order_configuration": orderConfig
+        ]
+
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         let bodyString = String(data: bodyData, encoding: .utf8) ?? ""
-        
+
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
+
         guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -1333,116 +1340,108 @@ public actor TradingExecutionService {
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             return OrderResult(success: false, errorMessage: "Invalid response", exchange: credentials.exchange.rawValue)
         }
-        
+
         if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let orderId = json["id"] as? String
-                let status = json["status"] as? String
-                let filledSize = (json["filled_size"] as? String).flatMap { Double($0) }
-                let executedValue = (json["executed_value"] as? String).flatMap { Double($0) }
-                
-                // Calculate average price from executed value / filled size
-                let calculatedAvgPrice: Double? = {
-                    guard let execVal = executedValue, let fs = filledSize, fs > 0 else {
-                        return nil
-                    }
-                    return execVal / fs
-                }()
-                
-                return OrderResult(
-                    success: true,
-                    orderId: orderId,
-                    status: mapCoinbaseStatus(status),
-                    filledQuantity: filledSize,
-                    averagePrice: calculatedAvgPrice,
-                    exchange: credentials.exchange.rawValue
-                )
+                // Advanced Trade API v3 response format
+                let success = json["success"] as? Bool ?? false
+                if success, let successResp = json["success_response"] as? [String: Any] {
+                    let orderId = successResp["order_id"] as? String
+                    return OrderResult(
+                        success: true,
+                        orderId: orderId,
+                        status: .pending,
+                        exchange: credentials.exchange.rawValue
+                    )
+                } else if let errorResp = json["error_response"] as? [String: Any] {
+                    let errorMsg = errorResp["message"] as? String ?? "Order rejected"
+                    return OrderResult(success: false, errorMessage: errorMsg, exchange: credentials.exchange.rawValue)
+                }
             }
         }
-        
+
         let errorMsg = parseErrorMessage(data: data, statusCode: httpResponse.statusCode)
         return OrderResult(success: false, errorMessage: errorMsg, exchange: credentials.exchange.rawValue)
     }
     
     private func fetchCoinbaseBalances(credentials: TradingCredentials) async throws -> [AssetBalance] {
+        // Use Advanced Trade API v3 endpoint
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "GET"
-        let path = "/accounts"
-        
+        let path = "/api/v3/brokerage/accounts"
+
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
+
         guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw TradingError.apiError(message: "Failed to fetch balances")
         }
-        
-        guard let accounts = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+
+        // Advanced Trade API v3 returns { "accounts": [...] } wrapper
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let accounts = json["accounts"] as? [[String: Any]] else {
             throw TradingError.parseError
         }
-        
+
         return accounts.compactMap { item -> AssetBalance? in
             guard let currency = item["currency"] as? String,
-                  let balanceStr = item["balance"] as? String,
-                  let availableStr = item["available"] as? String,
-                  let balance = Double(balanceStr),
+                  let availableBalance = item["available_balance"] as? [String: Any],
+                  let availableStr = availableBalance["value"] as? String,
                   let available = Double(availableStr),
-                  balance > 0 else {
+                  available > 0 else {
                 return nil
             }
-            return AssetBalance(asset: currency, free: available, locked: balance - available)
+            let holdBalance = item["hold"] as? [String: Any]
+            let holdStr = holdBalance?["value"] as? String ?? "0"
+            let hold = Double(holdStr) ?? 0
+            return AssetBalance(asset: currency, free: available, locked: hold)
         }
     }
     
     private func testCoinbaseConnection(credentials: TradingCredentials) async throws -> Bool {
+        // Use Advanced Trade API v3 endpoint (not deprecated Exchange/Pro API)
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "GET"
-        let path = "/accounts"
-        
+        let path = "/api/v3/brokerage/accounts"
+
         let message = timestamp + method + path
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
+
         guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+        // Note: Advanced Trade API does NOT use CB-ACCESS-PASSPHRASE (that was deprecated Coinbase Pro)
+
         let (_, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else { return false }
         return httpResponse.statusCode == 200
     }
     
     /// Fetch open orders from Coinbase
     private func fetchCoinbaseOpenOrders(credentials: TradingCredentials, symbol: String?) async throws -> [OpenOrder] {
+        // Use Advanced Trade API v3 endpoint for listing orders
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "GET"
-        var path = "/orders?status=open&status=pending"
+        var path = "/api/v3/brokerage/orders/historical/batch?order_status=OPEN&order_status=PENDING"
 
         if let symbol = symbol {
             let productId = normalizeCoinbaseProductId(symbol)
@@ -1458,47 +1457,58 @@ public actor TradingExecutionService {
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorMsg = parseErrorMessage(data: data, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0)
             throw TradingError.apiError(message: errorMsg)
         }
-        
-        guard let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+
+        // Advanced Trade API v3 returns { "orders": [...] }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let jsonArray = json["orders"] as? [[String: Any]] else {
             throw TradingError.parseError
         }
-        
+
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
+
         return jsonArray.compactMap { item -> OpenOrder? in
-            guard let orderId = item["id"] as? String,
+            guard let orderId = item["order_id"] as? String,
                   let productId = item["product_id"] as? String,
                   let sideStr = item["side"] as? String,
-                  let typeStr = item["type"] as? String else {
+                  let typeStr = item["order_type"] as? String else {
                 return nil
             }
-            
-            let price = Double(item["price"] as? String ?? "0") ?? 0
-            let size = Double(item["size"] as? String ?? "0") ?? 0
+
+            // v3 nests price/size inside order_configuration
             let filledSize = Double(item["filled_size"] as? String ?? "0") ?? 0
-            let statusStr = item["status"] as? String ?? "open"
-            let createdAtStr = item["created_at"] as? String ?? ""
+            let statusStr = item["status"] as? String ?? "OPEN"
+            let createdAtStr = item["created_time"] as? String ?? ""
             let createdAt = dateFormatter.date(from: createdAtStr) ?? Date()
-            
+            let avgPrice = Double(item["average_filled_price"] as? String ?? "0") ?? 0
+
+            // Extract limit price from order_configuration if available
+            var limitPrice: Double = 0
+            var orderSize: Double = 0
+            if let orderConfig = item["order_configuration"] as? [String: Any] {
+                if let limitConfig = orderConfig["limit_limit_gtc"] as? [String: Any] {
+                    limitPrice = Double(limitConfig["limit_price"] as? String ?? "0") ?? 0
+                    orderSize = Double(limitConfig["base_size"] as? String ?? "0") ?? 0
+                } else if let marketConfig = orderConfig["market_market_ioc"] as? [String: Any] {
+                    orderSize = Double(marketConfig["base_size"] as? String ?? "0") ?? 0
+                }
+            }
+
             return OpenOrder(
                 id: orderId,
                 exchange: credentials.exchange,
                 symbol: productId.replacingOccurrences(of: "-", with: ""),
-                side: sideStr.lowercased() == "buy" ? .buy : .sell,
-                type: typeStr.lowercased() == "market" ? .market : .limit,
-                price: price,
-                quantity: size,
+                side: sideStr.uppercased() == "BUY" ? .buy : .sell,
+                type: typeStr.uppercased().contains("MARKET") ? .market : .limit,
+                price: limitPrice > 0 ? limitPrice : avgPrice,
+                quantity: orderSize,
                 filledQuantity: filledSize,
                 status: mapCoinbaseStatus(statusStr) ?? .new,
                 createdAt: createdAt
@@ -1506,40 +1516,49 @@ public actor TradingExecutionService {
         }
     }
     
-    /// Cancel an order on Coinbase
+    /// Cancel an order on Coinbase (Advanced Trade API v3)
     private func cancelCoinbaseOrder(credentials: TradingCredentials, orderId: String) async throws -> CancelOrderResult {
         let timestamp = String(Int(Date().timeIntervalSince1970))
-        let method = "DELETE"
-        let path = "/orders/\(orderId)"
-        
-        let message = timestamp + method + path
+        let method = "POST"
+        let path = "/api/v3/brokerage/orders/batch_cancel"
+
+        let body: [String: Any] = ["order_ids": [orderId]]
+        let bodyData = try JSONSerialization.data(withJSONObject: body)
+        let bodyString = String(data: bodyData, encoding: .utf8) ?? ""
+
+        let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
+
         guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.httpBody = bodyData
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             return CancelOrderResult(success: false, orderId: orderId, exchange: credentials.exchange, errorMessage: "Invalid response")
         }
-        
-        if httpResponse.statusCode == 200 || httpResponse.statusCode == 204 {
-            return CancelOrderResult(success: true, orderId: orderId, exchange: credentials.exchange)
+
+        if httpResponse.statusCode == 200 {
+            // v3 returns { "results": [{ "success": true, "order_id": "..." }] }
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let results = json["results"] as? [[String: Any]],
+               let first = results.first,
+               let success = first["success"] as? Bool, success {
+                return CancelOrderResult(success: true, orderId: orderId, exchange: credentials.exchange)
+            }
         }
-        
+
         let errorMsg = parseErrorMessage(data: data, statusCode: httpResponse.statusCode)
         return CancelOrderResult(success: false, orderId: orderId, exchange: credentials.exchange, errorMessage: errorMsg)
     }
     
-    /// Submit a stop order on Coinbase
+    /// Submit a stop order on Coinbase (Advanced Trade API v3)
     private func submitCoinbaseStopOrder(
         credentials: TradingCredentials,
         symbol: String,
@@ -1556,35 +1575,45 @@ public actor TradingExecutionService {
         ) {
             return OrderResult(success: false, errorMessage: validationError, exchange: credentials.exchange.rawValue)
         }
-        
+
         let timestamp = String(Int(Date().timeIntervalSince1970))
         let method = "POST"
-        let path = "/orders"
-        
-        var body: [String: Any] = [
-            "product_id": productId,
-            "side": side.rawValue.lowercased(),
-            "size": formatQuantity(quantity),
-            "stop": side == .sell ? "loss" : "entry",  // loss for sell stop, entry for buy stop
-            "stop_price": formatPrice(stopPrice)
-        ]
-        
+        let path = "/api/v3/brokerage/orders"
+        let clientOrderId = UUID().uuidString
+
+        // Advanced Trade API v3 stop order configuration
+        var orderConfig: [String: Any] = [:]
         if let limitPrice = limitPrice {
-            // Stop-limit order
-            body["type"] = "limit"
-            body["price"] = formatPrice(limitPrice)
-            body["time_in_force"] = "GTC"
+            // Stop-limit order (GTC)
+            orderConfig["stop_limit_stop_limit_gtc"] = [
+                "base_size": formatQuantity(quantity),
+                "limit_price": formatPrice(limitPrice),
+                "stop_price": formatPrice(stopPrice),
+                "stop_direction": side == .sell ? "STOP_DIRECTION_STOP_DOWN" : "STOP_DIRECTION_STOP_UP"
+            ]
         } else {
-            // Stop-market order
-            body["type"] = "market"
+            // Stop-market via trigger bracket — use stop-limit with same trigger & limit
+            orderConfig["stop_limit_stop_limit_gtc"] = [
+                "base_size": formatQuantity(quantity),
+                "limit_price": formatPrice(stopPrice),
+                "stop_price": formatPrice(stopPrice),
+                "stop_direction": side == .sell ? "STOP_DIRECTION_STOP_DOWN" : "STOP_DIRECTION_STOP_UP"
+            ]
         }
-        
+
+        let body: [String: Any] = [
+            "client_order_id": clientOrderId,
+            "product_id": productId,
+            "side": side.rawValue.uppercased(),
+            "order_configuration": orderConfig
+        ]
+
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         let bodyString = String(data: bodyData, encoding: .utf8) ?? ""
-        
+
         let message = timestamp + method + path + bodyString
         let signature = hmacSHA256Base64(message: message, key: credentials.apiSecret)
-        
+
         guard let url = URL(string: credentials.exchange.restBaseURL.absoluteString + path) else { throw TradingError.apiError(message: "Invalid URL") }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -1593,30 +1622,31 @@ public actor TradingExecutionService {
         request.setValue(credentials.apiKey, forHTTPHeaderField: "CB-ACCESS-KEY")
         request.setValue(signature, forHTTPHeaderField: "CB-ACCESS-SIGN")
         request.setValue(timestamp, forHTTPHeaderField: "CB-ACCESS-TIMESTAMP")
-        if let passphrase = credentials.passphrase {
-            request.setValue(passphrase, forHTTPHeaderField: "CB-ACCESS-PASSPHRASE")
-        }
-        
+
         let (data, response) = try await session.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             return OrderResult(success: false, errorMessage: "Invalid response", exchange: credentials.exchange.rawValue)
         }
-        
+
         if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let orderId = json["id"] as? String
-                let status = json["status"] as? String
-                
-                return OrderResult(
-                    success: true,
-                    orderId: orderId,
-                    status: mapCoinbaseStatus(status),
-                    exchange: credentials.exchange.rawValue
-                )
+                let success = json["success"] as? Bool ?? false
+                if success, let successResp = json["success_response"] as? [String: Any] {
+                    let orderId = successResp["order_id"] as? String
+                    return OrderResult(
+                        success: true,
+                        orderId: orderId,
+                        status: .pending,
+                        exchange: credentials.exchange.rawValue
+                    )
+                } else if let errorResp = json["error_response"] as? [String: Any] {
+                    let errorMsg = errorResp["message"] as? String ?? "Stop order rejected"
+                    return OrderResult(success: false, errorMessage: errorMsg, exchange: credentials.exchange.rawValue)
+                }
             }
         }
-        
+
         let errorMsg = parseErrorMessage(data: data, statusCode: httpResponse.statusCode)
         return OrderResult(success: false, errorMessage: errorMsg, exchange: credentials.exchange.rawValue)
     }

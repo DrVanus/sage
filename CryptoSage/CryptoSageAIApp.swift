@@ -319,10 +319,14 @@ struct CryptoSageAIApp: App {
         URLCache.shared = URLCache(memoryCapacity: 4 * 1024 * 1024,
                                     diskCapacity: 20 * 1024 * 1024)
 
-        // SECURITY: Configure Firebase App Check BEFORE Firebase initialization
-        // This ensures all Cloud Functions requests include App Check tokens
-        AppCheckManager.shared.configure()
-        logMemory("After App Check config")
+        // SECURITY: Firebase App Check
+        // DISABLED: The App Check API is not enabled on the Google Cloud project.
+        // Configuring it sends invalid tokens that can interfere with Cloud Function calls.
+        // To re-enable: 1) Enable Firebase App Check API in Google Cloud Console
+        //               2) Register debug tokens (DEBUG) or App Attest (RELEASE) in Firebase Console
+        //               3) Uncomment the line below
+        // AppCheckManager.shared.configure()
+        logMemory("After App Check config (skipped)")
 
         // PERFORMANCE FIX: Firebase must be configured early, but we yield immediately after
         // to let the main run loop process pending UI work. This prevents a long blocking chain.
@@ -362,18 +366,18 @@ struct CryptoSageAIApp: App {
             }
         }
 
-        // SECURITY: Verify App Check is working (in DEBUG builds only)
-        #if DEBUG
-        Task.detached(priority: .utility) {
-            AppCheckManager.shared.verifySetup { success in
-                if success {
-                    print("✅ [App Check] Verification passed - Cloud Functions are protected")
-                } else {
-                    print("⚠️ [App Check] Verification failed - check debug token registration")
-                }
-            }
-        }
-        #endif
+        // SECURITY: App Check verification (disabled — API not enabled on project)
+        // #if DEBUG
+        // Task.detached(priority: .utility) {
+        //     AppCheckManager.shared.verifySetup { success in
+        //         if success {
+        //             print("✅ [App Check] Verification passed - Cloud Functions are protected")
+        //         } else {
+        //             print("⚠️ [App Check] Verification failed - check debug token registration")
+        //         }
+        //     }
+        // }
+        // #endif
         
         // PERFORMANCE FIX: Defer cache clearing to background to avoid blocking main thread at launch
         // Check flags synchronously (fast) but clear caches asynchronously (file I/O)
@@ -585,9 +589,9 @@ struct CryptoSageAIApp: App {
         // Safe mode is permanently disabled — the NUKE death spiral was the real problem.
         
         // Data pipeline shortly after first paint.
-        // Waiting too long here delays watchlist/section population on Home.
+        // Start Firestore sync early so prices populate quickly.
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 800_000_000) // +0.8s
+            try? await Task.sleep(nanoseconds: 400_000_000) // +0.4s
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             
             // Startup pressure gate: defer live pipeline if memory is already high.
@@ -613,8 +617,8 @@ struct CryptoSageAIApp: App {
                     logMemory("Phase 2 BEGIN (retry)")
                     FirestoreMarketSync.shared.startListening()
                     didStartRealtimePipeline = true
-                    // Keep a brief gap so UI remains smooth while enabling fresher data quickly.
-                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    // Brief stagger to let Firestore listener initialize before polling starts
+                    try? await Task.sleep(nanoseconds: 500_000_000)
                     guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
                     LivePriceManager.shared.startPolling(interval: 30)
                     logMemory("Phase 2 DONE (retry)")
@@ -625,11 +629,30 @@ struct CryptoSageAIApp: App {
             logMemory("Phase 2 BEGIN (Firestore + polling)")
             FirestoreMarketSync.shared.startListening()
             didStartRealtimePipeline = true
-            // Keep a short stagger: enough to reduce contention, but not enough to feel stale.
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            // Brief stagger to let Firestore listener initialize before polling starts
+            try? await Task.sleep(nanoseconds: 500_000_000)
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             LivePriceManager.shared.startPolling(interval: 30)
             logMemory("Phase 2 DONE (Firestore + polling)")
+        }
+
+        // Phase 2b (600ms): Prefetch commodity prices so section is ready when visible.
+        // Without this, commodities only start loading when the section scrolls into view,
+        // causing a long shimmer delay for Gold/Silver/Platinum prices.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000) // +0.6s
+            guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
+            let manager = CommodityLivePriceManager.shared
+            if !manager.isPolling {
+                let commodities: Set<String> = [
+                    "gold", "silver", "platinum", "palladium",
+                    "copper", "crude_oil", "natural_gas", "brent_oil", "gasoline"
+                ]
+                manager.startPolling(for: commodities)
+                #if DEBUG
+                print("📊 [Startup] Prefetched commodity prices at Phase 2b")
+                #endif
+            }
         }
         
         // Phase 2.5 (3s): Early StoreKit subscription tier validation
@@ -637,7 +660,7 @@ struct CryptoSageAIApp: App {
         // stale (expired subscription) or tampered. Previously, StoreKit validation didn't
         // run until Phase 6 (35s+), leaving a window where an invalid tier was trusted.
         // This lightweight check only verifies entitlements — no product loading or ad init.
-        Task {
+        Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
             await SubscriptionManager.shared.validateWithStoreKit()

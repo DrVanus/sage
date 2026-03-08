@@ -478,8 +478,8 @@ final class APIConfig {
         )
     }
 
-    // MARK: - CoinGecko Demo API Key
-    
+    // MARK: - CoinGecko API Key & Host Detection
+
     /// CoinGecko Demo API key for higher rate limits (30 calls/min vs 10 calls/min).
     /// This is used as a fallback when direct API calls are needed (Firestore pipeline is primary).
     /// The same key is used on the Firebase server side.
@@ -498,20 +498,69 @@ final class APIConfig {
         let pre = ["C", "G", "-"].joined()  // "CG-"
         return pre + f + e + d + c + b + a
     }()
-    
-    /// Create a URLRequest for CoinGecko API calls with the Demo API key header.
+
+    /// Detects if a CoinGecko Pro API key is configured via Info.plist.
+    /// Pro keys MUST use `pro-api.coingecko.com` — using `api.coingecko.com` returns error 10010.
+    static let hasProAPIKey: Bool = {
+        if let info = Bundle.main.infoDictionary,
+           let proKey = info["COINGECKO_API_KEY"] as? String,
+           !proKey.isEmpty {
+            return true
+        }
+        return false
+    }()
+
+    /// The CoinGecko Pro API key from Info.plist (empty string if not set).
+    static let coingeckoProAPIKey: String = {
+        (Bundle.main.infoDictionary?["COINGECKO_API_KEY"] as? String) ?? ""
+    }()
+
+    /// Set to `true` at runtime when CoinGecko returns error 10010, indicating the
+    /// "demo" key is actually registered as a Pro key on CoinGecko's backend.
+    /// Once set, all subsequent requests use `pro-api.coingecko.com` automatically.
+    /// Persisted in UserDefaults so future launches skip the initial failed call.
+    private static let forceProHostKey = "CryptoSage.forceProHost"
+    static var forceProHost: Bool {
+        get { UserDefaults.standard.bool(forKey: forceProHostKey) }
+        set { UserDefaults.standard.set(newValue, forKey: forceProHostKey) }
+    }
+
+    /// Whether we should use the Pro API host (either explicit key in plist or runtime detection).
+    static var shouldUseProHost: Bool {
+        hasProAPIKey || forceProHost
+    }
+
+    /// Returns the correct CoinGecko host based on API key type.
+    /// Pro keys → `pro-api.coingecko.com`, Demo/free keys → `api.coingecko.com`.
+    /// Also respects `forceProHost` which is set when error 10010 is detected at runtime.
+    static var coingeckoHost: String {
+        shouldUseProHost ? "pro-api.coingecko.com" : "api.coingecko.com"
+    }
+
+    /// Create a URLRequest for CoinGecko API calls with the correct API key header.
+    /// Automatically uses Pro key + pro host, or Demo key + demo host.
     /// Use this instead of creating bare URLRequests for CoinGecko endpoints.
     static func coinGeckoRequest(url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(coingeckoDemoAPIKey, forHTTPHeaderField: "x-cg-demo-api-key")
+        if shouldUseProHost {
+            // When Pro host is active, send the key as Pro header.
+            // Use explicit Pro key from plist if available, otherwise the embedded key.
+            let key = hasProAPIKey ? coingeckoProAPIKey : coingeckoDemoAPIKey
+            request.setValue(key, forHTTPHeaderField: "x-cg-pro-api-key")
+        } else {
+            request.setValue(coingeckoDemoAPIKey, forHTTPHeaderField: "x-cg-demo-api-key")
+        }
         return request
     }
-    
+
     // MARK: - Base URLs
-    
+
     /// Base URLs for cryptocurrency data.
-    static let coingeckoBaseURL = "https://api.coingecko.com/api/v3"
+    /// Automatically uses pro-api.coingecko.com when a Pro API key is configured.
+    static var coingeckoBaseURL: String {
+        "https://\(coingeckoHost)/api/v3"
+    }
     static let coinpaprikaBaseURL = "https://api.coinpaprika.com/api/v1"
     static let coinbaseBaseURL = "https://api.coinbase.com/api/v2"
     

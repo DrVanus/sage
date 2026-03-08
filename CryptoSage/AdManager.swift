@@ -906,11 +906,20 @@ public struct InterstitialAdCoordinator {
 // MARK: - Subscription Change Notification
 
 extension SubscriptionManager {
-    /// Post notification when subscription status changes
+    /// Post notification when subscription status changes.
+    /// Ensures main-thread delivery so observers updating ObservableObjects
+    /// (PortfolioViewModel, etc.) don't trigger background-thread warnings.
     public func notifySubscriptionChanged() {
-        NotificationCenter.default.post(
-            name: NSNotification.Name("SubscriptionStatusChanged"),
-            object: nil
-        )
+        let post = {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("SubscriptionStatusChanged"),
+                object: nil
+            )
+        }
+        if Thread.isMainThread {
+            post()
+        } else {
+            DispatchQueue.main.async(execute: post)
+        }
     }
 }

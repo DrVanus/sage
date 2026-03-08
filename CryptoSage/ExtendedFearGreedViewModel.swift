@@ -178,12 +178,12 @@ final class ExtendedFearGreedViewModel: ObservableObject {
     private var aiObservationLastResetDate: Date = Date()
     
     /// Current user's daily AI observation limit
-    public var currentAIObservationLimit: Int {
+    @MainActor public var currentAIObservationLimit: Int {
         aiObservationDailyLimit(for: SubscriptionManager.shared.effectiveTier)
     }
-    
+
     /// Whether user can generate a new AI observation
-    public var canGenerateAIObservation: Bool {
+    @MainActor public var canGenerateAIObservation: Bool {
         // Developer mode bypasses all limits
         if SubscriptionManager.shared.isDeveloperMode { return true }
         checkAIObservationDailyReset()
@@ -191,7 +191,7 @@ final class ExtendedFearGreedViewModel: ObservableObject {
     }
     
     /// Remaining AI observations for today
-    public var remainingAIObservations: Int {
+    @MainActor public var remainingAIObservations: Int {
         checkAIObservationDailyReset()
         return max(0, currentAIObservationLimit - aiObservationsUsedToday)
     }
@@ -217,7 +217,7 @@ final class ExtendedFearGreedViewModel: ObservableObject {
         UserDefaults.standard.set(aiObservationLastResetDate, forKey: aiObservationUsageResetKey)
     }
     
-    private func recordAIObservationUsage() {
+    @MainActor private func recordAIObservationUsage() {
         // Don't count usage in developer mode (allows unlimited testing)
         if SubscriptionManager.shared.isDeveloperMode { return }
         checkAIObservationDailyReset()

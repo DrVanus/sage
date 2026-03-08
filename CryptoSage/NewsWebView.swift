@@ -1,7 +1,7 @@
 // NewsWebView.swift
-// CSAI1
+// CryptoSage
 //
-// Created by ChatGPT on 4/18/25.
+// Created by DM on 4/18/25.
 // Native SwiftUI crypto‑news feed (no WKWebView).
 
 import SwiftUI

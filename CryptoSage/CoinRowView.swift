@@ -494,16 +494,11 @@ struct CoinRowView: View {
                     fallback: precomputedIsPositive7D
                 )
             }
-            // COLOR REFRESH FIX: Even when precomputed values ARE ready, if the precomputed
-            // isPositive7D was computed during grace period (nil provider data), it may be wrong.
-            // Do a quick check against the coin's embedded values as a safety net.
-            let precomputed = precomputedIsPositive7D
-            if let p24 = coin.priceChangePercentage24hInCurrency, p24.isFinite, abs(p24) > 0.5 {
-                // If the 24h change strongly disagrees with the precomputed value, override
-                let fresh24Positive = p24 >= 0
-                if fresh24Positive != precomputed { return fresh24Positive }
-            }
-            return precomputed
+            // 7D COLOR INTEGRITY: Use precomputed 7D value without 24h override.
+            // The 7D sparkline color should reflect 7D direction, not 24h.
+            // If the precomputed value was stale, it will be refreshed on the next
+            // lifecycle update via updateCachedWeekPositive().
+            return precomputedIsPositive7D
         }()
         // 24H LOADING FIX: When precomputed value isn't ready yet, use coin's embedded 24H%
         // This prevents showing "—" for several seconds while the full computation runs.

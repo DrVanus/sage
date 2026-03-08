@@ -593,7 +593,7 @@ final class LivePriceManager {
     // 2. Sparkline-derived values
     // 3. Fresh Binance API values
     @MainActor private var startupTime: Date = Date()
-    @MainActor private let startupGracePeriod: TimeInterval = 3  // Don't trust embedded percentages for 3s (Firestore delivers in ~1-2s)
+    @MainActor private let startupGracePeriod: TimeInterval = 8  // Don't derive from sparkline for 8s — CoinGecko via Firebase proxy takes 3-6s
     
     @MainActor private var isInStartupGracePeriod: Bool {
         Date().timeIntervalSince(startupTime) < startupGracePeriod
@@ -621,7 +621,15 @@ final class LivePriceManager {
     @MainActor
     private func isFreshSidecarValue(updatedAt: Date?, maxAge: TimeInterval) -> Bool {
         guard let updatedAt else { return false }
-        return Date().timeIntervalSince(updatedAt) <= maxAge
+        // STARTUP FIX: During grace period, accept sidecar values up to maxSidecarCacheAge (6h).
+        // The strict 3-minute read age is too aggressive at launch — the user typically hasn't
+        // opened the app in 3+ minutes, so ALL sidecar values fail the freshness check.
+        // This leaves coins with no percent data (no provider, no sidecar, no derivation)
+        // causing them to show "—" or nothing during the first 5-10 seconds.
+        // Using the persistence threshold (6h) during startup lets previous-session values
+        // serve as a bridge until fresh CoinGecko data arrives.
+        let effectiveMaxAge = isInStartupGracePeriod ? max(maxAge, maxSidecarCacheAge) : maxAge
+        return Date().timeIntervalSince(updatedAt) <= effectiveMaxAge
     }
     
     @MainActor private func safeGet1hChange(_ key: String) -> Double? {
@@ -1721,22 +1729,18 @@ final class LivePriceManager {
         // All users benefit from shared data - cost effective and fast.
         triggerImmediateOverlay()
         
-        // SPARKLINE FIX: Only clear cache on TRUE cold start (first call after app launch)
-        // Previously this ran on every startPolling() call (tab switches, foreground returns, etc.)
-        // which caused sparklines and percentages to flicker/disappear repeatedly.
-        // Now we only clear once per app session on the very first call.
+        // SIDECAR FRESHNESS FIX: No longer bulk-clearing the sidecar on cold start.
+        // Previously this wiped all cached percent values, creating a gap where every
+        // sidecar lookup returned nil until CoinGecko data arrived (5-10s). This caused
+        // coins like BTC to show no percent data during startup.
+        //
+        // The sidecar is now protected by isFreshSidecarValue() which:
+        //   - During startup grace period (8s): accepts values up to 6 hours old (bridge from previous session)
+        //   - After grace period: enforces strict 3-minute freshness (only fresh provider values)
+        // Fresh CoinGecko data naturally overwrites stale values within seconds.
         let isColdStart = !hasDoneColdStartClear
         if isColdStart {
             hasDoneColdStartClear = true
-            let hadCachedPercentages = !last24hChangeBySymbol.isEmpty
-            last1hChangeBySymbol.removeAll()
-            last24hChangeBySymbol.removeAll()
-            last7dChangeBySymbol.removeAll()
-            last1hChangeUpdatedAt.removeAll()
-            last24hChangeUpdatedAt.removeAll()
-            if hadCachedPercentages {
-                logger.info("♻️ [LivePriceManager] Cleared stale percent cache on startup")
-            }
         }
         
         // FIX: Prefer MarketViewModel.shared.allCoins as the primary source for initial coins
@@ -2138,7 +2142,8 @@ final class LivePriceManager {
     }
     
     private func pollMarketCoins() async {
-        guard !CryptoSageAIApp.isEmergencyStopActive() else { return }
+        let emergencyStop = await MainActor.run { CryptoSageAIApp.isEmergencyStopActive() }
+        guard !emergencyStop else { return }
 
         let shouldSkipRapidPoll: Bool = await MainActor.run {
             guard let last = self.lastSuccessfulMarketPollAt else { return false }
@@ -4658,13 +4663,20 @@ final class LivePriceManager {
         return derivedPercentFromSeries(series, hours: hours, anchorPrice: coin.priceUsd)
     }
 
-    /// Returns a copy of `coins` where 1h/24h percent fields are replaced by best-available values (provider or sidecar only).
-    /// No sparkline derivation is performed here to keep emission work light on the MainActor.
+    /// Returns a copy of `coins` where 1h/24h/7d percent fields are filled from best-available
+    /// sources: provider value → sidecar cache → sparkline derivation (only after grace period).
+    /// During the startup grace period, sparkline derivation is SKIPPED because stale sparklines
+    /// produce wildly inaccurate estimates (e.g., ETH -49% instead of -1%).
     @MainActor private func augmentedCoinsWithDerivedPercents(_ coins: [MarketCoin]) -> [MarketCoin] {
         // MEMORY FIX: Periodically prune symbol caches to prevent unbounded growth
         pruneSymbolCachesIfNeeded()
-        
+
         var out = coins
+
+        // ACCURACY FIX: During startup, CoinGecko data hasn't arrived yet.
+        // Sparkline derivation from stale/cached data produces wildly wrong values.
+        // Only allow derivation after the grace period (8s) when fresh data is likely available.
+        let skipDerivation = isInStartupGracePeriod
 
         var derived1hSyms: Set<String> = []
         var derived24hSyms: Set<String> = []
@@ -4698,12 +4710,17 @@ final class LivePriceManager {
                 var n24 = p24
                 var n7 = p7
 
-                if allEqual || allZero {
+                // Always sanitize non-finite and absurd values regardless of grace period
+                if isNonFinite(p1) || isAbsurd(p1) { n1 = nil }
+                if isNonFinite(p24) || isAbsurd(p24) { n24 = nil }
+                if isNonFinite(p7) || isAbsurd(p7) { n7 = nil }
+
+                // STARTUP FIX: During grace period, don't wipe allEqual/allZero values.
+                // Provider data might be imprecise or placeholder zeros, but showing "0.00%"
+                // or a rough value is better than showing nothing when there's no fallback
+                // (derivation blocked by grace period, sidecar might be empty for some coins).
+                if !skipDerivation && (allEqual || allZero) {
                     n1 = nil; n24 = nil; n7 = nil
-                } else {
-                    if isNonFinite(p1) || isAbsurd(p1) { n1 = nil }
-                    if isNonFinite(p24) || isAbsurd(p24) { n24 = nil }
-                    if isNonFinite(p7) || isAbsurd(p7) { n7 = nil }
                 }
 
                 if n1 != p1 || n24 != p24 || n7 != p7 {
@@ -4782,7 +4799,7 @@ final class LivePriceManager {
                         totalSupply: c.totalSupply
                     )
                     if debugPercentSourcing { logger.debug("[Pct] 1h from sidecar for \(c.symbol, privacy: .public)") }
-                } else if let derived1h = derivedPercentFromCoin(out[i], hours: 1) {
+                } else if !skipDerivation, let derived1h = derivedPercentFromCoin(out[i], hours: 1) {
                     let c = out[i]
                     out[i] = MarketCoin(
                         id: c.id,
@@ -4801,9 +4818,10 @@ final class LivePriceManager {
                         circulatingSupply: c.circulatingSupply,
                         totalSupply: c.totalSupply
                     )
-                    safeSet1hChange(key, derived1h)
+                    // NOTE: Do NOT cache derived values in the sidecar.
+                    // Sparkline-derived 1h% is an estimate and can be inaccurate;
+                    // caching it would pollute the sidecar and persist wrong data.
                     if debugPercentSourcing { logger.debug("[Pct] 1h derived for \(c.symbol, privacy: .public)") }
-                    schedulePercentSidecarSave()
                     derived1hSyms.insert(c.symbol.lowercased())
                 }
             }
@@ -4829,7 +4847,7 @@ final class LivePriceManager {
                         totalSupply: c.totalSupply
                     )
                     if debugPercentSourcing { logger.debug("[Pct] 24h from sidecar for \(c.symbol, privacy: .public)") }
-                } else if let derived24h = derivedPercentFromCoin(out[i], hours: 24) {
+                } else if !skipDerivation, let derived24h = derivedPercentFromCoin(out[i], hours: 24) {
                     let c = out[i]
                     out[i] = MarketCoin(
                         id: c.id,
@@ -4848,9 +4866,10 @@ final class LivePriceManager {
                         circulatingSupply: c.circulatingSupply,
                         totalSupply: c.totalSupply
                     )
-                    safeSet24hChange(key, derived24h)
+                    // NOTE: Do NOT cache derived values in the sidecar.
+                    // Sparkline-derived 24h% is an estimate and can be inaccurate;
+                    // caching it would pollute the sidecar and persist wrong data.
                     if debugPercentSourcing { logger.debug("[Pct] 24h derived for \(c.symbol, privacy: .public)") }
-                    schedulePercentSidecarSave()
                     derived24hSyms.insert(c.symbol.lowercased())
                 }
             }
@@ -4876,7 +4895,7 @@ final class LivePriceManager {
                         totalSupply: c.totalSupply
                     )
                     if debugPercentSourcing { logger.debug("[Pct] 7d from sidecar for \(c.symbol, privacy: .public)") }
-                } else if let derived7d = derivedPercentFromCoin(out[i], hours: 24*7) {
+                } else if !skipDerivation, let derived7d = derivedPercentFromCoin(out[i], hours: 24*7) {
                     let c = out[i]
                     out[i] = MarketCoin(
                         id: c.id,
@@ -4895,9 +4914,10 @@ final class LivePriceManager {
                         circulatingSupply: c.circulatingSupply,
                         totalSupply: c.totalSupply
                     )
-                    safeSet7dChange(key, derived7d)
+                    // NOTE: Do NOT cache derived values in the sidecar.
+                    // Sparkline-derived 7d% is an estimate and can be inaccurate;
+                    // caching it would pollute the sidecar and persist wrong data.
                     if debugPercentSourcing { logger.debug("[Pct] 7d derived for \(c.symbol, privacy: .public)") }
-                    schedulePercentSidecarSave()
                     derived7dSyms.insert(c.symbol.lowercased())
                 }
             }
@@ -5648,10 +5668,9 @@ final class LivePriceManager {
             if let derived = derivedPercentFromSeries(series, hours: 1, anchorPrice: coin.priceUsd), derived.isFinite {
                 val = derived
                 source = "derived(\(series.count)pts)"
-                // Cache derived values so all views get the same value
-                if abs(derived) <= 50 {
-                    safeSet1hChange(key, derived)
-                }
+                // NOTE: Do NOT cache derived 1h values in the sidecar.
+                // Sparkline-derived percentages are estimates and can be inaccurate.
+                // Provider values from CoinGecko will overwrite when they arrive.
             }
         }
         
@@ -5717,16 +5736,15 @@ final class LivePriceManager {
             return v
         }
         
-        // 2. Sparkline derivation
-        let series = await MainActor.run { canonicalSeries(for: coin) }
-        if let derived = derivedPercentFromSeries(series, hours: 1, anchorPrice: coin.priceUsd), derived.isFinite {
-            await MainActor.run { safeSet1hChange(key, derived) }
-            return derived
-        }
-        
-        // 3. Sidecar cache
+        // 2. Sidecar cache (check before derivation — sidecar has authoritative provider values)
         if let cached = await MainActor.run(body: { safeGet1hChange(key) }), cached.isFinite {
             return cached
+        }
+
+        // 3. Sparkline derivation (do NOT cache — derived values are estimates)
+        let series = await MainActor.run { canonicalSeries(for: coin) }
+        if let derived = derivedPercentFromSeries(series, hours: 1, anchorPrice: coin.priceUsd), derived.isFinite {
+            return derived
         }
         
         // 4. Binance klines fetch (await this one)
@@ -5815,10 +5833,11 @@ final class LivePriceManager {
             if let derived = derivedPercentFromSeries(series, hours: 24, anchorPrice: coin.priceUsd), derived.isFinite {
                 val = derived
                 source = "derived(\(series.count)pts)"
-                // Cache derived values so all views get the same value
-                if abs(derived) <= 100 {
-                    safeSet24hChange(key, derived)
-                }
+                // NOTE: Do NOT cache derived values in the sidecar.
+                // Sparkline-derived 24h% is an estimate and can be inaccurate (especially
+                // during startup when sparklines are stale). Caching it would pollute the
+                // sidecar and cause wrong values to persist across views.
+                // Provider values from CoinGecko will overwrite when they arrive.
             }
         }
         
@@ -5888,16 +5907,15 @@ final class LivePriceManager {
             return clampStable24h(symbol: coin.symbol, value: v)
         }
         
-        // 2. Sparkline derivation
-        let series = await MainActor.run { canonicalSeries(for: coin) }
-        if let derived = derivedPercentFromSeries(series, hours: 24, anchorPrice: coin.priceUsd), derived.isFinite {
-            await MainActor.run { safeSet24hChange(key, derived) }
-            return clampStable24h(symbol: coin.symbol, value: derived)
-        }
-        
-        // 3. Sidecar cache
+        // 2. Sidecar cache (check before derivation — sidecar has authoritative provider values)
         if let cached = await MainActor.run(body: { safeGet24hChange(key) }), cached.isFinite {
             return clampStable24h(symbol: coin.symbol, value: cached)
+        }
+
+        // 3. Sparkline derivation (do NOT cache — derived values are estimates)
+        let series = await MainActor.run { canonicalSeries(for: coin) }
+        if let derived = derivedPercentFromSeries(series, hours: 24, anchorPrice: coin.priceUsd), derived.isFinite {
+            return clampStable24h(symbol: coin.symbol, value: derived)
         }
         
         // 4. Binance 24h ticker fetch (await this one)
@@ -5967,10 +5985,9 @@ final class LivePriceManager {
             if let derived = derivedPercentFromSeries(series, hours: 24 * 7, anchorPrice: coin.priceUsd), derived.isFinite {
                 val = derived
                 source = "derived(\(series.count)pts)"
-                // Cache derived values so all views get the same value
-                if abs(derived) <= 500 {
-                    safeSet7dChange(key, derived)
-                }
+                // NOTE: Do NOT cache derived 7d values in the sidecar.
+                // Sparkline-derived percentages are estimates and can be inaccurate.
+                // Provider values from CoinGecko will overwrite when they arrive.
             }
         }
         

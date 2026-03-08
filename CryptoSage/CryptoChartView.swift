@@ -2336,7 +2336,7 @@ enum ChartInterval: String, CaseIterable {
                             // Gentle retry once after a short delay, then move on
                             if !retried429 {
                                 DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) {
-                                    attempt(index: index, retried429: true)
+                                    Task { @MainActor in attempt(index: index, retried429: true) }
                                 }
                                 return
                             } else {
@@ -2398,7 +2398,7 @@ enum ChartInterval: String, CaseIterable {
                         APIRequestCoordinator.shared.recordFailure(for: service)
                         if !retried429 {
                             DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                                attempt(index: index, retried429: true)
+                                Task { @MainActor in attempt(index: index, retried429: true) }
                             }
                             return
                         } else {
@@ -2520,21 +2520,25 @@ enum ChartInterval: String, CaseIterable {
 
             // FIX: Increased stagger delay from 0.35s to 2.0s to reduce burst load
             let staggerDelay = 2.0 * Double(idx + 1)
+            // Capture MainActor-isolated properties before entering Sendable closure
+            let currentFetchSeq = self.fetchSequence
+            let currentIsUS = self.isUS
+
             prewarmQueue.asyncAfter(deadline: .now() + staggerDelay) { [weak self] in
                 guard let self = self else { return }
-                
+
                 // DEBOUNCE FIX: If the user has switched timeframes since prewarm was scheduled,
                 // skip this prewarm — it's for a stale interval and would waste API calls.
-                guard self.fetchSequence == seqAtStart else { return }
-                
+                guard currentFetchSeq == seqAtStart else { return }
+
                 // FIX: Re-check coordinator before each prewarm request
                 guard APIRequestCoordinator.shared.canMakeRequest(for: .binance) else {
                     return  // Skip if rate limited
                 }
-                
+
                 var attempts: [(ExchangeAPI, String, URL)] = []
                 // FIX: Only try primary exchange first, not both in parallel
-                let base: ExchangeAPI = self.isUS ? .binanceUS : .binance
+                let base: ExchangeAPI = currentIsUS ? .binanceUS : .binance
                 let locals = base == .binanceUS ? pairsUS : pairsPrimary
                 // FIX: Include startTime for prewarm fetches to ensure correct time window
                 let pwNowMs = Int(Date().timeIntervalSince1970 * 1000)
@@ -2547,10 +2551,15 @@ enum ChartInterval: String, CaseIterable {
                     }
                     if let url = URL(string: urlStr) { attempts.append((base, p, url)) }
                 }
-                
-                self.attemptKlineRequestsNoGuard(attempts) { [weak self] data, base, pair in
-                    guard let self = self, let data = data else { return }
-                    self.parseForCacheOnly(data: data, symbol: symbol, interval: target)
+
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    self.attemptKlineRequestsNoGuard(attempts) { [weak self] data, base, pair in
+                        guard let self = self, let data = data else { return }
+                        Task { @MainActor in
+                            self.parseForCacheOnly(data: data, symbol: symbol, interval: target)
+                        }
+                    }
                 }
             }
         }
@@ -3103,7 +3112,7 @@ enum ChartInterval: String, CaseIterable {
         let daysValue = days.map { String($0) } ?? "max"
         var components = URLComponents()
         components.scheme = "https"
-        components.host = "api.coingecko.com"
+        components.host = APIConfig.coingeckoHost
         components.path = "/api/v3/coins/\(coinID)/market_chart"
         components.queryItems = [
             URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),

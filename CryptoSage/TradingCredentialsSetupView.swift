@@ -324,7 +324,7 @@ struct TradingCredentialsSetupView: View {
                                     .stroke(DS.Adaptive.stroke, lineWidth: 0.5)
                             )
                         
-                        Text("Coinbase requires a passphrase set during API key creation")
+                        Text("Required for KuCoin and OKX API keys")
                             .font(.caption2)
                             .foregroundColor(DS.Adaptive.textTertiary)
                     }
@@ -603,7 +603,7 @@ struct TradingCredentialsSetupView: View {
         case .binanceUS:
             urlString = "https://support.binance.us/hc/en-us/articles/360046787554-How-to-Create-an-API-Key"
         case .coinbase:
-            urlString = "https://help.coinbase.com/en/exchange/managing-my-account/how-to-create-an-api-key"
+            urlString = "https://www.coinbase.com/developer-platform"
         case .kraken:
             urlString = "https://support.kraken.com/hc/en-us/articles/360000919966-How-to-create-an-API-key"
         case .kucoin:

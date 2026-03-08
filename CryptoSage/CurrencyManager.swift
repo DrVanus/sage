@@ -317,7 +317,7 @@ public final class CurrencyManager: ObservableObject {
         defer { isFetchingRates = false }
         
         // Use CoinGecko's exchange_rates endpoint (with Demo API key for higher rate limits)
-        guard let url = URL(string: "https://api.coingecko.com/api/v3/exchange_rates") else {
+        guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/exchange_rates") else {
             return
         }
         

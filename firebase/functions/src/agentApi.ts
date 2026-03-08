@@ -146,7 +146,7 @@ function requirePermission(agent: AuthenticatedAgent, permission: string): void 
 export const generateAgentApiKey = onCall({
   timeoutSeconds: 10,
   memory: "256MiB",
-
+  enforceAppCheck: false, // Agent API uses Firebase Auth, not App Check
 }, async (request) => {
   const userId = request.auth?.uid;
   if (!userId) {
@@ -202,7 +202,7 @@ export const generateAgentApiKey = onCall({
 export const listAgentApiKeys = onCall({
   timeoutSeconds: 10,
   memory: "256MiB",
-
+  enforceAppCheck: false,
 }, async (request) => {
   const userId = request.auth?.uid;
   if (!userId) {
@@ -210,8 +210,10 @@ export const listAgentApiKeys = onCall({
   }
 
   const db = getDb();
+  // Only return active keys (revoked keys are deleted, following Stripe/OpenAI patterns)
   const snapshot = await db.collection("agentApiKeys")
     .where("userId", "==", userId)
+    .where("isActive", "==", true)
     .orderBy("createdAt", "desc")
     .get();
 
@@ -234,7 +236,7 @@ export const listAgentApiKeys = onCall({
 export const revokeAgentApiKey = onCall({
   timeoutSeconds: 10,
   memory: "256MiB",
-
+  enforceAppCheck: false,
 }, async (request) => {
   const userId = request.auth?.uid;
   if (!userId) {
@@ -258,7 +260,9 @@ export const revokeAgentApiKey = onCall({
     throw new HttpsError("permission-denied", "Not your API key");
   }
 
-  await keyDoc.ref.update({ isActive: false });
+  // Hard-delete: revoked keys are removed entirely (Stripe/OpenAI pattern)
+  // The key hash is gone, so any agent using it gets "Invalid API key" immediately
+  await keyDoc.ref.delete();
 
   return { success: true };
 });
@@ -565,6 +569,56 @@ export const agentCompleteCommand = onRequest({
     });
 
     res.json({ success: true });
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    res.status(e.code === "unauthenticated" || e.code === "permission-denied" ? 403 : 500)
+      .json({ error: e.message || "Internal error" });
+  }
+});
+
+// ============================================================================
+// DASHBOARD READ — Returns all agent data for the key holder
+// ============================================================================
+
+export const agentDashboard = onRequest({
+  timeoutSeconds: 15,
+  memory: "256MiB",
+  cors: true,
+}, async (req, res) => {
+  if (req.method !== "GET") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  try {
+    const agent = await authenticateAgent(req);
+    const db = getDb();
+    const userRef = db.collection("users").doc(agent.userId);
+
+    const [statusSnap, portfolioSnap, signalsSnap, tradesSnap] = await Promise.all([
+      userRef.collection("agentStatus").get(),
+      userRef.collection("agentPortfolio").get(),
+      userRef.collection("agentSignals").orderBy("timestamp", "desc").limit(20).get(),
+      userRef.collection("agentTrades").orderBy("timestamp", "desc").limit(20).get(),
+    ]);
+
+    const convert = (doc: FirebaseFirestore.DocumentSnapshot) => {
+      const d = doc.data() || {};
+      for (const [k, v] of Object.entries(d)) {
+        if (v && typeof v === "object" && typeof (v as { toDate?: () => Date }).toDate === "function") {
+          d[k] = (v as { toDate: () => Date }).toDate().toISOString();
+        }
+      }
+      return { id: doc.id, ...d };
+    };
+
+    res.json({
+      status: statusSnap.docs.map(convert),
+      portfolio: portfolioSnap.docs.map(convert),
+      signals: signalsSnap.docs.map(convert),
+      trades: tradesSnap.docs.map(convert),
+      fetchedAt: new Date().toISOString(),
+    });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };
     res.status(e.code === "unauthenticated" || e.code === "permission-denied" ? 403 : 500)

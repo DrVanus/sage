@@ -1,8 +1,8 @@
 //
 //  HomeView.swift
-//  CSAI1
+//  CryptoSage
 //
-//  Created by ChatGPT on 3/27/25
+//  Created by DM on 3/27/25.
 //
 
 import SwiftUI
@@ -402,8 +402,7 @@ struct HomeView: View {
     @State private var showCommoditiesMarketView: Bool = false
     /// Whale full view navigation hosted at HomeView level (outside LazyVStack).
     @State var showWhaleActivityFullView: Bool = false
-    @State private var showBreakdownSheet: Bool = false
-    @State private var showChangeAsAmount: Bool = false
+    // showBreakdownSheet and showChangeAsAmount removed — no longer used
     @State private var showSocialTab: Bool = false
     @State private var socialTabInitialSection: SocialTabView.SocialSection = .leaderboard
     
@@ -535,6 +534,7 @@ struct HomeView: View {
     @AppStorage("Home.showPromos")              private var secShowPromos: Bool = true
     @AppStorage("Home.showTransactions")        private var secShowTransactions: Bool = true
     @AppStorage("Home.showCommunity")           private var secShowCommunity: Bool = true
+    @AppStorage("Home.showAgentTrading")        private var secShowAgentTrading: Bool = true
 
     // SECTION ORDER: Track version bumps from drag-and-drop reordering in HomeCustomizationView
     @AppStorage("Home.sectionOrderVersion")    private var sectionOrderVersion: Int = 0
@@ -788,7 +788,6 @@ struct HomeView: View {
                 showWhaleActivityFullView = false
                 showSocialTab = false
                 riskScan.showReport = false
-                showBreakdownSheet = false
                 
                 // Reset the trigger after handling
                 DispatchQueue.main.async {
@@ -848,41 +847,25 @@ struct HomeView: View {
 
             // Phased loading — keep first paint fast, but avoid "late section pop-in".
             // Phase 1 (immediate): +watchlist
-            // Phase 2 (+0.45s): +news +commodities
-            // Phase 3 (+1.65s total): all remaining sections
+            // Phase 2 (+200ms): +news +commodities +trending +sentiment
+            // Phase 3 (+700ms total): all remaining sections
             Task {
-                // SAFETY: Wrap in do-catch to handle task cancellation gracefully
-                do {
-                    // Phase 1: immediate — show watchlist right away
-                    await MainActor.run {
-                        if sectionLoadingPhase < 1 {
-                            sectionLoadingPhase = 1
-                            cachedHomeSections = computeHomeSections()
-                            #if DEBUG
-                            print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
-                            #endif
-                        }
+                // Phase 1: immediate — show watchlist right away
+                await MainActor.run {
+                    if sectionLoadingPhase < 1 {
+                        sectionLoadingPhase = 1
+                        cachedHomeSections = computeHomeSections()
+                        #if DEBUG
+                        print("📐 [HomeView] Phase 1: +watchlist — \(currentMemoryMB()) MB")
+                        #endif
                     }
-
-                    // PERFORMANCE FIX: Load Phase 1 data progressively
-                    await vm.loadDataProgressively(phase: 1)
-                } catch {
-                    // Task was cancelled (user navigated away) - this is normal, don't log as error
-                    #if DEBUG
-                    if !(error is CancellationError) {
-                        print("⚠️ [HomeView] Phase 1 loading error: \(error.localizedDescription)")
-                    }
-                    #endif
-                    return
                 }
 
-                #if targetEnvironment(simulator)
-                let isLimitedSimulator = AppSettings.isSimulatorLimitedDataMode
-                #else
-                let isLimitedSimulator = false
-                #endif
+                // PERFORMANCE FIX: Load Phase 1 data progressively
+                await vm.loadDataProgressively(phase: 1)
 
-                if isLimitedSimulator {
+                #if targetEnvironment(simulator)
+                if AppSettings.isSimulatorLimitedDataMode {
                     // Professional simulator startup: reveal nearly full layout immediately.
                     try? await Task.sleep(nanoseconds: 80_000_000)
                     await MainActor.run {
@@ -898,10 +881,7 @@ struct HomeView: View {
                     }
                     // Load Phase 2 data
                     await vm.loadDataProgressively(phase: 2)
-                    
-                    try? await Task.sleep(nanoseconds: 120_000_000)
-                    await MainActor.run {
-                    }
+
                     try? await Task.sleep(nanoseconds: 120_000_000)
                     await MainActor.run {
                         if sectionLoadingPhase < 3 {
@@ -916,19 +896,15 @@ struct HomeView: View {
                             #endif
                         }
                     }
-                    
+
                     // Load Phase 3 data for simulator
                     await vm.loadDataProgressively(phase: 3)
                     #if DEBUG
                     print("🧪 [HomeView] Simulator limited profile: Phase 3-lite enabled")
                     #endif
                 } else {
-                    // Real device (and simulator full mode): progressive loading to prevent UI blocking
-                    // PERFORMANCE FIX: Don't jump to Phase 3 immediately - this causes all 16+ sections
-                    // to load data simultaneously, creating network congestion and main thread blocking
-                    
-                    // Phase 2: Add core content sections
-                    try? await Task.sleep(nanoseconds: 450_000_000) // 450ms
+                    // Simulator full mode: same progressive loading as real device
+                    try? await Task.sleep(nanoseconds: 450_000_000)
                     await MainActor.run {
                         if sectionLoadingPhase < 2 {
                             withAnimation(.easeOut(duration: 0.18)) {
@@ -940,12 +916,8 @@ struct HomeView: View {
                             #endif
                         }
                     }
-                    
-                    // PERFORMANCE FIX: Load Phase 2 data progressively
                     await vm.loadDataProgressively(phase: 2)
-                    
-                    // Phase 3: Add remaining heavy sections with proper spacing
-                    try? await Task.sleep(nanoseconds: 1_200_000_000) // +1.2s more (1.65s total)
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
                     await MainActor.run {
                         if sectionLoadingPhase < 3 {
                             withAnimation(.easeOut(duration: 0.18)) {
@@ -957,10 +929,47 @@ struct HomeView: View {
                             #endif
                         }
                     }
-                    
-                    // PERFORMANCE FIX: Load Phase 3 data progressively  
                     await vm.loadDataProgressively(phase: 3)
                 }
+                #else
+                // Real device: progressive loading to prevent UI blocking
+                // PERFORMANCE FIX: Don't jump to Phase 3 immediately - this causes all 16+ sections
+                // to load data simultaneously, creating network congestion and main thread blocking
+
+                // Phase 2: Add core content sections
+                try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                await MainActor.run {
+                    if sectionLoadingPhase < 2 {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            sectionLoadingPhase = 2
+                            cachedHomeSections = computeHomeSections()
+                        }
+                        #if DEBUG
+                        print("📐 [HomeView] Phase 2: +news +commodities +trending +sentiment — \(currentMemoryMB()) MB")
+                        #endif
+                    }
+                }
+
+                // PERFORMANCE FIX: Load Phase 2 data progressively
+                await vm.loadDataProgressively(phase: 2)
+
+                // Phase 3: Add remaining heavy sections with proper spacing
+                try? await Task.sleep(nanoseconds: 500_000_000) // +500ms more (700ms total)
+                await MainActor.run {
+                    if sectionLoadingPhase < 3 {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            sectionLoadingPhase = 3
+                            cachedHomeSections = computeHomeSections()
+                        }
+                        #if DEBUG
+                        print("📐 [HomeView] Phase 3: Full layout complete — \(currentMemoryMB()) MB")
+                        #endif
+                    }
+                }
+
+                // PERFORMANCE FIX: Load Phase 3 data progressively
+                await vm.loadDataProgressively(phase: 3)
+                #endif
             }
             
             // Pre-load watchlist sparklines after initial shell is visible.
@@ -1047,18 +1056,11 @@ struct HomeView: View {
                 cachedHomeSections = newSections
             }
         }
-        // PERFORMANCE FIX v22: Cache allCoins snapshot for trending section
-        // Debounced to 2s with scroll guard — trending doesn't need sub-second freshness
-        // FIX v23: The FIRST population always goes through regardless of scroll state.
-        // Without this, the trending section stays empty if the user scrolls during the
-        // initial debounce window, and won't recover until the next allCoins emission.
-        .onReceive(MarketViewModel.shared.$allCoins.debounce(for: .seconds(5), scheduler: DispatchQueue.main)) { coins in
-            // MEMORY FIX v12: Trending section is deferred to Phase 2.
-            // Avoid caching/processing trending snapshots during startup phases.
+        // Cache allCoins snapshot for trending / market movers section.
+        // Debounced to 2s — fast enough for visible first paint, scroll guard + memory check
+        // prevent excess work. Phase 2 gating defers processing until UI is ready.
+        .onReceive(MarketViewModel.shared.$allCoins.debounce(for: .seconds(2), scheduler: DispatchQueue.main)) { coins in
             guard sectionLoadingPhase >= 2 else { return }
-            // MEMORY FIX v8: Increased debounce from 2s to 5s. Trending section doesn't need
-            // frequent updates — coins change ranks slowly. Reducing update frequency cuts
-            // view re-renders during the critical startup window.
             guard !coins.isEmpty else { return }
             if hasTrendingBeenPopulated {
                 guard !ScrollStateManager.shared.shouldBlockHeavyOperation() else { return }
@@ -1154,15 +1156,11 @@ struct HomeView: View {
         let allSections = HomeSectionsLayout.visibleSections(context: context)
 
         #if targetEnvironment(simulator)
-        let isLimitedSimulator = AppSettings.isSimulatorLimitedDataMode
-        #else
-        let isLimitedSimulator = false
-        #endif
-        if !isLimitedSimulator {
+        guard AppSettings.isSimulatorLimitedDataMode else {
             return allSections
         }
-        
-        // Phased loading for smoother first paint.
+
+        // Phased loading for smoother first paint (simulator limited mode only).
         // Phase 1 (immediate): +watchlist.
         // Phase 2 (+~1s): +news +commodities.
         // Phase 3 (+~4s): all sections.
@@ -1183,17 +1181,14 @@ struct HomeView: View {
             ]
             return allSections.filter { phase2Sections.contains($0) }
         default:
-            #if targetEnvironment(simulator)
-            if AppSettings.isSimulatorLimitedDataMode {
-                // Keep simulator stable by omitting only whale activity in limited mode.
-                // Heatmap remains enabled for parity with device behavior.
-                let omitted: Set<HomeSection> = [.whaleActivity]
-                return allSections.filter { !omitted.contains($0) }
-            }
-            #endif
-            // Phase 3+: full section set.
-            return allSections
+            // Keep simulator stable by omitting only whale activity in limited mode.
+            // Heatmap remains enabled for parity with device behavior.
+            let omitted: Set<HomeSection> = [.whaleActivity]
+            return allSections.filter { !omitted.contains($0) }
         }
+        #else
+        return allSections
+        #endif
     }
     
     private var homeContentStack: some View {
@@ -1246,6 +1241,11 @@ struct HomeView: View {
                             .buttonStyle(.plain)
                             .padding(.horizontal, 16)
                         }
+
+                    case .agentTrading:
+                        // Agent trading home card — shown only when agent is connected
+                        AgentHomeCard()
+                            .id("agentTrading")
 
                     case .aiInsights:
                         // AI Insights now integrated into Portfolio card above

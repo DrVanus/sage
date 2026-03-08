@@ -596,7 +596,9 @@ struct TradingViewChartWebView: UIViewRepresentable {
                       allow_symbol_change: false,
                       autosize: true,
                       studies: widgetStudies,
-                      disabled_features: wantsVolume ? [] : ['create_volume_indicator_by_default'],
+                      disabled_features: (wantsVolume ? [] : ['create_volume_indicator_by_default']).concat([
+                        'shift_visible_range_on_new_bar'
+                      ]),
                       loading_screen: { backgroundColor: 'rgba(0,0,0,0)', foregroundColor: 'rgba(0,0,0,0)' },
                       overrides: {
                         'paneProperties.background': 'rgba(0,0,0,0)',
@@ -706,6 +708,11 @@ struct TradingViewChartWebView: UIViewRepresentable {
                           // Just set up symbol/interval and haptic hooks
                           tryApplySymbol(cfg.symbol, cfg.interval, cfg.altSymbols);
                           try { installHapticsHooks(); } catch(e){}
+                          // Tighten right-side empty space (enforce 2 bars max)
+                          try {
+                            var ts = window.tvWidget.chart().getTimeScale();
+                            if (ts && ts.setRightOffset) { ts.setRightOffset(2); }
+                          } catch(e){}
                           // Subscribe to crosshair moves for haptic feedback
                           // NOTE: These fire very frequently - throttled at postHaptic level to prevent crash
                           try {

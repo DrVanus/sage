@@ -95,7 +95,7 @@ final class CoinbaseTradingViewModel: ObservableObject {
             let symbol = productId.replacingOccurrences(of: "-USD", with: "")
             let price = MarketViewModel.shared.bestPrice(forSymbol: symbol) ?? 0
 
-            try paperTradingManager.executePaperTrade(
+            _ = paperTradingManager.executePaperTrade(
                 symbol: productId,
                 side: side,
                 quantity: size,

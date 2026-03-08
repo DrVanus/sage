@@ -276,9 +276,11 @@ struct CommoditiesOverviewSection: View {
             // Exiting here can delay live commodity data until user navigates away/back.
             if isInGlobalStartupPhase() {
                 #if DEBUG
-                print("📊 [CommoditiesOverviewSection] Startup phase active — deferring task")
+                print("📊 [CommoditiesOverviewSection] Startup phase active — brief defer")
                 #endif
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                // FIX: Reduced from 250ms to 100ms — CommodityLivePriceManager no longer
+                // has its own startup sleep, so this is the only remaining gate
+                try? await Task.sleep(nanoseconds: 100_000_000)
                 guard AppState.shared.selectedTab == .home else { return }
             }
             

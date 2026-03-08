@@ -1960,14 +1960,14 @@ extension PortfolioViewModel {
     
     /// Refresh all portfolio data (crypto exchanges + brokerages + commodities)
     func refreshAllPortfolioData() async {
-        // Refresh crypto holdings from exchanges
+        // Refresh crypto holdings from exchanges (synchronous)
         manualRefresh()
-        
-        // Refresh stock holdings from brokerages
-        await syncBrokerageAccounts()
-        
-        // Refresh commodity prices (precious metals from Coinbase)
-        await refreshCommodityPrices()
+
+        // FIX: Run brokerage sync and commodity refresh in parallel instead of sequentially.
+        // This shaves ~1-2s off total portfolio refresh time since they're independent.
+        async let brokerage: Void = syncBrokerageAccounts()
+        async let commodities: Void = refreshCommodityPrices()
+        _ = await (brokerage, commodities)
     }
     
     /// Handle the stocks feature being toggled on/off

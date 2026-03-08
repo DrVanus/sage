@@ -106,7 +106,7 @@ extension CryptoAPIService {
 
         var components = URLComponents()
         components.scheme = "https"
-        components.host = "api.coingecko.com"
+        components.host = APIConfig.coingeckoHost
         components.path = "/api/v3/coins/\(coinID)/market_chart"
         let currency = CurrencyManager.apiValue
         components.queryItems = [
@@ -207,6 +207,7 @@ final class CryptoAPIService {
     private static let marketsRateLimitCooldown: TimeInterval = 120 // seconds
     private static var lastGlobalRateLimitAt: Date? = nil
     private static let globalRateLimitCooldown: TimeInterval = 300 // seconds
+    private static var lastGlobalProxyFailAt: Date? = nil
     
     // DEPRECATED: Old inflight guard replaced by Task-based deduplication (see inFlightMarketRequests)
     // Keeping for backward compatibility but no longer used
@@ -288,10 +289,13 @@ final class CryptoAPIService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("gzip, deflate, br", forHTTPHeaderField: "Accept-Encoding")
         request.setValue("CryptoSage/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
-        // RATE LIMIT FIX: Add CoinGecko Demo API key for higher rate limits (30/min vs 10/min)
-        // This is the fallback path when Firestore pipeline data is stale
+        // Add correct CoinGecko API key header (Pro or Demo) for higher rate limits
         if let host = url.host, host.contains("coingecko.com") {
-            request.setValue(APIConfig.coingeckoDemoAPIKey, forHTTPHeaderField: "x-cg-demo-api-key")
+            if APIConfig.hasProAPIKey {
+                request.setValue(APIConfig.coingeckoProAPIKey, forHTTPHeaderField: "x-cg-pro-api-key")
+            } else {
+                request.setValue(APIConfig.coingeckoDemoAPIKey, forHTTPHeaderField: "x-cg-demo-api-key")
+            }
         }
         return request
     }
@@ -883,7 +887,7 @@ final class CryptoAPIService {
         #if DEBUG
         print("[fetchCoins] Requesting ids=\(idString)")
         #endif
-        guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets") else {
+        guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets") else {
             #if DEBUG
             print("❌ [CryptoAPIService] Invalid URL in fetchCoins(ids:).")
             #endif
@@ -909,7 +913,7 @@ final class CryptoAPIService {
         while attempt < maxRetries {
             attempt += 1
             do {
-                let request = Self.makeRequest(url)
+                let request = APIConfig.coinGeckoRequest(url: url)
                 let (data, response) = try await URLSession.shared.data(for: request)
                 if Self.isRateLimited(response, data: data) {
                     Self.lastMarketsRateLimitAt = Date()
@@ -946,7 +950,7 @@ final class CryptoAPIService {
                     // try to fetch pages 2 and 3 and merge unique IDs to build a healthy list.
                     if coins.count < 20 {
                         func pageURL(_ page: Int) -> URL? {
-                            var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets")
+                            var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets")
                             comps?.queryItems = [
                                 URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
                                 URLQueryItem(name: "order", value: "market_cap_desc"),
@@ -1004,7 +1008,7 @@ final class CryptoAPIService {
 
                     if coins.count < 20 {
                         func pageURL(_ page: Int) -> URL? {
-                            var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets")
+                            var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets")
                             comps?.queryItems = [
                                 URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
                                 URLQueryItem(name: "order", value: "market_cap_desc"),
@@ -1085,6 +1089,34 @@ final class CryptoAPIService {
                 #if DEBUG
                 print("❌ [CryptoAPIService] Failed to decode fetchCoins(ids:). Body snippet:\n\(snippet)")
                 #endif
+
+                // PRO API KEY FIX: CoinGecko error 10010 means the key is a Pro key
+                // but we're hitting the free endpoint. Retry with pro-api host.
+                if snippet.contains("10010") || snippet.contains("pro-api.coingecko.com") {
+                    #if DEBUG
+                    print("🔄 [CryptoAPIService] Detected Pro API key on demo endpoint — retrying with pro-api host")
+                    #endif
+                    APIConfig.forceProHost = true
+                    // Rebuild URL with pro-api host
+                    var proComponents = URLComponents(string: "https://pro-api.coingecko.com/api/v3/coins/markets")!
+                    proComponents.queryItems = components.queryItems
+                    if let proURL = proComponents.url {
+                        let proRequest = APIConfig.coinGeckoRequest(url: proURL)
+                        if let (proData, proResponse) = try? await URLSession.shared.data(for: proRequest),
+                           !Self.isRateLimited(proResponse, data: proData) {
+                            let proDecoder = JSONDecoder()
+                            proDecoder.keyDecodingStrategy = .convertFromSnakeCase
+                            if let geckoCoins = try? proDecoder.decode([CoinGeckoCoin].self, from: proData) {
+                                let coins = geckoCoins.map { MarketCoin(gecko: $0) }
+                                #if DEBUG
+                                print("✅ [CryptoAPIService] Pro API retry succeeded — \(coins.count) coins")
+                                #endif
+                                return coins
+                            }
+                        }
+                    }
+                }
+
                 let fallback = await fetchFallbackTopMarkets()
                 if !fallback.isEmpty { return fallback }
                 if let cached = loadCachedMarketCoins() { return filterCoins(cached, matching: ids) }
@@ -1147,19 +1179,23 @@ final class CryptoAPIService {
         }
         
         // RATE LIMIT FIX: Try Firebase proxy first - all users share the same cached response
-        do {
-            let globalData = try await fetchGlobalViaFirebase()
-            #if DEBUG
-            print("[CryptoAPIService] Fetched global data via Firebase proxy")
-            #endif
-            // Cache locally too
-            saveCache(globalData, to: "global_cache.json")
-            return globalData
-        } catch {
-            #if DEBUG
-            print("[CryptoAPIService] Firebase global proxy failed, falling back to direct API: \(error.localizedDescription)")
-            #endif
-            // Continue to direct API call below
+        // Skip proxy if it recently failed (avoids 60s timeout on every retry attempt)
+        let proxyRecentlyFailed = Self.lastGlobalProxyFailAt.map { Date().timeIntervalSince($0) < 120 } ?? false
+        if !proxyRecentlyFailed {
+            do {
+                let globalData = try await fetchGlobalViaFirebase()
+                #if DEBUG
+                print("[CryptoAPIService] Fetched global data via Firebase proxy")
+                #endif
+                Self.lastGlobalProxyFailAt = nil
+                saveCache(globalData, to: "global_cache.json")
+                return globalData
+            } catch {
+                Self.lastGlobalProxyFailAt = Date()
+                #if DEBUG
+                print("[CryptoAPIService] Firebase global proxy failed, falling back to direct API: \(error.localizedDescription)")
+                #endif
+            }
         }
         
         // Cooldown: if we recently detected rate limiting on /global, use cache if available
@@ -1170,7 +1206,7 @@ final class CryptoAPIService {
             throw CryptoAPIError.rateLimited
         }
         
-        guard let url = URL(string: "https://api.coingecko.com/api/v3/global") else {
+        guard let url = URL(string: "\(APIConfig.coingeckoBaseURL)/global") else {
             throw URLError(.badURL)
         }
         var attempts = 0
@@ -1283,7 +1319,7 @@ final class CryptoAPIService {
         
         // Execute and clean up
         defer {
-            inFlightLock.withLock {
+            _ = inFlightLock.withLock {
                 inFlightSpotPriceRequests.removeValue(forKey: coinID)
             }
         }
@@ -1306,7 +1342,7 @@ final class CryptoAPIService {
         }
         APIRequestCoordinator.shared.recordRequest(for: .coinGecko)
         
-        guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/simple/price") else {
+        guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/simple/price") else {
             throw URLError(.badURL)
         }
         components.queryItems = [
@@ -1375,7 +1411,7 @@ final class CryptoAPIService {
             let batchIDs = Array(uniqueIDs[batch..<endIndex])
             let idsParam = batchIDs.joined(separator: ",")
             
-            guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/simple/price") else {
+            guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/simple/price") else {
                 continue
             }
             components.queryItems = [
@@ -1567,7 +1603,7 @@ final class CryptoAPIService {
         APIRequestCoordinator.shared.recordRequest(for: .coinGecko)
         
         // Build URLComponents for top markets endpoint
-        guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets") else {
+        guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets") else {
             throw URLError(.badURL)
         }
         components.queryItems = [
@@ -1638,7 +1674,7 @@ final class CryptoAPIService {
                         // Always fetch multiple pages to get 500+ coins for comprehensive market coverage
                         // This gives users access to more altcoins and newer listings
                         func pageURL(_ page: Int, perPage: Int = 250) -> URL? {
-                            var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets")
+                            var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets")
                             comps?.queryItems = [
                                 URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
                                 URLQueryItem(name: "order", value: "market_cap_desc"),
@@ -1865,7 +1901,7 @@ final class CryptoAPIService {
 
                         // Always fetch multiple pages to get 500+ coins
                         func pageURLWrapped(_ page: Int, perPage: Int = 250) -> URL? {
-                            var comps = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets")
+                            var comps = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets")
                             comps?.queryItems = [
                                 URLQueryItem(name: "vs_currency", value: CurrencyManager.apiValue),
                                 URLQueryItem(name: "order", value: "market_cap_desc"),
@@ -2049,7 +2085,7 @@ final class CryptoAPIService {
             return []
         }
         
-        guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets") else {
+        guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets") else {
             return []
         }
         
@@ -2480,7 +2516,7 @@ final class CryptoAPIService {
         // Map raw symbols to CoinGecko IDs
         let mappedIDs = ids.map { coingeckoID(for: $0) }
         let idList = mappedIDs.joined(separator: ",")
-        guard var components = URLComponents(string: "https://api.coingecko.com/api/v3/coins/markets") else {
+        guard var components = URLComponents(string: "\(APIConfig.coingeckoBaseURL)/coins/markets") else {
             throw URLError(.badURL)
         }
         components.queryItems = [

@@ -159,16 +159,30 @@ struct OpenOrdersSection: View {
     // MARK: - Loading View
     
     private var loadingView: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: DS.Adaptive.textTertiary))
-                .scaleEffect(0.7)
-            Text("Loading...")
-                .font(.system(size: 12))
-                .foregroundColor(DS.Adaptive.textTertiary)
+        VStack(spacing: 8) {
+            Divider().background(DS.Adaptive.divider)
+            ForEach(0..<2, id: \.self) { _ in
+                HStack(spacing: 8) {
+                    // Side/type badge placeholder
+                    ShimmerBar(height: 14, cornerRadius: 3)
+                        .frame(width: 32)
+                    // Symbol placeholder
+                    ShimmerBar(height: 12, cornerRadius: 3)
+                        .frame(width: 50)
+                    Spacer()
+                    // Price + qty placeholder
+                    VStack(alignment: .trailing, spacing: 3) {
+                        ShimmerBar(height: 11, cornerRadius: 2)
+                            .frame(width: 60)
+                        ShimmerBar(height: 9, cornerRadius: 2)
+                            .frame(width: 40)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
     }
     
     // MARK: - Empty State
